@@ -211,8 +211,17 @@ function initializeRouter() {
 
     links.forEach(link => {
         link.addEventListener("click", e => {
-            e.preventDefault();
             const title = link.querySelector("h3").textContent.trim().toLowerCase();
+            const dataPage = link.getAttribute('data-page');
+            const target = link.getAttribute('target');
+
+            // Special handling for the ESS link
+            if (target === '_blank' && (title === 'ess' || dataPage === 'ess_url_goes_here.html')) { // Adjust 'ess_url_goes_here.html' to your actual ESS page file or a unique identifier
+                return;
+            }
+
+            // For all other links, prevent default and load the view as an SPA
+            e.preventDefault();
 
             if (title === "logout") {
                 window.location.href = "logout.php";

@@ -60,6 +60,13 @@ if (!isset($_SESSION['employee_id'])) {
                     <h3>Team Member</h3>
                 </a>
 
+                <a href="http://10.200.168.112:3001/" target="_blank"
+                        rel="noopener noreferrer"
+                        onclick="event.stopPropagation(); window.open(this.href, '_blank'); return false;">
+                    <span class="material-icons-sharp">punch_clock</span>
+                    <h3>ESS</h3>
+                </a>
+
                 <!-- <a href="#" data-view="bps_dashboard">
                     <span class="material-icons-sharp">grid_view</span>
                     <h3>BPS Dashboard</h3>

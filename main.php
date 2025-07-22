@@ -130,6 +130,7 @@ if (!isset($_SESSION['employee_id'])) {
                         <a href="#" data-view="lhi_bfp"><h3>LHI BFP</h3></a>
                         <a href="#" data-view="lhi_weekly_efficiency"><h3>LHI Weekly Efficiency</h3></a>
                         <a href="#" data-view="lhi_scorecard"><h3>LHI Scorecard</h3></a>
+                        <a href="#" data-view="lhi_inventory"><h3>LHI Inventory</h3></a>
                     </div>
                 </div>
 

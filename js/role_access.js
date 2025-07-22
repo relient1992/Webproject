@@ -13,7 +13,8 @@ document.addEventListener("DOMContentLoaded", () => {
             "quality_scores.html",
             "lhi_scorecard.html",
             "lhi_weekly_efficiency.html",
-            "fedex_manifest_conso_data.html"
+            "fedex_manifest_conso_data.html",
+            "lhi_inventory.html"
 
         ],
         Manager: [
@@ -34,7 +35,8 @@ document.addEventListener("DOMContentLoaded", () => {
             "quality_scores.html",
             "lhi_scorecard.html",
             "lhi_weekly_efficiency.html",
-            "fedex_manifest_conso_data.html"
+            "fedex_manifest_conso_data.html",
+            "lhi_inventory.html"
 
         ],
         User: [
@@ -49,7 +51,8 @@ document.addEventListener("DOMContentLoaded", () => {
             "lhi_scorecard.html",
             "lhi_dashboard.html",
             "lhi_weekly_efficiency.html",
-            "lhi_bfp.html"
+            "lhi_bfp.html",
+            "lhi_inventory.html"
         ],
         lhi_manager: [
             "active_attrition.html",
@@ -60,7 +63,8 @@ document.addEventListener("DOMContentLoaded", () => {
             "lhi_weekly_efficiency.html",
             "lhi_bfp.html",
             "lhi_financial.html",
-            "bu_lhi.html"
+            "bu_lhi.html",
+            "lhi_inventory.html"
         ], 
         lhi_user: [
             "active_attrition.html",
@@ -68,7 +72,8 @@ document.addEventListener("DOMContentLoaded", () => {
             "lhi_absenteeism.html",
             "lhi_scorecard.html",
             "lhi_dashboard.html",
-            "lhi_weekly_efficiency.html"
+            "lhi_weekly_efficiency.html",
+            "lhi_inventory.html"
             
         ],
         bps_admin: [

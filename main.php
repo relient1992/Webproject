@@ -114,6 +114,7 @@ if (!isset($_SESSION['employee_id'])) {
                         <a href="#" data-view="lhi_absenteeism"><h3>LHI Absenteeism</h3></a>
                         <a href="#" data-view="bps_absenteeism"><h3>BPS Absenteeism</h3></a>
                         <a href="#" data-view="bps_attendance_db"><h3>BPS Attendance DB</h3></a>
+                        <a href="#" data-view="daily_attendance_status"><h3>Daily Attendance status</h3></a>
                     </div>
                 </div>
 

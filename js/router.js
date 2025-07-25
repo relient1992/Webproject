@@ -22,7 +22,8 @@ const rolePages = {
         "lhi_scorecard.html",
         "lhi_weekly_efficiency.html",
         "fedex_manifest_conso_data.html",
-        "lhi_inventory.html"
+        "lhi_inventory.html",
+        "daily_attendance_status.html"
 
     ],
     'Admin': [
@@ -38,7 +39,8 @@ const rolePages = {
         "lhi_scorecard.html",
         "lhi_weekly_efficiency.html",
         "fedex_manifest_conso_data.html",
-        "lhi_inventory.html"
+        "lhi_inventory.html",
+        "daily_attendance_status.html"
     ],
     'User': [
         "active_attrition.html",
@@ -86,7 +88,8 @@ const rolePages = {
         "project_efficiency.html",
         "team_member.html",
         "quality_scores.html",
-        "fedex_manifest_conso_data.html"
+        "fedex_manifest_conso_data.html",
+        "daily_attendance_status.html"
 
     ],
     'bps_manager': [
@@ -100,7 +103,8 @@ const rolePages = {
         "bps_financial.html",
         "bu_bps.html",
         "quality_scores.html",
-        "fedex_manifest_conso_data.html"
+        "fedex_manifest_conso_data.html",
+        "daily_attendance_status.html"
 
     ],
     'bps_user': [
@@ -111,7 +115,8 @@ const rolePages = {
         "project_efficiency.html",
         "team_member.html",
         "quality_scores.html",
-        "fedex_manifest_conso_data.html"
+        "fedex_manifest_conso_data.html",
+        "daily_attendance_status.html"
     ]
 
 };

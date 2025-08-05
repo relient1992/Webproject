@@ -42,10 +42,15 @@ if (!isset($_SESSION['employee_id'])) {
         <aside>
             <div class="top">
                 <div class="logo">
-                    <!-- <img id="logo" src="./images/ExelaTech_logo.png" alt="logo"> -->
+                    
                 </div>
+
+                <div class="collapse-btn" id="collapse-btn">
+                    <span class="material-icons-sharp">menu</span>
+                </div>
+
                 <div class="close" id="close-btn">
-                    <span class="material-icons-sharp">close</span>
+                    <span class="material-icons-sharp">menu</span>
                 </div>
             </div>
 
@@ -247,6 +252,8 @@ if (!isset($_SESSION['employee_id'])) {
     <script src="js/role_access.js"></script>
     <script src="js/export-functions.js"></script>
     <script src="js/team_member.js"></script>
+    <script src="js/collapse_menu.js"></script>
+    
     
 
     

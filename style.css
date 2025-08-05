@@ -1154,3 +1154,25 @@ main table tbody td:hover,
         width: 100%;
     }
 }
+
+/* Collapsible state */
+.sidebar-collapsed aside {
+    width: 4rem;
+    transition: width 0.3s ease;
+  }
+  
+  .sidebar-collapsed aside .sidebar a h3,
+  .sidebar-collapsed aside .logo {
+    display: none;
+  }
+  
+  .sidebar-collapsed .container {
+    grid-template-columns: 4rem auto;
+  }
+  
+  /* Collapse icon styling */
+  .collapse-btn {
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 1rem;
+  }

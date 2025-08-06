@@ -214,6 +214,9 @@ $data['ACTIVE'] = ($resultActive && $resultActive->num_rows > 0)
     : 0;
 
 // --- INACTIVE count filtered by dateresigned ---
+$inactiveEmployees = [];
+
+// First: Get total inactive employees in the date range (for INACTIVE_CURRENT_YEAR)
 if ($entity === 'ALL') {
     $stmt = $conn->prepare("SELECT COUNT(EDS) AS total_inactive_year 
                             FROM employee_listings 
@@ -227,42 +230,134 @@ if ($entity === 'ALL') {
                             AND dateresigned BETWEEN ? AND ? $entityFilter");
     $stmt->bind_param("ss" . $types, $startDate, $endDate, ...$params);
 }
+
 $stmt->execute();
-$resultInactive = $stmt->get_result();
+$result = $stmt->get_result();
+$data['INACTIVE_CURRENT_YEAR'] = ($result && $row = $result->fetch_assoc()) ? (int)$row['total_inactive_year'] : 0;
 $stmt->close();
 
-$data['INACTIVE_CURRENT_YEAR'] = ($resultInactive && $resultInactive->num_rows > 0) 
-    ? (int)$resultInactive->fetch_assoc()["total_inactive_year"] 
-    : 0;
-
-// --- NEWHIRES count filtered by datehired ---
+// Second: Get list of inactive employees, sorted by resigned date
 if ($entity === 'ALL') {
-    $stmt = $conn->prepare("SELECT COUNT(EDS) AS total_newhires_year 
+    $stmt = $conn->prepare("SELECT * FROM employee_listings 
+                            WHERE emp_status = 'INACTIVE' 
+                            AND dateresigned BETWEEN ? AND ?
+                            ORDER BY DATERESIGNED DESC"); /* ADDED: Sorting clause */
+    $stmt->bind_param("ss", $startDate, $endDate);
+} else {
+    $stmt = $conn->prepare("SELECT * FROM employee_listings 
+                            WHERE emp_status = 'INACTIVE' 
+                            AND dateresigned BETWEEN ? AND ? $entityFilter
+                            ORDER BY DATERESIGNED DESC"); /* ADDED: Sorting clause */
+    $stmt->bind_param("ss" . $types, $startDate, $endDate, ...$params);
+}
+
+$stmt->execute();
+$result = $stmt->get_result();
+
+if ($result && $result->num_rows > 0) {
+    while ($row = $result->fetch_assoc()) {
+        $inactiveEmployees[] = [
+            'EDS' => $row['EDS'],
+            'FULLNAME' => $row['FULLNAME'],
+            'PROJECT' => $row['PROJECT'],
+            'POSITION' => $row['POSITION'],
+            'SITE' => $row['SITE'],
+            'SUPERVISOR' => $row['SUPERVISOR'],
+            'STATUS' => $row['emp_status'],
+            'HIREDDATE' => isset($row['DATEHIRED']) ? date('m-d-Y', strtotime($row['DATEHIRED'])) : "",
+            'RESIGNEDDATE' => isset($row['DATERESIGNED']) ? date('m-d-Y', strtotime($row['DATERESIGNED'])) : "",
+        ];
+    }
+}
+$stmt->close();
+
+
+// --- NEWHIRES: Get count and the detailed list of new hires ---
+$newHireEmployees = []; // Array to hold the list of new hires
+
+// First: Get the total count of new hires in the date range
+if ($entity === 'ALL') {
+    $stmt = $conn->prepare("SELECT COUNT(EDS) AS total_newhires
                             FROM employee_listings 
                             WHERE emp_status = 'ACTIVE' 
                             AND datehired BETWEEN ? AND ?");
     $stmt->bind_param("ss", $startDate, $endDate);
 } else {
-    $stmt = $stmt = $conn->prepare("SELECT COUNT(EDS) AS total_newhires_year 
+    // Note: Corrected a small typo here ($stmt = $stmt = ...)
+    $stmt = $conn->prepare("SELECT COUNT(EDS) AS total_newhires
                             FROM employee_listings 
                             WHERE emp_status = 'ACTIVE' 
                             AND datehired BETWEEN ? AND ? $entityFilter");
     $stmt->bind_param("ss" . $types, $startDate, $endDate, ...$params);
 }
 $stmt->execute();
-$resultNewHires = $stmt->get_result();
+$resultNewHiresCount = $stmt->get_result();
 $stmt->close();
 
-$data['NEWHIRES_CURRENT_YEAR'] = ($resultNewHires && $resultNewHires->num_rows > 0) 
-    ? (int)$resultNewHires->fetch_assoc()["total_newhires_year"] 
+$data['NEWHIRES_CURRENT_YEAR'] = ($resultNewHiresCount && $row = $resultNewHiresCount->fetch_assoc()) 
+    ? (int)$row["total_newhires"] 
     : 0;
 
-// --- LATEST 10 EMPLOYEES ---
-$sqlLatestEmployees = "SELECT * FROM employee_listings WHERE EDS<50000 ORDER BY EDS DESC LIMIT 10";
-$resultLatest = $conn->query($sqlLatestEmployees);
 
+// Second: Get the detailed list of new hires, sorted by Hired Date
+if ($entity === 'ALL') {
+    $stmt = $conn->prepare("SELECT * FROM employee_listings 
+                            WHERE emp_status = 'ACTIVE' 
+                            AND datehired BETWEEN ? AND ?
+                            ORDER BY DATEHIRED DESC"); /* UPDATED: Sorting by Hired Date */
+    $stmt->bind_param("ss", $startDate, $endDate);
+} else {
+    $stmt = $conn->prepare("SELECT * FROM employee_listings 
+                            WHERE emp_status = 'ACTIVE' 
+                            AND datehired BETWEEN ? AND ? $entityFilter
+                            ORDER BY DATEHIRED DESC"); /* UPDATED: Sorting by Hired Date */
+    $stmt->bind_param("ss" . $types, $startDate, $endDate, ...$params);
+}
+$stmt->execute();
+$resultNewHiresList = $stmt->get_result();
+
+if ($resultNewHiresList && $resultNewHiresList->num_rows > 0) {
+    while ($row = $resultNewHiresList->fetch_assoc()) {
+        $newHireEmployees[] = [
+            'EDS' => $row['EDS'],
+            'FULLNAME' => $row['FULLNAME'],
+            'PROJECT' => $row['PROJECT'],
+            'POSITION' => $row['POSITION'],
+            'SITE' => $row['SITE'],
+            'SUPERVISOR' => $row['SUPERVISOR'],
+            'STATUS' => $row['emp_status'],
+            'HIREDDATE' => isset($row['DATEHIRED']) ? date('m-d-Y', strtotime($row['DATEHIRED'])) : null,
+            'RESIGNEDDATE' => isset($row['DATERESIGNED']) ? date('m-d-Y', strtotime($row['DATERESIGNED'])) : null,
+        ];
+    }
+}
+$stmt->close();
+
+// --- LATEST EMPLOYEES: Get all updates from the last 3 months ---
+// 1. Calculate the date from 3 months ago in a database-friendly format (YYYY-MM-DD)
+$threeMonthsAgo = (new DateTime())->modify('-3 months')->format('Y-m-d');
+
+// 2. Prepare the SQL query
+// This query selects employees who were either hired or resigned in the last 3 months.
+// It sorts them by the most recent of their hired or resigned date.
+$sqlLatestEmployees = "SELECT * FROM employee_listings 
+                       WHERE DATEHIRED >= ? OR DATERESIGNED >= ?
+                       ORDER BY GREATEST(
+                           IFNULL(DATEHIRED, '1900-01-01'), 
+                           IFNULL(DATERESIGNED, '1900-01-01')
+                       ) DESC";
+
+// 3. Use a prepared statement to safely execute the query
+$stmt = $conn->prepare($sqlLatestEmployees);
+// Bind the same date variable to both '?' placeholders
+$stmt->bind_param("ss", $threeMonthsAgo, $threeMonthsAgo);
+$stmt->execute();
+$resultLatest = $stmt->get_result();
+$stmt->close();
+
+
+// 4. Process the results (this part of your code is unchanged)
 $latestEmployees = [];
-
 if ($resultLatest && $resultLatest->num_rows > 0) {
     while ($row = $resultLatest->fetch_assoc()) {
         $latestEmployees[] = [
@@ -274,7 +369,7 @@ if ($resultLatest && $resultLatest->num_rows > 0) {
             'SUPERVISOR' => $row['SUPERVISOR'],
             'STATUS' => $row['emp_status'],
             'HIREDDATE' => isset($row['DATEHIRED']) ? date('m-d-Y', strtotime($row['DATEHIRED'])) : "",
-            'RESIGNEDDATE' => isset($row['DATERESIGNED']) ? date('m-d-Y',strtotime($row['DATERESIGNED'])) : "",
+            'RESIGNEDDATE' => isset($row['DATERESIGNED']) ? date('m-d-Y', strtotime($row['DATERESIGNED'])) : "",
         ];
     }
 }
@@ -301,6 +396,8 @@ if ($resultProjectSummary && $resultProjectSummary->num_rows > 0) {
 
 $data['PROJECT_EMPLOYEE_SUMMARY'] = $projectSummary;
 $data['LATEST_EMPLOYEES'] = $latestEmployees;
+$data['INACTIVE_EMPLOYEES'] = $inactiveEmployees;
+$data['NEWHIRE_EMPLOYEES'] = $newHireEmployees;
 
 // Return JSON
 header('Content-Type: application/json');

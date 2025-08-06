@@ -60,17 +60,21 @@
               <div class="left">
                 <h3>Total Resigned</h3>
                 <h1 id="attritionlist"></h1>
+                <div id="inactive-employee-form" class="hidden"></div>
+                <div class="modal-overlay hidden"></div>
               </div>
             </div>
             <small class="text-muted">Based on selected date</small>
           </div>
-
+          
           <div class="newlyhiredlist">
             <span class="material-icons-sharp">person_add</span>
             <div class="middle">
               <div class="left">
                 <h3>Total Newly Hired</h3>
                 <h1 id="newlyhiredlist"></h1>
+                <div id="newlyhired-employee-form" class="hidden"></div>
+                <div class="modal-overlay hidden"></div>
               </div>
             </div>
             <small class="text-muted">Based on selected date</small>
@@ -79,7 +83,7 @@
 
         <div class="recent-updates">
           <h2>Recent Updates</h2>
-          <table>
+          <table id="employee-updates-table">
             <thead>
               <tr>
                 <th>EDS</th>
@@ -94,10 +98,11 @@
               </tr>
             </thead>
             <tbody>
-              <!-- Fetched Data Here -->
-            </tbody>
+              
+              </tbody>
           </table>
-          <!-- <a href="#">Show ALL</a> -->
+          <div id="pagination"></div>
+          
         </div>
       </div>
 

@@ -591,12 +591,16 @@ main .recent-updates table,
 }
 
 main .recent-updates table:hover,
-#team-table:hover {
+#team-table:hover,
+#inactive-employee-form,
+#newlyhired-employee-form {
     box-shadow: none;
 }
 
 main table tbody td,
-#team-table tbody td {
+#team-table tbody td,
+#inactive-employee-form tbody,
+#newlyhired-employee-form tbody {
     height: 2.8rem;
     border-bottom: 1px solid var(--color-light);
     color: var(--color-dark-variant);
@@ -617,7 +621,9 @@ main .recent-updates a,
 }
 
 main table tbody td:hover,
-#team-table tbody td:hover {
+#team-table tbody td:hover,
+#inactive-employee-form td:hover,
+#newlyhired-employee-form td:hover {
     color: var(--color-white-table-font);
     transition: all 300ms ease;
     border-left: none;
@@ -627,7 +633,9 @@ main table tbody td:hover,
 }
 
 .recent-updates table tbody tr:hover td,
-#team-table tbody tr:hover td {
+#team-table tbody tr:hover td,
+#inactive-employee-form tbody tr:hover td,
+#newlyhired-employee-form tbody tr:hover td {
     background-color: var(--color-table-highlight);
     color: var(--color-white-table-font);
     cursor: pointer;
@@ -800,23 +808,32 @@ main table tbody td:hover,
 }
 
 #success-popup {
-    position: absolute;
+    position: fixed; /* Use fixed to stay on screen even when scrolling */
     top: 20px;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 100;
+    z-index: 10000; /* High z-index to appear over everything, including the modal overlay */
     background-color: #ddffdd;
     padding: 1rem 2rem;
     border-radius: 10px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
     text-align: center;
-    color: var(--color-info-dark);
+    color: #0c5415; /* Darker green for better contrast */
+    border: 1px solid #a3d9a5;
+    transition: top 0.3s ease-in-out; /* Smooth slide-in animation */
 }
 
+/* ADDED: Style for error notifications */
+#success-popup.error {
+    background-color: #ffdddd;
+    color: #d8000c;
+    border-color: #f5c6cb;
+}
 
 .hidden {
     opacity: 0;
     pointer-events: none;
+    display: none;
 }
 
 .flex-container {
@@ -1176,3 +1193,220 @@ main table tbody td:hover,
     cursor: pointer;
     padding: 1rem;
   }
+
+  /* Pagination Design */
+  #pagination {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 20px;
+  }
+  
+  #pagination button {
+    padding: 8px 12px;
+    border: none;
+    background-color: #e0e0e0;
+    color: #333;
+    font-size: 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+  
+  #pagination button:hover {
+    background-color: #d5d5d5;
+  }
+  
+  #pagination button.active {
+    background-color: #4f4f51;
+    color: white;
+    font-weight: bold;
+  }
+
+ /* Inactive Employee Form */
+/* --- Modal Overlay (Optional but Recommended) --- */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 1000;
+}
+
+/* --- Floating Modal Container --- */
+/* CHANGED: Grouped both modal IDs to share the same style */
+#inactive-employee-form,
+#newlyhired-employee-form {
+    /* Positioning & Sizing */
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1001;
+    width: 90vw;
+    max-width: 1500px;
+    max-height: 85vh;
+
+    /* Layout for scrolling */
+    display: flex;
+    flex-direction: column;
+    
+    /* Appearance */
+    background: var(--color-white);
+    border-radius: 8px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.25);
+}
+
+
+/* --- Generic Modal Parts (No changes needed here) --- */
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #dee2e6;
+    flex-shrink: 0;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.2rem;
+    
+}
+
+.close-button {
+    background: transparent;
+    border: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--color-dark);
+    opacity: 0.5;
+    cursor: pointer;
+    padding: 0.5rem;
+}
+
+.close-button:hover {
+    opacity: 0.8;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 1.5rem;
+    flex-grow: 1;
+}
+
+.inactive-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 900px;
+}
+
+.inactive-table th,
+.inactive-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #e9ecef;
+    white-space: nowrap;
+}
+
+.inactive-table th {
+    background-color: var(--color-white);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    
+}
+
+.inactive-table tbody tr:hover {
+    background-color: #f1f3f5;
+}
+
+.modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #dee2e6;
+    flex-shrink: 0;
+}
+
+.modal-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-pagination .modal-page-btn {
+    min-width: 40px;
+    padding: 8px 12px;
+    border: 1px solid #d5d5d5;
+    background-color: #ffffff;
+    color: #333;
+    font-size: 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.modal-pagination .modal-page-btn:hover:not(.active):not(:disabled) {
+    background-color: #f0f0f0;
+    border-color: #b0b0b0;
+}
+
+.modal-pagination .modal-page-btn.active {
+    background-color: #4f4f51;
+    color: white;
+    font-weight: bold;
+    border-color: #4f4f51;
+}
+
+.modal-pagination .modal-page-btn:disabled {
+    background-color: #f5f5f5;
+    color: #b0b0b0;
+    cursor: not-allowed;
+    border-color: #e0e0e0;
+}
+
+/* CHANGED: Ellipsis rule now targets the span inside both modals */
+#inactive-employee-form .modal-pagination .ellipsis,
+#newlyhired-employee-form .modal-pagination .ellipsis {
+    padding: 8px 4px;
+    color: #6c757d;
+    background: none; /* Ensures no unwanted background color is applied */
+    align-self: center;
+    font-weight: bold;
+}
+
+/* --- Media Query for Small Screens --- */
+@media (max-width: 768px) {
+    /* CHANGED: Grouped both modal IDs for responsive styles */
+    #inactive-employee-form,
+    #newlyhired-employee-form {
+        width: 100%;
+        height: 100%;
+        max-width: 100%;
+        max-height: 100%;
+        border-radius: 0;
+    }
+
+    .table-wrapper,
+    .modal-header,
+    .modal-footer {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+}
+
+/* --- Clickable Area Styles --- */
+#attritionlist,
+#newlyhiredlist { /* NEW: Added newlyhiredlist here */
+    min-width: 50px;
+    min-height: 30px;
+    cursor: pointer;
+}
+

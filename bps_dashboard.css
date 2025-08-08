@@ -1,0 +1,148 @@
+/* General Styles scoped to the dashboard app */
+.bps-dashboard-app {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f4f7fc;
+    color: #333;
+    margin: 0;
+}
+
+.bps-dashboard-app .bps-dashboard-container {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* Filter Sidebar */
+.bps-dashboard-app .bps-dashboard-sidebar {
+    width: 280px;
+    background-color: #fff;
+    padding: 20px;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+
+.bps-dashboard-app .bps-dashboard-sidebar h2 {
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+    color: #34495e;
+}
+
+.bps-dashboard-app .filter-group {
+    margin-bottom: 20px;
+}
+
+.bps-dashboard-app .filter-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.bps-dashboard-app .filter-select, 
+.bps-dashboard-app .filter-input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.bps-dashboard-app .filter-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.bps-dashboard-app .filter-buttons button {
+    flex-grow: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+.bps-dashboard-app #apply-filters {
+    background-color: #3498db;
+    color: white;
+}
+
+.bps-dashboard-app #reset-filters {
+    background-color: #e74c3c;
+    color: white;
+}
+
+/* Main Content */
+.bps-dashboard-app .bps-dashboard-main-content {
+    flex-grow: 1;
+    padding: 30px;
+    overflow-y: auto;
+}
+
+.bps-dashboard-app .bps-dashboard-main-content header h1 {
+    font-size: 2rem;
+    margin-bottom: 30px;
+}
+
+/* Charts Section */
+.bps-dashboard-app .bps-dashboard-charts-section {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 30px;
+    margin-bottom: 30px;
+}
+
+.bps-dashboard-app .chart-container {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Table Section */
+.bps-dashboard-app .bps-dashboard-table-section h3 {
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+}
+
+.bps-dashboard-app .table-container {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    overflow-x: auto;
+}
+
+.bps-dashboard-app table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.bps-dashboard-app th, 
+.bps-dashboard-app td {
+    padding: 15px;
+    text-align: left;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.bps-dashboard-app thead th {
+    background-color: #f9fafb;
+    font-weight: 600;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .bps-dashboard-app .bps-dashboard-charts-section {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .bps-dashboard-app .bps-dashboard-container {
+        flex-direction: column;
+    }
+
+    .bps-dashboard-app .bps-dashboard-sidebar {
+        width: 100%;
+        box-shadow: none;
+        border-bottom: 1px solid #ddd;
+    }
+}

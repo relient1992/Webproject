@@ -445,7 +445,6 @@ function initActiveAttritionView() {
 function initTeamMemberView() {
     console.log("Initializing team member view...");
     
-    // Initialize the team member functionality
     const select = document.getElementById("teamSelect");
     const tbody = document.querySelector("#team-table tbody");
     
@@ -454,13 +453,9 @@ function initTeamMemberView() {
         return;
     }
 
-    // Create CSV export button
     createCSVExportButton();
-
-    // Clear existing options
     select.innerHTML = '';
 
-    // Add default placeholder option
     const defaultOption = document.createElement("option");
     defaultOption.value = "";
     defaultOption.textContent = "-- Select Supervisor --";
@@ -468,31 +463,19 @@ function initTeamMemberView() {
     defaultOption.selected = true;
     select.appendChild(defaultOption);
 
-    console.log("Loading team names...");
-
-    // Populate dropdown with team members
     fetch("fetch_data.php?action=list_names")
         .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             return response.json();
         })
         .then(data => {
-            console.log("Team names data:", data);
-            
-            if (!Array.isArray(data)) {
-                throw new Error("Expected array but got: " + typeof data);
-            }
-            
+            if (!Array.isArray(data)) throw new Error("Expected array but got: " + typeof data);
             data.forEach(name => {
                 const option = document.createElement("option");
                 option.value = name;
                 option.textContent = name;
                 select.appendChild(option);
             });
-            
-            console.log("Dropdown populated with", data.length, "names");
         })
         .catch(error => {
             console.error("Error loading team names:", error);
@@ -503,18 +486,13 @@ function initTeamMemberView() {
             select.appendChild(errorOption);
         });
 
-    // On dropdown change, fetch data
-    select.addEventListener("change", function () {
+    // UPDATED: Using async/await for more reliable loading state management
+    select.addEventListener("change", async function () {
         const selectedName = select.value;
-        console.log("Selected supervisor:", selectedName);
-        
-        tbody.innerHTML = "";
+        tbody.innerHTML = ""; // Clear previous content
         updateCSVButton(selectedName);
         
-        if (!selectedName) {
-            console.log("No supervisor selected");
-            return;
-        }
+        if (!selectedName) return;
 
         // Show loading row
         const loadingRow = document.createElement("tr");
@@ -525,71 +503,57 @@ function initTeamMemberView() {
         loadingRow.appendChild(loadingCell);
         tbody.appendChild(loadingRow);
 
-        console.log("Fetching data for supervisor:", selectedName);
+        try {
+            const response = await fetch(`fetch_data.php?action=filter&name=${encodeURIComponent(selectedName)}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            
+            tbody.innerHTML = ""; // Clear loading row
 
-        fetch(`fetch_data.php?action=filter&name=${encodeURIComponent(selectedName)}`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log("Employee data:", data);
-                tbody.innerHTML = ""; // Clear loading row
+            if (!Array.isArray(data)) {
+                throw new Error("Expected array but got: " + typeof data);
+            }
 
-                if (!Array.isArray(data)) {
-                    throw new Error("Expected array but got: " + typeof data);
-                }
+            if (data.length === 0) {
+                const tr = document.createElement("tr");
+                const td = document.createElement("td");
+                td.colSpan = 8;
+                td.textContent = "No team members found for the selected supervisor.";
+                td.style.textAlign = "center";
+                tr.appendChild(td);
+                tbody.appendChild(tr);
+                return;
+            }
 
-                if (data.length === 0) {
-                    const tr = document.createElement("tr");
+            data.forEach(row => {
+                const tr = document.createElement("tr");
+                const cellValues = [
+                    row.EDS || '', row.FULLNAME || '', row.PROJECT || '',
+                    row.POSITION || '', row.SITE || '', row.SUPERVISOR || '',
+                    row.emp_status || '', row.DATEHIRED || ''
+                ];
+                cellValues.forEach(cellValue => {
                     const td = document.createElement("td");
-                    td.colSpan = 8;
-                    td.textContent = "No team members found for the selected supervisor.";
-                    td.style.textAlign = "center";
+                    td.textContent = cellValue;
                     tr.appendChild(td);
-                    tbody.appendChild(tr);
-                    return;
-                }
-
-                data.forEach((row, index) => {
-                    const tr = document.createElement("tr");
-                    
-                    const cellValues = [
-                        row.EDS || '',
-                        row.FULLNAME || '',
-                        row.PROJECT || '',
-                        row.POSITION || '',
-                        row.SITE || '',
-                        row.SUPERVISOR || '',
-                        row.emp_status || '',
-                        row.DATEHIRED || ''
-                    ];
-                    
-                    cellValues.forEach(cellValue => {
-                        const td = document.createElement("td");
-                        td.textContent = cellValue;
-                        tr.appendChild(td);
-                    });
-                    
-                    tbody.appendChild(tr);
                 });
-                
-                console.log("Table populated with", data.length, "rows");
-            })
-            .catch(error => {
-                console.error("Error fetching employee data:", error);
-                tbody.innerHTML = "";
-                const errorRow = document.createElement("tr");
-                const errorCell = document.createElement("td");
-                errorCell.colSpan = 8;
-                errorCell.textContent = "Error loading data. Please try again.";
-                errorCell.style.textAlign = "center";
-                errorCell.style.color = "red";
-                errorRow.appendChild(errorCell);
-                tbody.appendChild(errorRow);
+                tbody.appendChild(tr);
             });
+
+        } catch (error) {
+            console.error("Error fetching employee data:", error);
+            tbody.innerHTML = ""; // Ensure loading row is cleared on error
+            const errorRow = document.createElement("tr");
+            const errorCell = document.createElement("td");
+            errorCell.colSpan = 8;
+            errorCell.textContent = "Error loading data. Please try again.";
+            errorCell.style.textAlign = "center";
+            errorCell.style.color = "red";
+            errorRow.appendChild(errorCell);
+            tbody.appendChild(errorRow);
+        }
     });
     
     // Create CSV export button
@@ -977,93 +941,6 @@ document.addEventListener('DOMContentLoaded', function() {
     initTeamMemberView();
 });
 
-
-
-
-async function initBpsDashboardCharts() {
-     if (!document.querySelector("#chart1")) return;
-
-    const rootstyles = getComputedStyle(document.documentElement);
-    const fontColor = rootstyles.getPropertyValue('--color-dark').trim();
-
-    // Initial chart options with empty data
-    const options1 = {
-        series: [], // Will be populated by fetchChartData
-        chart: { type: 'area', height: 300, width: '100%', foreColor: fontColor },
-        dataLabels: { enabled: false }, 
-        stroke: { curve: 'smooth' },
-        xaxis: {
-            type: 'datetime', 
-            categories: [], // Will be populated by fetchChartData
-            labels: { style: { colors: fontColor } }, 
-            axisBorder: { show: true, color: fontColor }, 
-            axisTicks: { show: true, color: fontColor }, 
-            title: { style: { color: fontColor } }
-        },
-        yaxis: { 
-            labels: { style: { colors: fontColor } }, 
-            title: { style: { color: fontColor } } 
-        },
-        tooltip: { x: { format: 'dd/MM/yy' } }, 
-        responsive: [{ breakpoint: 480, options: { chart: { height: 200 } } }]
-    };
-    
-    chart1Instance = new ApexCharts(document.querySelector("#chart1"), options1);
-    chart1Instance.render();
-    
-    // Fetch initial data (current month by default)
-    const today = new Date();
-    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-    const startDate = firstDay.toISOString().split('T')[0];
-    const endDate = today.toISOString().split('T')[0];
-    
-    await fetchChartData(startDate, endDate);
-
-    // Chart 2
-    const options2 = {
-        series: [{ data: [44, 55, 41, 64, 22, 43, 21] }, { data: [53, 32, 33, 52, 13, 44, 32] }],
-        chart: { type: 'bar', height: 350, width: '100%' },
-        plotOptions: { bar: { horizontal: true, dataLabels: { position: 'top' } } },
-        dataLabels: { enabled: true, offsetX: -6, style: { fontSize: '12px', colors: ['#fff'] } },
-        stroke: { show: true, width: 1, colors: ['#fff'] }, tooltip: { shared: true, intersect: false },
-        xaxis: { categories: [2001, 2002, 2003, 2004, 2005, 2006, 2007] },
-        responsive: [{ breakpoint: 480, options: { chart: { height: 250 } } }]
-    };
-    chart2Instance = new ApexCharts(document.querySelector("#chart2"), options2);
-    chart2Instance.render();
-
-    // Chart 3
-    const options3 = {
-        series: [{ name: 'Website Blog', type: 'column', data: [440, 505, 414, 671, 227, 413, 201, 352, 752, 320, 257, 160] }, { name: 'Social Media', type: 'line', data: [23, 42, 35, 27, 43, 22, 17, 31, 22, 22, 12, 16] }],
-        chart: { type: 'line', height: 350, width: '100%' },
-        stroke: { width: [0, 4] }, title: { text: 'Traffic Sources' }, dataLabels: { enabled: true, enabledOnSeries: [1] },
-        labels: ['01 Jan 2001', '02 Jan 2001', '03 Jan 2001', '04 Jan 2001', '05 Jan 2001', '06 Jan 2001', '07 Jan 2001', '08 Jan 2001', '09 Jan 2001', '10 Jan 2001', '11 Jan 2001', '12 Jan 2001'],
-        yaxis: [{ title: { text: 'Website Blog' } }, { opposite: true, title: { text: 'Social Media' } }],
-        responsive: [{ breakpoint: 480, options: { chart: { height: 250 }, title: { style: { fontSize: '14px' } } }}]
-    };
-    chart3Instance = new ApexCharts(document.querySelector("#chart3"), options3);
-    chart3Instance.render();
-
-    // Chart 4
-    const dates = [
-        { x: new Date('2025-01-01').getTime(), y: 12000000 }, { x: new Date('2025-01-02').getTime(), y: 13500000 },
-        { x: new Date('2025-01-03').getTime(), y: 12800000 }, { x: new Date('2025-01-04').getTime(), y: 14200000 },
-        { x: new Date('2025-01-05').getTime(), y: 13800000 }, { x: new Date('2025-01-06').getTime(), y: 14500000 },
-        { x: new Date('2025-01-07').getTime(), y: 14900000 }
-    ];
-    const options4 = {
-        series: [{ name: 'XYZ MOTORS', data: dates }],
-        chart: { type: 'area', stacked: false, height: 350, width: '100%', zoom: { type: 'x', enabled: true, autoScaleYaxis: true }, toolbar: { autoSelected: 'zoom' } },
-        dataLabels: { enabled: false }, markers: { size: 0 }, title: { text: 'Stock Price Movement', align: 'left' },
-        fill: { type: 'gradient', gradient: { shadeIntensity: 1, inverseColors: false, opacityFrom: 0.5, opacityTo: 0, stops: [0, 90, 100] } },
-        yaxis: { labels: { formatter: function (val) { return (val / 1000000).toFixed(0); } }, title: { text: 'Price' } },
-        xaxis: { type: 'datetime' },
-        tooltip: { shared: false, y: { formatter: function (val) { return (val / 1000000).toFixed(0); } } },
-        responsive: [{ breakpoint: 480, options: { chart: { height: 250 }, title: { style: { fontSize: '14px' } } }}]
-    };
-    chart4Instance = new ApexCharts(document.querySelector("#chart4"), options4);
-    chart4Instance.render();
-}
 
 // Popstate listener for browser back/forward buttons
 window.addEventListener("popstate", () => {

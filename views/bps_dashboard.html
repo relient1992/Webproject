@@ -1,36 +1,94 @@
-<h1>BPS Dashboard</h1>
+<div class="bps-dashboard-app">
+  <div class="bps-dashboard-container">
+    
+    <aside class="bps-dashboard-sidebar">
+        <h2>Filters</h2>
+        <div class="filter-group">
+            <label for="location-filter">Location</label>
+            <select id="location-filter" class="filter-select" multiple></select>
+        </div>
+        <div class="filter-group">
+            <label for="project-filter">Primary Project</label>
+            <select id="project-filter" class="filter-select" multiple></select>
+        </div>
+        <div class="filter-group">
+            <label for="weekending-filter">Weekending</label>
+            <select id="weekending-filter" class="filter-select" multiple></select>
+        </div>
+        <div class="filter-group">
+            <label for="platform-filter">Platform</label>
+            <select id="platform-filter" class="filter-select" multiple></select>
+        </div>
+        <div class="filter-group">
+            <label for="proddate-filter">Production Date</label>
+            <input type="date" id="proddate-filter" class="filter-input">
+        </div>
+        <div class="filter-group">
+            <label for="process-filter">Firefly Process</label>
+            <select id="process-filter" class="filter-select" multiple></select>
+        </div>
+        <div class="filter-group">
+            <label for="tl-filter">TL Name</label>
+            <select id="tl-filter" class="filter-select" multiple></select>
+        </div>
+        <div class="filter-group">
+            <label for="taskname-filter">Task Name</label>
+            <select id="taskname-filter" class="filter-select" multiple></select>
+        </div>
+        <div class="filter-group">
+            <label for="operator-filter">Operator Name</label>
+            <select id="operator-filter" class="filter-select" multiple></select>
+        </div>
+        <div class="filter-group">
+            <label for="taskproject-filter">Task Project</label>
+            <select id="taskproject-filter" class="filter-select" multiple></select>
+        </div>
+        <div class="filter-buttons">
+            <button id="apply-filters">Apply</button>
+            <button id="reset-filters">Reset</button>
+        </div>
+    </aside>
 
-<!-- <div style="text-align: center; margin: 1rem 0;">
-    <label for="dateRange" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">
-        Select Date Range:
-    </label>
-    <input type="text" id="dateRange" placeholder="Select Date Range" style="padding: 8px; min-width: 200px;" />
-    <div id="loadingIndicator" style="display: none; margin-top: 0.5rem;">
-        <span>Loading chart data...</span>
-    </div>
-</div>    
+    
+    <main class="bps-dashboard-main-content">
+        <header>
+            <h1>Operator Performance Dashboard</h1>
+        </header>
+        <section class="bps-dashboard-charts-section">
+            <div class="chart-container">
+                <h3>Records per Operator</h3>
+                <canvas id="records-chart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Hours per Operator</h3>
+                <canvas id="hours-chart"></canvas>
+            </div>
+        </section>
+        <section class="bps-dashboard-table-section">
+            <h3>Detailed Data</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>EDS</th>
+                            <th>Operator Name</th>
+                            <th>TL Name</th>
+                            <th>Records</th>
+                            <th>Hours</th>
+                            <th>Shipment</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dashboard-table-body">
+                        
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+  </div>
+</div>
 
-<div class="flex-container">
-    <div class="chart-container">
-        <h3>Production Overview</h3>
-        <div id="chart1"></div>
-    </div>
-
-    <div class="chart-container">
-        <h3>Chart 2</h3>
-        <div id="chart2"></div>
-    </div>
-
-    <div class="chart-container">
-        <h3>Chart 3</h3>
-        <div id="chart3"></div>
-    </div>
-
-    <div class="chart-container full-width">
-        <h3>Chart 4</h3>
-        <div id="chart4"></div>
-    </div>           
-</div> -->
+<!-- <h1>BPS Dashboard</h1>
 
 <p>This report is viewable via Excel. Click and download the preferred report.</p>
 
@@ -55,4 +113,4 @@
       border: none;
     ">
   </iframe>
-</div>
+</div> -->

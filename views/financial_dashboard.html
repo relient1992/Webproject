@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flexible Interactive Dashboard</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- PapaParse for CSV parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <!-- Chart.js for interactive charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chart.js date adapter and date-fns library for time-series charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        /* Custom styles for a polished look */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .card {
+            background-color: white;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        #upload-container {
+            border: 2px dashed #d1d5db;
+            transition: border-color 0.3s, background-color 0.3s;
+        }
+        #upload-container.dragover {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        .modal {
+            transition: opacity 0.3s ease;
+        }
+        .modal-content {
+            transition: transform 0.3s ease;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            background-color: #3b82f6;
+            color: white;
+            border-radius: 0.375rem;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+        .btn:hover {
+            background-color: #2563eb;
+        }
+        .btn-secondary {
+            background-color: #6b7280;
+        }
+        .btn-secondary:hover {
+            background-color: #4b5563;
+        }
+        .btn-danger {
+            background-color: #ef4444;
+        }
+        .btn-danger:hover {
+            background-color: #dc2626;
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8">
+
+        <!-- Header -->
+        <header class="mb-8 flex justify-between items-center">
+            <div>
+                <h1 class="text-4xl font-bold text-gray-900">Flexible Dashboard</h1>
+                <p class="text-lg text-gray-600">Upload a CSV, then build your own interactive report.</p>
+            </div>
+            <button id="reset-button" class="btn btn-secondary hidden">Upload New CSV</button>
+        </header>
+
+        <!-- Upload Section -->
+        <div id="upload-container" class="card text-center cursor-pointer">
+            <input type="file" id="csv-file-input" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept=".csv">
+            <div class="flex flex-col items-center justify-center p-8">
+                <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                <p id="upload-text" class="mt-2 text-sm text-gray-600">
+                    <span class="font-semibold text-blue-600">Click to upload</span> or drag and drop a CSV file.
+                </p>
+            </div>
+        </div>
+
+        <!-- Dashboard Builder and Content Area (Initially Hidden) -->
+        <main id="dashboard-area" class="hidden">
+            <!-- Builder Controls -->
+            <div id="dashboard-builder" class="card mb-8">
+                <h2 class="text-2xl font-bold mb-4">Dashboard Builder</h2>
+                <div class="flex flex-wrap gap-4">
+                    <button id="add-chart-btn" class="btn">Add Chart</button>
+                    <button id="add-filter-btn" class="btn">Add Filter</button>
+                    <button id="add-table-btn" class="btn">Add Data Table</button>
+                </div>
+            </div>
+            
+            <!-- Filters Section -->
+            <div id="filters-section" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8"></div>
+
+            <!-- Content Section (Charts, Tables, etc.) -->
+            <div id="content-section" class="grid grid-cols-1 lg:grid-cols-2 gap-6"></div>
+        </main>
+    </div>
+
+    <!-- Chart Builder Modal -->
+    <div id="chart-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden">
+        <div class="modal-content card w-full max-w-lg transform scale-95">
+            <h3 class="text-xl font-bold mb-6">Configure Chart</h3>
+            <div class="space-y-4">
+                <div>
+                    <label for="chart-title" class="block text-sm font-medium text-gray-700">Chart Title</label>
+                    <input type="text" id="chart-title" class="mt-1 block w-full p-2 border border-gray-300 rounded-md">
+                </div>
+                <div>
+                    <label for="chart-type" class="block text-sm font-medium text-gray-700">Chart Type</label>
+                    <select id="chart-type" class="mt-1 block w-full p-2 border border-gray-300 rounded-md">
+                        <option value="bar">Bar Chart</option>
+                        <option value="pie">Pie Chart</option>
+                        <option value="line">Line Chart</option>
+                        <option value="scatter">Scatter Plot</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="chart-dimension" class="block text-sm font-medium text-gray-700">Dimension (Group By)</label>
+                    <select id="chart-dimension" class="mt-1 block w-full p-2 border border-gray-300 rounded-md"></select>
+                </div>
+                <div>
+                    <label for="chart-metric" class="block text-sm font-medium text-gray-700">Metric (Value)</label>
+                    <select id="chart-metric" class="mt-1 block w-full p-2 border border-gray-300 rounded-md"></select>
+                </div>
+                 <div id="aggregation-container">
+                    <label for="chart-aggregation" class="block text-sm font-medium text-gray-700">Aggregation</label>
+                    <select id="chart-aggregation" class="mt-1 block w-full p-2 border border-gray-300 rounded-md">
+                        <option value="sum">Sum</option>
+                        <option value="average">Average</option>
+                        <option value="count">Count</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mt-8 flex justify-end gap-4">
+                <button id="cancel-chart-btn" class="btn btn-secondary">Cancel</button>
+                <button id="save-chart-btn" class="btn">Create Chart</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- GLOBAL STATE ---
+        let originalData = [];
+        let filteredData = [];
+        let chartInstances = {};
+        let activeFilters = {};
+        let dashboardConfig = { widgets: [] };
+        let columnTypes = { categorical: [], numerical: [], date: [] };
+
+        // --- DOM ELEMENT REFERENCES ---
+        const fileInput = document.getElementById('csv-file-input');
+        const uploadContainer = document.getElementById('upload-container');
+        const uploadText = document.getElementById('upload-text');
+        const dashboardArea = document.getElementById('dashboard-area');
+        const contentSection = document.getElementById('content-section');
+        const filtersSection = document.getElementById('filters-section');
+        const resetButton = document.getElementById('reset-button');
+        
+        // Modal elements
+        const chartModal = document.getElementById('chart-modal');
+        const chartTypeSelect = document.getElementById('chart-type');
+        const chartDimensionSelect = document.getElementById('chart-dimension');
+        const chartMetricSelect = document.getElementById('chart-metric');
+        const aggregationContainer = document.getElementById('aggregation-container');
+
+        // --- EVENT LISTENERS ---
+        fileInput.addEventListener('change', handleFileSelect);
+        resetButton.addEventListener('click', resetDashboard);
+        document.getElementById('add-chart-btn').addEventListener('click', () => showChartModal());
+        document.getElementById('add-filter-btn').addEventListener('click', addFilter);
+        document.getElementById('add-table-btn').addEventListener('click', addDataTable);
+        document.getElementById('cancel-chart-btn').addEventListener('click', () => hideChartModal());
+        document.getElementById('save-chart-btn').addEventListener('click', saveChart);
+        chartTypeSelect.addEventListener('change', updateModalOptions);
+
+        // Drag and Drop
+        uploadContainer.addEventListener('dragover', (e) => { e.preventDefault(); uploadContainer.classList.add('dragover'); });
+        uploadContainer.addEventListener('dragleave', () => uploadContainer.classList.remove('dragover'));
+        uploadContainer.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadContainer.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                fileInput.files = e.dataTransfer.files;
+                handleFileSelect({ target: { files: e.dataTransfer.files } });
+            }
+        });
+
+        // --- CORE FUNCTIONS ---
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            uploadText.textContent = `Processing ${file.name}...`;
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                dynamicTyping: true,
+                complete: (results) => {
+                    originalData = results.data.map(row => {
+                        // Attempt to parse date-like strings into Date objects
+                        for (const key in row) {
+                            if (typeof row[key] === 'string' && Date.parse(row[key]) && isNaN(row[key])) {
+                                row[key] = new Date(row[key]);
+                            }
+                        }
+                        return row;
+                    });
+                    filteredData = [...originalData];
+                    analyzeColumns();
+                    setupDashboard();
+                },
+                error: (err) => {
+                    uploadText.textContent = "Error parsing file. Please try again.";
+                    console.error("CSV Parse Error:", err);
+                }
+            });
+        }
+        
+        function analyzeColumns() {
+            columnTypes = { categorical: [], numerical: [], date: [] };
+            if (originalData.length === 0) return;
+            const headers = Object.keys(originalData[0]);
+            headers.forEach(header => {
+                const value = originalData[0][header];
+                if (value instanceof Date) {
+                    columnTypes.date.push(header);
+                } else if (typeof value === 'number') {
+                    columnTypes.numerical.push(header);
+                } else {
+                    columnTypes.categorical.push(header);
+                }
+            });
+        }
+
+        function setupDashboard() {
+            uploadContainer.classList.add('hidden');
+            dashboardArea.classList.remove('hidden');
+            resetButton.classList.remove('hidden');
+        }
+
+        function resetDashboard() {
+            originalData = [];
+            filteredData = [];
+            Object.values(chartInstances).forEach(chart => chart.destroy());
+            chartInstances = {};
+            activeFilters = {};
+            dashboardConfig = { widgets: [] };
+            columnTypes = { categorical: [], numerical: [], date: [] };
+            
+            contentSection.innerHTML = '';
+            filtersSection.innerHTML = '';
+
+            dashboardArea.classList.add('hidden');
+            resetButton.classList.add('hidden');
+            uploadContainer.classList.remove('hidden');
+            uploadText.innerHTML = `<span class="font-semibold text-blue-600">Click to upload</span> or drag and drop a CSV file.`;
+        }
+        
+        function renderDashboard() {
+            contentSection.innerHTML = '';
+            filtersSection.innerHTML = '';
+            
+            dashboardConfig.widgets.forEach(widget => {
+                if (widget.type === 'chart') {
+                    renderChartWidget(widget);
+                } else if (widget.type === 'filter') {
+                    renderFilterWidget(widget);
+                } else if (widget.type === 'table') {
+                    renderTableWidget(widget);
+                }
+            });
+        }
+        
+        function applyAllFilters() {
+            filteredData = originalData.filter(row => {
+                return Object.entries(activeFilters).every(([column, value]) => {
+                    if (value === 'all' || !value) return true;
+                    return String(row[column]) === String(value);
+                });
+            });
+            
+            // Re-render all chart and table widgets with new filtered data
+            dashboardConfig.widgets.forEach(widget => {
+                if (widget.type === 'chart') {
+                    updateChartWidget(widget.id);
+                } else if (widget.type === 'table') {
+                    updateTableWidget(widget.id);
+                }
+            });
+        }
+
+        // --- MODAL & WIDGET CREATION ---
+
+        function showChartModal() {
+            // Populate dropdowns
+            populateSelect(chartDimensionSelect, [...columnTypes.categorical, ...columnTypes.date]);
+            populateSelect(chartMetricSelect, columnTypes.numerical);
+            updateModalOptions();
+            chartModal.classList.remove('hidden');
+            setTimeout(() => {
+                chartModal.classList.remove('opacity-0');
+                chartModal.querySelector('.modal-content').classList.remove('scale-95');
+            }, 10);
+        }
+
+        function hideChartModal() {
+            chartModal.classList.add('opacity-0');
+            chartModal.querySelector('.modal-content').classList.add('scale-95');
+            setTimeout(() => chartModal.classList.add('hidden'), 300);
+        }
+        
+        function updateModalOptions() {
+            const chartType = chartTypeSelect.value;
+            aggregationContainer.style.display = 'block';
+            chartMetricSelect.disabled = false;
+
+            if (chartType === 'pie' || chartType === 'bar') {
+                 populateSelect(chartMetricSelect, ['(Count)'].concat(columnTypes.numerical));
+            } else {
+                 populateSelect(chartMetricSelect, columnTypes.numerical);
+            }
+
+            if (chartMetricSelect.value === '(Count)') {
+                aggregationContainer.style.display = 'none';
+            }
+            
+            if (chartType === 'scatter') {
+                aggregationContainer.style.display = 'none';
+            }
+        }
+
+        function saveChart() {
+            const newChart = {
+                id: `widget-${Date.now()}`,
+                type: 'chart',
+                chartType: document.getElementById('chart-type').value,
+                dimension: document.getElementById('chart-dimension').value,
+                metric: document.getElementById('chart-metric').value,
+                aggregation: document.getElementById('chart-aggregation').value,
+                title: document.getElementById('chart-title').value || "My Chart"
+            };
+            
+            if (newChart.metric === '(Count)') {
+                newChart.aggregation = 'count';
+            }
+
+            dashboardConfig.widgets.push(newChart);
+            renderChartWidget(newChart);
+            hideChartModal();
+        }
+        
+        function addFilter() {
+            const column = prompt("Which column to filter by?", columnTypes.categorical[0] || '');
+            if (column && (columnTypes.categorical.includes(column) || columnTypes.date.includes(column))) {
+                const newFilter = {
+                    id: `widget-${Date.now()}`,
+                    type: 'filter',
+                    column: column
+                };
+                dashboardConfig.widgets.push(newFilter);
+                renderFilterWidget(newFilter);
+            } else if (column) {
+                alert("Column not found or is not a categorical/date type.");
+            }
+        }
+
+        function addDataTable() {
+            const newTable = {
+                id: `widget-${Date.now()}`,
+                type: 'table',
+                title: "Data Table"
+            };
+            dashboardConfig.widgets.push(newTable);
+            renderTableWidget(newTable);
+        }
+        
+        function removeWidget(widgetId) {
+            dashboardConfig.widgets = dashboardConfig.widgets.filter(w => w.id !== widgetId);
+            document.getElementById(widgetId).remove();
+            if (chartInstances[widgetId]) {
+                chartInstances[widgetId].destroy();
+                delete chartInstances[widgetId];
+            }
+        }
+
+        // --- WIDGET RENDERING ---
+        
+        function createWidgetContainer(widget) {
+            const container = document.createElement('div');
+            container.id = widget.id;
+            container.className = 'card col-span-1 lg:col-span-1 flex flex-col';
+            
+            const header = document.createElement('div');
+            header.className = 'flex justify-between items-center mb-4';
+            
+            const title = document.createElement('h3');
+            title.className = 'text-lg font-semibold';
+            title.textContent = widget.title;
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'text-gray-400 hover:text-red-500 transition';
+            removeBtn.innerHTML = '&times;';
+            removeBtn.onclick = () => removeWidget(widget.id);
+            
+            header.appendChild(title);
+            header.appendChild(removeBtn);
+            container.appendChild(header);
+            
+            return container;
+        }
+
+        function renderChartWidget(widget) {
+            const container = createWidgetContainer(widget);
+            const canvasContainer = document.createElement('div');
+            canvasContainer.className = 'flex-grow relative';
+            const canvas = document.createElement('canvas');
+            canvasContainer.appendChild(canvas);
+            container.appendChild(canvasContainer);
+            contentSection.appendChild(container);
+            updateChartWidget(widget.id, canvas);
+        }
+        
+        function renderFilterWidget(widget) {
+            const container = document.createElement('div');
+            container.id = widget.id;
+            
+            const label = document.createElement('label');
+            label.textContent = `Filter by ${widget.column}`;
+            label.className = 'text-sm font-medium text-gray-700 mb-1 block';
+            
+            const select = document.createElement('select');
+            select.className = 'w-full p-2 border border-gray-300 rounded-md shadow-sm';
+            select.dataset.column = widget.column;
+            
+            const uniqueValues = ['All', ...new Set(originalData.map(row => row[widget.column]))].sort();
+            populateSelect(select, uniqueValues, false);
+            select.value = 'All';
+            
+            select.addEventListener('change', (e) => {
+                activeFilters[widget.column] = e.target.value === 'All' ? null : e.target.value;
+                applyAllFilters();
+            });
+            
+            container.appendChild(label);
+            container.appendChild(select);
+            filtersSection.appendChild(container);
+        }
+        
+        function renderTableWidget(widget) {
+             const container = createWidgetContainer(widget);
+             container.classList.add("lg:col-span-2"); // Make table wider
+             const tableContainer = document.createElement('div');
+             tableContainer.className = 'flex-grow overflow-auto';
+             tableContainer.id = `content-${widget.id}`;
+             container.appendChild(tableContainer);
+             contentSection.appendChild(container);
+             updateTableWidget(widget.id);
+        }
+
+        // --- WIDGET UPDATING ---
+        
+        function updateChartWidget(widgetId, canvasElement = null) {
+            const widget = dashboardConfig.widgets.find(w => w.id === widgetId);
+            if (!widget) return;
+            
+            const canvas = canvasElement || document.querySelector(`#${widgetId} canvas`);
+            const ctx = canvas.getContext('2d');
+            
+            const { labels, data, chartType } = calculateChartData(widget);
+            
+            if (chartInstances[widgetId]) {
+                chartInstances[widgetId].destroy();
+            }
+
+            chartInstances[widgetId] = new Chart(ctx, {
+                type: chartType,
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: widget.metric,
+                        data: data,
+                        backgroundColor: chartType === 'pie' ? generateColors(labels.length) : generateColors(1)[0],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: chartType === 'pie' } },
+                    scales: (chartType === 'bar' || chartType === 'line') ? {
+                        x: { type: widget.dimensionType === 'date' ? 'time' : 'category' },
+                        y: { beginAtZero: true }
+                    } : (chartType === 'scatter') ? {
+                        x: { title: { display: true, text: widget.dimension } },
+                        y: { title: { display: true, text: widget.metric } }
+                    } : {}
+                }
+            });
+        }
+        
+        function updateTableWidget(widgetId) {
+            const contentDiv = document.getElementById(`content-${widgetId}`);
+            if (!contentDiv) return;
+            
+            let headers = Object.keys(filteredData[0] || {});
+            let table = `<table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50"><tr>`;
+            headers.forEach(h => table += `<th class="px-4 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">${h}</th>`);
+            table += `</tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
+            
+            filteredData.slice(0, 100).forEach(row => { // Limit to 100 rows for performance
+                table += `<tr>`;
+                headers.forEach(h => table += `<td class="px-4 py-2 whitespace-nowrap">${row[h] instanceof Date ? row[h].toLocaleDateString() : row[h]}</td>`);
+                table += `</tr>`;
+            });
+            
+            table += `</tbody></table>`;
+            contentDiv.innerHTML = table;
+        }
+
+        // --- DATA CALCULATION ---
+
+        function calculateChartData(widget) {
+            let data, labels;
+            let chartType = widget.chartType;
+
+            if (widget.chartType === 'scatter') {
+                labels = widget.dimension;
+                data = filteredData.map(row => ({ x: row[widget.dimension], y: row[widget.metric] }));
+            } else {
+                const groupedData = filteredData.reduce((acc, row) => {
+                    const group = row[widget.dimension];
+                    if (!acc[group]) {
+                        acc[group] = { sum: 0, count: 0, values: [] };
+                    }
+                    acc[group].sum += row[widget.metric] || 0;
+                    acc[group].count++;
+                    acc[group].values.push(row[widget.metric] || 0);
+                    return acc;
+                }, {});
+
+                labels = Object.keys(groupedData).sort();
+                
+                if (widget.aggregation === 'sum') {
+                    data = labels.map(label => groupedData[label].sum);
+                } else if (widget.aggregation === 'average') {
+                    data = labels.map(label => groupedData[label].sum / groupedData[label].count);
+                } else { // count
+                    data = labels.map(label => groupedData[label].count);
+                }
+            }
+            
+            return { labels, data, chartType };
+        }
+
+        // --- UTILITY FUNCTIONS ---
+        
+        function populateSelect(selectElement, options, includeDefault = true) {
+            selectElement.innerHTML = '';
+            if (includeDefault) {
+                const defaultOption = document.createElement('option');
+                defaultOption.textContent = `Select...`;
+                defaultOption.value = '';
+                selectElement.appendChild(defaultOption);
+            }
+            options.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt;
+                option.textContent = opt;
+                selectElement.appendChild(option);
+            });
+        }
+        
+        function generateColors(numColors) {
+            const colors = [];
+            const baseHue = 210; // Blue
+            for (let i = 0; i < numColors; i++) {
+                const hue = (baseHue + (i * 40)) % 360;
+                colors.push(`hsla(${hue}, 70%, 60%, 0.7)`);
+            }
+            return colors;
+        }
+
+    </script>
+</body>
+</html>

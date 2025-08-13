@@ -1239,7 +1239,8 @@ main table tbody td:hover,
 /* --- Floating Modal Container --- */
 /* CHANGED: Grouped both modal IDs to share the same style */
 #inactive-employee-form,
-#newlyhired-employee-form {
+#newlyhired-employee-form,
+#active-employee-form {
     /* Positioning & Sizing */
     position: fixed;
     top: 50%;
@@ -1374,7 +1375,8 @@ main table tbody td:hover,
 
 /* CHANGED: Ellipsis rule now targets the span inside both modals */
 #inactive-employee-form .modal-pagination .ellipsis,
-#newlyhired-employee-form .modal-pagination .ellipsis {
+#newlyhired-employee-form .modal-pagination .ellipsis,
+#active-employee-form .modal-pagination .ellipsis {
     padding: 8px 4px;
     color: #6c757d;
     background: none; /* Ensures no unwanted background color is applied */
@@ -1386,7 +1388,8 @@ main table tbody td:hover,
 @media (max-width: 768px) {
     /* CHANGED: Grouped both modal IDs for responsive styles */
     #inactive-employee-form,
-    #newlyhired-employee-form {
+    #newlyhired-employee-form,
+    #active-employee-form {
         width: 100%;
         height: 100%;
         max-width: 100%;
@@ -1404,9 +1407,68 @@ main table tbody td:hover,
 
 /* --- Clickable Area Styles --- */
 #attritionlist,
-#newlyhiredlist { /* NEW: Added newlyhiredlist here */
+#newlyhiredlist,
+#activelist { /* NEW: Added newlyhiredlist here */
     min-width: 50px;
     min-height: 30px;
     cursor: pointer;
 }
 
+
+/* --- Search Input Field Styling for Modal Inactive/Active/Newhires --- */
+
+/* Style for both search inputs. Uses an attribute selector to target them. */
+.modal-search-container input[type="text"] {
+    width: 100%;
+    padding: 10px 15px;
+    font-size: 1rem;
+    color: #333;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-sizing: border-box; 
+    transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+/* Style for the placeholder text */
+.modal-search-container input[type="text"]::placeholder {
+    color: #999;
+    font-weight: 300;
+}
+
+/* --- Interaction Styling --- */
+
+/* Highlight the input field when the user clicks or tabs into it */
+.modal-search-container input[type="text"]:focus {
+    outline: none;
+    border-color: #007bff;
+    background-color: #fff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2); 
+}
+
+/* --- Styling for the Recent Updates search bar --- */
+.search-bar-container {
+    margin-bottom: 20px;
+    width: 100%;
+    max-width: 500px;
+}
+
+#employee-update-search {
+    width: 100%;
+    padding: 10px 15px;
+    font-size: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+#employee-update-search::placeholder {
+    color: #999;
+}
+
+#employee-update-search:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
+}

@@ -419,6 +419,12 @@ function initActiveAttritionView() {
         fetchEmployeeUpdate("ALL");
     }
 
+    // --- ADD THIS LINE ---
+    // This will attach the event listener to the search bar after it's loaded.
+    initEmployeeUpdateSearch();
+    // --- END OF ADDITION ---
+
+
     if (applyBtn && startInput && endInput && entitySelect) {
         applyBtn.addEventListener("click", () => {
             const startDate = startInput.value;

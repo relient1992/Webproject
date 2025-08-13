@@ -165,6 +165,30 @@ $stmt->execute();
 $data['ACTIVE'] = (int)$stmt->get_result()->fetch_assoc()["total_active"];
 $stmt->close();
 
+$activeListSql = "SELECT * FROM employee_listings WHERE emp_status = 'ACTIVE' $entityFilter ORDER BY FULLNAME ASC";
+$stmt = $conn->prepare($activeListSql);
+if ($entity !== 'ALL') {
+    $stmt->bind_param($types, ...$params);
+}
+$stmt->execute();
+$result = $stmt->get_result();
+$activeEmployees = [];
+while ($row = $result->fetch_assoc()) {
+    $activeEmployees[] = [
+        'EDS' => $row['EDS'],
+        'FULLNAME' => $row['FULLNAME'],
+        'PROJECT' => $row['PROJECT'],
+        'POSITION' => $row['POSITION'],
+        'SITE' => $row['SITE'],
+        'SUPERVISOR' => $row['SUPERVISOR'],
+        'STATUS' => $row['emp_status'],
+        'HIREDDATE' => isset($row['DATEHIRED']) ? date('m-d-Y', strtotime($row['DATEHIRED'])) : "",
+        'RESIGNEDDATE' => isset($row['DATERESIGNED']) ? date('m-d-Y', strtotime($row['DATERESIGNED'])) : "",
+    ];
+}
+$data['ACTIVE_EMPLOYEES'] = $activeEmployees;
+$stmt->close();
+
 // Inactive count and list
 $inactiveCountSql = "SELECT COUNT(EDS) AS total_inactive_year FROM employee_listings WHERE emp_status = 'INACTIVE' AND dateresigned BETWEEN ? AND ? $entityFilter";
 $stmt = $conn->prepare($inactiveCountSql);

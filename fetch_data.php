@@ -265,12 +265,30 @@ while ($row = $result->fetch_assoc()) {
 $data['LATEST_EMPLOYEES'] = $latestEmployees;
 $stmt->close();
 
-// Project summary
-$summarySql = "SELECT PROJECT, SITE, COUNT(*) AS EMPLOYEECOUNT FROM employee_listings WHERE emp_status = 'ACTIVE' GROUP BY PROJECT, SITE ORDER BY SITE, PROJECT";
-$result = $conn->query($summarySql);
-$projectSummary = [];
-while ($row = $result->fetch_assoc()) $projectSummary[] = $row;
-$data['PROJECT_EMPLOYEE_SUMMARY'] = $projectSummary;
+$projectSummaryMap = [];
+// We can reuse the $activeEmployees list we fetched earlier, which already respects the entity filter.
+foreach ($activeEmployees as $employee) {
+    $project = $employee['PROJECT'];
+    $site = $employee['SITE'];
+    $key = $project . '___' . $site; // Create a unique key for the combination
+
+    // If this project/site group doesn't exist yet, create it.
+    if (!isset($projectSummaryMap[$key])) {
+        $projectSummaryMap[$key] = [
+            'PROJECT' => $project,
+            'SITE' => $site,
+            'EMPLOYEECOUNT' => 0,
+            'EMPLOYEES' => [] // Initialize the employee list for this group
+        ];
+    }
+
+    // Add the current employee to the group's list and increment the count
+    $projectSummaryMap[$key]['EMPLOYEES'][] = $employee;
+    $projectSummaryMap[$key]['EMPLOYEECOUNT']++;
+}
+
+// Convert the map to a simple indexed array for the JSON output.
+$data['PROJECT_EMPLOYEE_SUMMARY'] = array_values($projectSummaryMap);
 
 echo json_encode($data);
 

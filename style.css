@@ -1240,7 +1240,8 @@ main table tbody td:hover,
 /* CHANGED: Grouped both modal IDs to share the same style */
 #inactive-employee-form,
 #newlyhired-employee-form,
-#active-employee-form {
+#active-employee-form,
+#project-employee-modal {
     /* Positioning & Sizing */
     position: fixed;
     top: 50%;
@@ -1376,7 +1377,8 @@ main table tbody td:hover,
 /* CHANGED: Ellipsis rule now targets the span inside both modals */
 #inactive-employee-form .modal-pagination .ellipsis,
 #newlyhired-employee-form .modal-pagination .ellipsis,
-#active-employee-form .modal-pagination .ellipsis {
+#active-employee-form .modal-pagination .ellipsis,
+#project-employee-modal .modal-pagination .ellipsis {
     padding: 8px 4px;
     color: #6c757d;
     background: none; /* Ensures no unwanted background color is applied */
@@ -1389,7 +1391,8 @@ main table tbody td:hover,
     /* CHANGED: Grouped both modal IDs for responsive styles */
     #inactive-employee-form,
     #newlyhired-employee-form,
-    #active-employee-form {
+    #active-employee-form,
+    #project-employee-modal {
         width: 100%;
         height: 100%;
         max-width: 100%;
@@ -1408,7 +1411,8 @@ main table tbody td:hover,
 /* --- Clickable Area Styles --- */
 #attritionlist,
 #newlyhiredlist,
-#activelist { /* NEW: Added newlyhiredlist here */
+#activelist,
+#projectlist { /* NEW: Added newlyhiredlist here */
     min-width: 50px;
     min-height: 30px;
     cursor: pointer;
@@ -1472,3 +1476,4 @@ main table tbody td:hover,
     border-color: #007bff;
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
 }
+

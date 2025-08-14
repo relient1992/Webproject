@@ -112,31 +112,79 @@ function fetchData(startDate = null, endDate = null, entity = "ALL") {
     if (startDate && endDate) {
         url += `&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
     }
-    fetch(url).then(response => response.json()).then(data => {
-        document.getElementById("activelist").textContent = data.ACTIVE ?? 'N/A';
-        document.getElementById("attritionlist").textContent = data.INACTIVE_CURRENT_YEAR ?? 'N/A';
-        document.getElementById("newlyhiredlist").textContent = data.NEWHIRES_CURRENT_YEAR ?? 'N/A';
-        
-        // MODIFIED: Populate the new active employee list
-        activeEmployeeList = data.ACTIVE_EMPLOYEES || [];
-        inactiveEmployeeList = data.INACTIVE_EMPLOYEES || [];
-        newHireEmployeeList = data.NEWHIRE_EMPLOYEES || [];
-        
-        const projectEmployeeData = data.PROJECT_EMPLOYEE_SUMMARY || [];
-        const tableBody = document.querySelector('.employee-count table tbody');
-        if (tableBody) {
-            tableBody.innerHTML = '';
-            if (projectEmployeeData.length > 0) {
-                projectEmployeeData.forEach(item => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `<td>${item.PROJECT}</td><td>${item.EMPLOYEECOUNT}</td><td>${item.SITE}</td>`;
-                    tableBody.appendChild(row);
-                });
-            } else {
-                tableBody.innerHTML = `<tr><td colspan="3">No project data available.</td></tr>`;
+
+    fetch(url)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Network response was not ok: ${response.statusText}`);
             }
-        }
-    }).catch(console.error);
+            return response.json();
+        })
+        .then(data => {
+            // --- 1. Update Dashboard Cards ---
+            document.getElementById("activelist").textContent = data.ACTIVE ?? 'N/A';
+            document.getElementById("attritionlist").textContent = data.INACTIVE_CURRENT_YEAR ?? 'N/A';
+            document.getElementById("newlyhiredlist").textContent = data.NEWHIRES_CURRENT_YEAR ?? 'N/A';
+            
+            // --- 2. Populate Global Lists for Modals ---
+            activeEmployeeList = data.ACTIVE_EMPLOYEES || [];
+            inactiveEmployeeList = data.INACTIVE_EMPLOYEES || [];
+            newHireEmployeeList = data.NEWHIRE_EMPLOYEES || [];
+            fullProjectSummaryList = data.PROJECT_EMPLOYEE_SUMMARY || []; // Use the global variable
+            
+            // --- 3. Render the Project Employees Table and Attach Listener ---
+            const tableBody = document.querySelector('.employee-count table tbody');
+            if (tableBody) {
+                tableBody.innerHTML = ''; // Clear previous content
+
+                if (fullProjectSummaryList.length > 0) {
+                    // Render the table rows with clickable links
+                    fullProjectSummaryList.forEach((item, index) => {
+                        const row = document.createElement('tr');
+                        row.className = 'project-group-row';
+                        row.dataset.index = index; 
+                        row.innerHTML = `
+                            <td>${item.PROJECT}</td>
+                            <td><a href="#" class="view-employees-link">${item.EMPLOYEECOUNT}</a></td>
+                            <td>${item.SITE}</td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+
+                    // Attach the click listener now that the table is rendered
+                    if (!tableBody.dataset.listenerAttached) {
+                        tableBody.addEventListener('click', (event) => {
+                            if (event.target.classList.contains('view-employees-link')) {
+                                event.preventDefault();
+                                const row = event.target.closest('.project-group-row');
+                                if (!row) return;
+
+                                const index = parseInt(row.dataset.index, 10);
+                                const selectedGroup = fullProjectSummaryList[index];
+
+                                if (selectedGroup && selectedGroup.EMPLOYEES) {
+                                    currentProjectGroupEmployees = selectedGroup.EMPLOYEES;
+                                    currentlyDisplayedProjectGroupEmployees = currentProjectGroupEmployees;
+                                    
+                                    const modal = document.getElementById("project-employee-modal");
+                                    const overlay = document.querySelector('.modal-overlay');
+                                    
+                                    if (modal && overlay) {
+                                        modal.classList.remove("hidden");
+                                        overlay.classList.remove("hidden");
+                                        showProjectEmployeeModal(currentlyDisplayedProjectGroupEmployees, 1, selectedGroup.PROJECT, selectedGroup.SITE);
+                                    }
+                                }
+                            }
+                        });
+                        tableBody.dataset.listenerAttached = 'true';
+                    }
+                } else {
+                    tableBody.innerHTML = `<tr><td colspan="3">No project data available.</td></tr>`;
+                }
+            }
+        })
+        .catch(error => console.error("Error in fetchData:", error));
 }
 
 function showActiveEmployeeForm(employees, page) {

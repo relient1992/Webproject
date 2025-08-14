@@ -175,7 +175,7 @@ function updateMenuVisibility() {
 let chart1Instance, chart2Instance, chart3Instance, chart4Instance;
 
 document.addEventListener("DOMContentLoaded", () => {
-    // Show initial loading screen for 2 seconds on full page load
+    
     if (loadingScreen) {
         loadingScreen.style.opacity = '1';
         loadingScreen.style.display = 'flex';
@@ -193,6 +193,115 @@ document.addEventListener("DOMContentLoaded", () => {
         updateMenuVisibility(); 
     }
 });
+
+document.addEventListener("click", (event) => {
+        
+    // --- Logic for opening modals from the dashboard cards ---
+    if (event.target.id === "activelist") {
+        const modal = document.getElementById("active-employee-form");
+        const overlay = document.querySelector('.modal-overlay');
+        if (modal && overlay) {
+            modal.classList.remove("hidden");
+            overlay.classList.remove("hidden");
+            currentlyDisplayedActiveEmployees = activeEmployeeList;
+            showActiveEmployeeForm(currentlyDisplayedActiveEmployees, 1);
+        }
+    }
+    if (event.target.id === "attritionlist") {
+        const modal = document.getElementById("inactive-employee-form");
+        const overlay = document.querySelector('.modal-overlay');
+        if (modal && overlay) {
+            modal.classList.remove("hidden");
+            overlay.classList.remove("hidden");
+            currentlyDisplayedInactiveEmployees = inactiveEmployeeList;
+            showInactiveEmployeeForm(currentlyDisplayedInactiveEmployees, 1);
+        }
+    }
+    if (event.target.id === "newlyhiredlist") {
+        const modal = document.getElementById("newlyhired-employee-form");
+        const overlay = document.querySelector('.modal-overlay');
+        if (modal && overlay) {
+            modal.classList.remove("hidden");
+            overlay.classList.remove("hidden");
+            currentlyDisplayedNewHireEmployees = newHireEmployeeList;
+            showNewHireForm(currentlyDisplayedNewHireEmployees, 1);
+        }
+    }
+
+    // --- Logic for closing ANY modal ---
+    if (event.target.classList.contains('close-button') || event.target.classList.contains('modal-overlay')) {
+        document.querySelectorAll('#project-employee-modal, #active-employee-form, #inactive-employee-form, #newlyhired-employee-form').forEach(m => m.classList.add("hidden"));
+        document.querySelector('.modal-overlay')?.classList.add("hidden");
+    }
+    
+    // --- Logic for paginating ANY modal ---
+    if (event.target.matches('.modal-page-btn') && !event.target.disabled) {
+        const newPage = parseInt(event.target.dataset.page, 10);
+        if (isNaN(newPage)) return;
+
+        if (event.target.closest('#project-employee-modal')) {
+            const modal = event.target.closest('#project-employee-modal');
+            const title = modal.querySelector('h2').textContent;
+            const [project, site] = title.split(' - ');
+            showProjectEmployeeModal(currentlyDisplayedProjectGroupEmployees, newPage, project, site);
+        } else if (event.target.closest('#active-employee-form')) {
+            showActiveEmployeeForm(currentlyDisplayedActiveEmployees, newPage);
+        } else if (event.target.closest('#inactive-employee-form')) {
+            showInactiveEmployeeForm(currentlyDisplayedInactiveEmployees, newPage);
+        } else if (event.target.closest('#newlyhired-employee-form')) {
+            showNewHireForm(currentlyDisplayedNewHireEmployees, newPage);
+        }
+    }
+});
+
+// --- Main Live Search Handler for Modals ---
+document.addEventListener('input', (event) => {
+
+    // Search for Project Group Employees modal
+    if (event.target.id === 'project-employee-search-input') {
+        const searchTerm = event.target.value.toLowerCase();
+        const modal = event.target.closest('#project-employee-modal');
+        const title = modal.querySelector('h2').textContent;
+        const [project, site] = title.split(' - ');
+        currentlyDisplayedProjectGroupEmployees = currentProjectGroupEmployees.filter(emp => {
+            return (emp.EDS || '').toString().toLowerCase().includes(searchTerm) ||
+                   (emp.FULLNAME || '').toLowerCase().includes(searchTerm) ||
+                   (emp.SUPERVISOR || '').toLowerCase().includes(searchTerm);
+        });
+        showProjectEmployeeModal(currentlyDisplayedProjectGroupEmployees, 1, project, site);
+    }
+
+    // Search for Active Employees modal
+    if (event.target.id === 'active-search-input') {
+        const searchTerm = event.target.value.toLowerCase();
+        currentlyDisplayedActiveEmployees = activeEmployeeList.filter(emp => {
+            return (emp.EDS || '').toString().toLowerCase().includes(searchTerm) ||
+                   (emp.FULLNAME || '').toLowerCase().includes(searchTerm) ||
+                   (emp.SUPERVISOR || '').toLowerCase().includes(searchTerm);
+        });
+        showActiveEmployeeForm(currentlyDisplayedActiveEmployees, 1);
+    }
+    
+    // Search for Inactive Employees modal
+    if (event.target.id === 'inactive-search-input') {
+        const searchTerm = event.target.value.toLowerCase();
+        currentlyDisplayedInactiveEmployees = inactiveEmployeeList.filter(emp => {
+            return (emp.EDS || '').toString().toLowerCase().includes(searchTerm) ||
+                   (emp.FULLNAME || '').toLowerCase().includes(searchTerm);
+        });
+        showInactiveEmployeeForm(currentlyDisplayedInactiveEmployees, 1);
+    }
+
+    // Search for Newly Hired Employees modal
+    if (event.target.id === 'newhire-search-input') {
+        const searchTerm = event.target.value.toLowerCase();
+        currentlyDisplayedNewHireEmployees = newHireEmployeeList.filter(emp => {
+            return (emp.EDS || '').toString().toLowerCase().includes(searchTerm) ||
+                   (emp.FULLNAME || '').toLowerCase().includes(searchTerm);
+        });
+        showNewHireForm(currentlyDisplayedNewHireEmployees, 1);
+    }
+});    
 
 function initializeRouter() {
     const links = document.querySelectorAll(".sidebar a");

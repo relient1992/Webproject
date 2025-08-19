@@ -85,16 +85,18 @@ function showProjectEmployeeModal(employees, page, project, site) {
     const container = document.getElementById("project-employee-modal");
     if (!container) return;
     
-    // --- First time render: build the entire static structure of the modal ---
     if (!container.querySelector('.modal-header')) {
         container.innerHTML = `
             <div class="modal-header">
                 <div class="modal-title-container">
                     <h2 class="modal-title"></h2>
-                    <button class="close-button">&times;</button>
+                    <div class="modal-header-buttons">
+                        <button class="export-csv-btn" data-modal-type="project">Export CSV</button>
+                        <button class="close-button">&times;</button>
+                    </div>
                 </div>
                 <div class="modal-search-container">
-                    <input type="text" id="project-employee-search-input" placeholder="Search EDS,Name,or Sup">
+                    <input type="text" id="project-employee-search-input" placeholder="Search by EDS, Name, or Supervisor...">
                 </div>
             </div>
             <div class="table-wrapper"></div>

@@ -67,6 +67,29 @@ document.addEventListener("DOMContentLoaded", function () {
                 showNewHireForm(currentlyDisplayedNewHireEmployees, newPage);
             }
         }
+
+            // NEW: Handle clicks on any "Export CSV" button
+        if (event.target.classList.contains('export-csv-btn')) {
+            const modalType = event.target.dataset.modalType;
+
+            switch (modalType) {
+                case 'active':
+                    exportToCSV(currentlyDisplayedActiveEmployees, 'Active_Employees');
+                    break;
+                case 'inactive':
+                    exportToCSV(currentlyDisplayedInactiveEmployees, 'Inactive_Employees');
+                    break;
+                case 'newhire':
+                    exportToCSV(currentlyDisplayedNewHireEmployees, 'New_Hire_Employees');
+                    break;
+                case 'project':
+                    const modal = event.target.closest('#project-employee-modal');
+                    const title = modal.querySelector('h2').textContent.replace(/\s-\s/g, '_').replace(/\s/g, ''); // Creates a clean filename like "ProjectName_SiteName"
+                    exportToCSV(currentlyDisplayedProjectGroupEmployees, `Project_${title}_Employees`);
+                    break;
+            }
+        }
+
     });
 
     // MODIFIED: Live search handler now includes the active employee search
@@ -189,7 +212,6 @@ function fetchData(startDate = null, endDate = null, entity = "ALL") {
 
 function showActiveEmployeeForm(employees, page) {
     const container = document.getElementById("active-employee-form");
-    
     if (!container.querySelector('.modal-header')) {
         container.innerHTML = '';
         const header = document.createElement("div");
@@ -197,18 +219,20 @@ function showActiveEmployeeForm(employees, page) {
         header.innerHTML = `
             <div class="modal-title-container">
                 <h2>Active Employees</h2>
-                <button class="close-button">&times;</button>
+                <div class="modal-header-buttons">
+                    <button class="export-csv-btn" data-modal-type="active">Export CSV</button>
+                    <button class="close-button">&times;</button>
+                </div>
             </div>
             <div class="modal-search-container">
-                <input type="text" id="active-search-input" placeholder="Search EDS,Name,or Sup">
+                <input type="text" id="active-search-input" placeholder="Search by EDS, Name, or Supervisor...">
             </div>`;
         container.appendChild(header);
     }
-
+    // ... rest of function is unchanged
     let tableWrapper = container.querySelector('.table-wrapper');
     if (tableWrapper) tableWrapper.remove();
     container.appendChild(createTableWrapper(employees, page));
-
     let footer = container.querySelector('.modal-footer');
     if (footer) footer.remove();
     const newFooter = createModalFooter(employees.length, page);
@@ -216,32 +240,30 @@ function showActiveEmployeeForm(employees, page) {
 }
 
 
-
 // REFACTORED: This function now updates only the necessary parts of the modal, preserving the search input focus.
 function showInactiveEmployeeForm(employees, page) {
     const container = document.getElementById("inactive-employee-form");
-    
-    // Create header with search bar only if it doesn't exist
     if (!container.querySelector('.modal-header')) {
-        container.innerHTML = ''; // Clear only on initial render
+        container.innerHTML = '';
         const header = document.createElement("div");
         header.className = "modal-header";
         header.innerHTML = `
             <div class="modal-title-container">
                 <h2>Inactive Employees</h2>
-                <button class="close-button">&times;</button>
+                <div class="modal-header-buttons">
+                    <button class="export-csv-btn" data-modal-type="inactive">Export CSV</button>
+                    <button class="close-button">&times;</button>
+                </div>
             </div>
             <div class="modal-search-container">
-                <input type="text" id="inactive-search-input" placeholder="Search EDS or Name...">
+                <input type="text" id="inactive-search-input" placeholder="Search by EDS or Name...">
             </div>`;
         container.appendChild(header);
     }
-
-    // Always remove and recreate the table and footer to reflect new data (filtered or paginated)
+    // ... rest of function is unchanged
     let tableWrapper = container.querySelector('.table-wrapper');
     if (tableWrapper) tableWrapper.remove();
     container.appendChild(createTableWrapper(employees, page));
-
     let footer = container.querySelector('.modal-footer');
     if (footer) footer.remove();
     const newFooter = createModalFooter(employees.length, page);
@@ -252,28 +274,27 @@ function showInactiveEmployeeForm(employees, page) {
 // REFACTORED: Applying the same improved rendering logic to the New Hire form.
 function showNewHireForm(employees, page) {
     const container = document.getElementById("newlyhired-employee-form");
-
-    // Create header with search bar only if it doesn't exist
     if (!container.querySelector('.modal-header')) {
-        container.innerHTML = ''; // Clear only on initial render
+        container.innerHTML = '';
         const header = document.createElement("div");
         header.className = "modal-header";
         header.innerHTML = `
             <div class="modal-title-container">
                 <h2>Newly Hired Employees</h2>
-                <button class="close-button">&times;</button>
+                <div class="modal-header-buttons">
+                    <button class="export-csv-btn" data-modal-type="newhire">Export CSV</button>
+                    <button class="close-button">&times;</button>
+                </div>
             </div>
             <div class="modal-search-container">
                 <input type="text" id="newhire-search-input" placeholder="Search by EDS or Name...">
             </div>`;
         container.appendChild(header);
     }
-    
-    // Always remove and recreate the table and footer
+    // ... rest of function is unchanged
     let tableWrapper = container.querySelector('.table-wrapper');
     if (tableWrapper) tableWrapper.remove();
     container.appendChild(createTableWrapper(employees, page));
-
     let footer = container.querySelector('.modal-footer');
     if (footer) footer.remove();
     const newFooter = createModalFooter(employees.length, page);
@@ -369,4 +390,62 @@ function showNotification(message, isSuccess) {
     setTimeout(() => {
         popup.classList.add('hidden');
     }, 3000);
+}
+
+/**
+ * Converts an array of employee objects to a CSV string and triggers a download.
+ * @param {Array<Object>} employeeData The array of employees to export.
+ * @param {string} baseFilename The base name for the downloaded file (e.g., "Active_Employees").
+ */
+function exportToCSV(employeeData, baseFilename) {
+    if (!employeeData || employeeData.length === 0) {
+        // You can replace this with your showNotification function for a nicer look
+        alert("There is no data to export.");
+        return;
+    }
+
+    const headers = ["EDS", "Full Name", "Project", "Position", "Site", "Supervisor", "Status", "Hire Date", "Resigned Date"];
+    
+    // Helper function to safely handle values that might contain commas or quotes
+    const escapeCSV = (value) => {
+        const str = String(value ?? ''); // Handle null/undefined by converting to empty string
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+            return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+    };
+
+    const csvRows = [headers.join(',')]; // Start the CSV with the header row
+
+    // Convert each employee object to a CSV row
+    employeeData.forEach(emp => {
+        const row = [
+            escapeCSV(emp.EDS),
+            escapeCSV(emp.FULLNAME),
+            escapeCSV(emp.PROJECT),
+            escapeCSV(emp.POSITION),
+            escapeCSV(emp.SITE),
+            escapeCSV(emp.SUPERVISOR),
+            escapeCSV(emp.STATUS),
+            escapeCSV(emp.HIREDDATE),
+            escapeCSV(emp.RESIGNEDDATE)
+        ];
+        csvRows.push(row.join(','));
+    });
+
+    // Create the downloadable file
+    const csvString = csvRows.join('\n');
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    
+    const link = document.createElement("a");
+    if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+        link.setAttribute("href", url);
+        link.setAttribute("download", `${baseFilename}_${today}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
 }

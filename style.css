@@ -1412,7 +1412,7 @@ main table tbody td:hover,
 #attritionlist,
 #newlyhiredlist,
 #activelist,
-#projectlist { /* NEW: Added newlyhiredlist here */
+#projectlist {
     min-width: 50px;
     min-height: 30px;
     cursor: pointer;
@@ -1477,3 +1477,26 @@ main table tbody td:hover,
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
 }
 
+/* Modal Export button */
+
+.modal-header-buttons {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Space between buttons */
+}
+
+.export-csv-btn {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #333;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.export-csv-btn:hover {
+    background-color: #e2e2e2;
+}

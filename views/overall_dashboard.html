@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -114,5 +114,119 @@
 
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="../js/dashboard.js"></script>
+</body>
+</html> -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="../bps_dashboard.css">
+</head>
+<body>
+
+    <div class="dashboard-container">
+        
+        <aside class="sidebar">
+            <div class="logo">
+                <input type="text" placeholder="Search...">
+                <button><i class="fas fa-search"></i></button>
+            </div>
+            <nav class="sidebar-nav">
+                <ul>
+                    <li><a href="#" class="active"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+                    <li><a href="#"><i class="fas fa-chart-bar"></i> Charts</a></li>
+                    <li><a href="#"><i class="fas fa-table"></i> Tables</a></li>
+                    <li><a href="#"><i class="fas fa-clipboard-list"></i> Forms</a></li>
+                    <li>
+                        <a href="#" class="dropdown-toggle" data-target="ui-elements-dropdown"><i class="fas fa-cube"></i> UI Elements <i class="fas fa-chevron-right arrow"></i></a>
+                        <ul class="dropdown-menu" id="ui-elements-dropdown">
+                            <li><a href="#">Buttons</a></li>
+                            <li><a href="#">Panels</a></li>
+                            <li><a href="#">Notifications</a></li>
+                        </ul>
+                    </li>
+                    <li>
+                        <a href="#" class="dropdown-toggle" data-target="multi-level-dropdown"><i class="fas fa-folder"></i> Multi-Level Dropdown <i class="fas fa-chevron-right arrow"></i></a>
+                        <ul class="dropdown-menu" id="multi-level-dropdown">
+                            <li><a href="#">Sub Item 1</a></li>
+                            <li><a href="#">Sub Item 2</a></li>
+                            <li><a href="#">Sub Item 3</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#"><i class="fas fa-file"></i> Sample Pages</a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <h1>Dashboard</h1>
+
+            <section class="panels-section">
+                <div class="panel green">
+                    <div class="panel-icon"><i class="fas fa-comment"></i></div>
+                    <div class="panel-content">
+                        <h2>26</h2>
+                        <p>New Comments!</p>
+                        <a href="#">View Details <i class="fas fa-arrow-circle-right"></i></a>
+                    </div>
+                </div>
+                <div class="panel blue">
+                    <div class="panel-icon"><i class="fas fa-tasks"></i></div>
+                    <div class="panel-content">
+                        <h2>12</h2>
+                        <p>New Tasks!</p>
+                        <a href="#">View Details <i class="fas fa-arrow-circle-right"></i></a>
+                    </div>
+                </div>
+                <div class="panel orange">
+                    <div class="panel-icon"><i class="fas fa-shopping-cart"></i></div>
+                    <div class="panel-content">
+                        <h2>124</h2>
+                        <p>New Orders!</p>
+                        <a href="#">View Details <i class="fas fa-arrow-circle-right"></i></a>
+                    </div>
+                </div>
+                <div class="panel red">
+                    <div class="panel-icon"><i class="fas fa-life-ring"></i></div>
+                    <div class="panel-content">
+                        <h2>13</h2>
+                        <p>Support Tickets!</p>
+                        <a href="#">View Details <i class="fas fa-arrow-circle-right"></i></a>
+                    </div>
+                </div>
+            </section>
+
+            <section class="chart-notifications-section">
+                <div class="chart-panel">
+                    <h3>Area Chart Example</h3>
+                    <div class="chart-actions">
+                        <button class="actions-btn">Actions <i class="fas fa-chevron-down"></i></button>
+                    </div>
+                    <div class="chart-placeholder">
+                        </div>
+                </div>
+                <div class="notifications-panel">
+                    <h3>Notifications Panel</h3>
+                    <ul class="notifications-list">
+                        <li>New Comment <span>4 minutes ago</span></li>
+                        <li>3 New Followers <span>12 minutes ago</span></li>
+                        <li>Message Sent <span>27 minutes ago</span></li>
+                        <li>New Task <span>43 minutes ago</span></li>
+                        <li>Server Rebooted <span>11:32 AM</span></li>
+                        <li>Server Crashed! <span>11:13 AM</span></li>
+                        <li>Server Not Responding <span>10:57 AM</span></li>
+                        <li>New Order Placed <span>9:49 AM</span></li>
+                    </ul>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script src="script.js"></script>
 </body>
 </html>

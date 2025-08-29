@@ -1,7 +1,7 @@
 /* dashboard.css */
 
 /* --- Overall Theme & Layout --- */
-:root {
+/* :root {
     --primary-color: #007bff;
     --border-color: #dee2e6;
     --background-color: #f8f9fa;
@@ -31,7 +31,7 @@ body {
     margin-bottom: 20px;
 }
 
-/* --- Filter Bar --- */
+
 .filter-bar {
     background-color: var(--card-background);
     padding: 15px;
@@ -123,7 +123,7 @@ body {
 }
 
 
-/* --- Selected Filter Chips --- */
+
 .selected-filters-container {
     display: flex;
     align-items: center;
@@ -172,7 +172,7 @@ body {
 }
 .clear-all-btn.hidden { display: none; }
 
-/* --- Date Picker Highlighting --- */
+
 #date-range-picker {
     padding: 8px 12px;
     border: 1px solid var(--border-color);
@@ -192,7 +192,7 @@ body {
 }
 
 
-/* --- KPI Cards, Chart, Table (Responsive) --- */
+
 .kpi-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -252,7 +252,7 @@ th {
     font-weight: 600;
 }
 
-/* --- Responsive Adjustments --- */
+
 @media (max-width: 768px) {
     .filter-group {
         flex-direction: column;
@@ -260,7 +260,7 @@ th {
     }
 }
 
-/* Add this to dashboard.css */
+
 #reportrange {
     background: #fff;
     cursor: pointer;
@@ -274,4 +274,259 @@ th {
 .daterangepicker {
     position: absolute !important;
     z-index: 9999 !important;
+} */
+
+/* General Body and Layout */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f0f0f0;
+}
+
+.dashboard-container {
+    display: flex;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 250px;
+    background-color: #2c3e50;
+    color: #ecf0f1;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    overflow-y: auto;
+    transition: width 0.3s ease;
+}
+
+.sidebar .logo {
+    padding: 20px;
+    background-color: #34495e;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sidebar .logo input {
+    width: 150px;
+    border: none;
+    padding: 5px;
+    background-color: #44617e;
+    color: #ecf0f1;
+    border-radius: 3px;
+}
+
+.sidebar .logo button {
+    background: none;
+    border: none;
+    color: #ecf0f1;
+    cursor: pointer;
+}
+
+.sidebar-nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sidebar-nav li a {
+    display: block;
+    color: #ecf0f1;
+    padding: 15px 20px;
+    text-decoration: none;
+    transition: background-color 0.3s ease;
+    border-bottom: 1px solid #34495e;
+}
+
+.sidebar-nav li a:hover,
+.sidebar-nav li a.active {
+    background-color: #34495e;
+}
+
+.sidebar-nav a .arrow {
+    float: right;
+    transition: transform 0.3s ease;
+}
+
+.sidebar-nav a.expanded .arrow {
+    transform: rotate(90deg);
+}
+
+.dropdown-menu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    background-color: #34495e;
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.3s ease-out;
+}
+
+.dropdown-menu.show {
+    max-height: 200px; /* Adjust as needed */
+}
+
+.dropdown-menu li a {
+    padding-left: 40px;
+}
+
+/* Main Content */
+.main-content {
+    flex-grow: 1;
+    padding: 20px;
+    margin-left: 250px;
+    transition: margin-left 0.3s ease;
+}
+
+/* Panels Section */
+.panels-section {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.panel {
+    flex: 1 1 200px;
+    min-width: 200px;
+    padding: 20px;
+    color: white;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.panel.green { background-color: #27ae60; }
+.panel.blue { background-color: #3498db; }
+.panel.orange { background-color: #e67e22; }
+.panel.red { background-color: #e74c3c; }
+
+.panel-icon {
+    font-size: 3em;
+    margin-right: 15px;
+    opacity: 0.7;
+}
+
+.panel-content h2 {
+    margin: 0;
+    font-size: 2.5em;
+}
+
+.panel-content p {
+    margin: 0;
+    font-size: 1.1em;
+}
+
+.panel-content a {
+    color: white;
+    text-decoration: none;
+    font-size: 0.9em;
+    border-top: 1px solid rgba(255, 255, 255, 0.5);
+    padding-top: 5px;
+    margin-top: 10px;
+    display: block;
+}
+
+/* Chart and Notifications Section */
+.chart-notifications-section {
+    display: flex;
+    margin-top: 20px;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.chart-panel, .notifications-panel {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.chart-panel {
+    flex: 2;
+    min-width: 300px;
+    position: relative;
+}
+
+.chart-panel h3, .notifications-panel h3 {
+    margin-top: 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.chart-actions {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+}
+
+.chart-actions .actions-btn {
+    background-color: #f4f4f4;
+    border: 1px solid #ccc;
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.chart-placeholder {
+    width: 100%;
+    height: 300px;
+    background-color: #f9f9f9;
+    border: 1px solid #ccc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #888;
+}
+
+.notifications-panel {
+    flex: 1;
+    min-width: 250px;
+}
+
+.notifications-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.notifications-list li {
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+    color: #555;
+    font-size: 0.9em;
+}
+
+.notifications-list li:last-child {
+    border-bottom: none;
+}
+
+.notifications-list li span {
+    float: right;
+    color: #aaa;
+    font-size: 0.8em;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+    }
+
+    .main-content {
+        margin-left: 0;
+    }
+
+    .panels-section, .chart-notifications-section {
+        flex-direction: column;
+    }
+
+    .panel, .chart-panel, .notifications-panel {
+        width: 100%;
+    }
 }

@@ -31,7 +31,7 @@ if (!isset($_SESSION['employee_id'])) {
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-    <link rel="stylesheet" href="bps_dashboard.css">
+    <!-- <link rel="stylesheet" href="bps_dashboard.css"> -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         const USER_ROLE = <?php echo json_encode($role); ?>;
@@ -244,7 +244,7 @@ if (!isset($_SESSION['employee_id'])) {
 
     </div>
 
-    <script src="js/bps_dashboard.js"></script>
+    <!-- <script src="js/bps_dashboard.js"></script> -->
     <script src="js/fetch_data.js"></script>
     <script src="js/employee_updates.js"></script>
     <script src="js/project_employees.js"></script>

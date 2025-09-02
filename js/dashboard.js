@@ -1,4 +1,3 @@
-// dashboard.js
 
 $(function() { // Use jQuery's ready function
 

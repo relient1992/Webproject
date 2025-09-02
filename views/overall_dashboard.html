@@ -1,137 +1,16 @@
-<!-- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analytics Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/jquery/dist/jquery.min.js"></script>
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/moment/min/moment.min.js"></script>
-    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+    <title>BPS Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/jquery/latest/jquery.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
     <link rel="stylesheet" href="../bps_dashboard.css">
 </head>
-<body>
-
-    <div class="dashboard-container">
-        <header class="dashboard-header">
-            <h1>Dashboard</h1>
-            <div class="header-actions">
-                </div>
-        </header>
-
-        <div class="filter-bar">
-            <div class="filter-group">
-                <div class="filter-item date-picker-container">
-                    <label>Date Range</label>
-                    <div id="reportrange">
-                        <i class="fa fa-calendar"></i>&nbsp;
-                        <span></span> <i class="fa fa-caret-down"></i>
-                    </div>
-                </div>
-
-                <div class="filter-item multi-select-container">
-                    <button id="project-filter-btn" class="filter-button">Projects</button>
-                    <div id="project-filter-dropdown" class="filter-dropdown hidden">
-                        <div class="filter-dropdown-header">Filter by Project</div>
-                        <div class="filter-options">
-                            <label><input type="checkbox" name="project" value="FedEx"> FedEx</label>
-                            <label><input type="checkbox" name="project" value="Admin"> Admin</label>
-                            <label><input type="checkbox" name="project" value="FedEx - BC Staff"> FedEx - BC Staff</label>
-                            <label><input type="checkbox" name="project" value="LHI"> LHI</label>
-                            <label><input type="checkbox" name="project" value="BPS"> BPS</label>
-                        </div>
-                        <div class="filter-dropdown-footer">
-                            <button id="apply-project-filter" class="apply-btn">Apply</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="selected-filters-container">
-                <div id="selected-filters" class="selected-filters">
-                    </div>
-                <button id="clear-all-filters" class="clear-all-btn hidden">Clear All</button>
-            </div>
-        </div>
-
-        <div class="kpi-grid">
-            <div class="kpi-card">
-                <h4>Active Employees</h4>
-                <p>1,234</p>
-            </div>
-            <div class="kpi-card">
-                <h4>Inactive (YTD)</h4>
-                <p>56</p>
-            </div>
-            <div class="kpi-card">
-                <h4>New Hires (YTD)</h4>
-                <p>128</p>
-            </div>
-            <div class="kpi-card">
-                <h4>Efficiency</h4>
-                <p>98.7%</p>
-            </div>
-        </div>
-
-        <div class="main-chart-container">
-            <h3>Performance Over Time</h3>
-            <div class="chart-placeholder">
-                <p>Chart Area</p>
-            </div>
-        </div>
-
-        <div class="data-table-container">
-            <h3>Detailed Summary</h3>
-            <div class="table-wrapper">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Project</th>
-                            <th>Employee Count</th>
-                            <th>Site</th>
-                            <th>Efficiency</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>FedEx</td>
-                            <td>19</td>
-                            <td>CLARK</td>
-                            <td>102%</td>
-                        </tr>
-                        <tr>
-                            <td>Admin</td>
-                            <td>76</td>
-                            <td>SUBIC</td>
-                            <td>99%</td>
-                        </tr>
-                        </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="../js/dashboard.js"></script>
-</body>
-</html> -->
-
-<!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>BPS Dashboard</title>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-        
-        <script type="text/javascript" src="https://cdn.jsdelivr.net/jquery/latest/jquery.min.js"></script>
-        <script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
-        <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
-        <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
-    
-        <link rel="stylesheet" href="../bps_dashboard.css">
-    </head>
 <body>
 
     <div class="dashboard-wrapper">
@@ -149,27 +28,26 @@
             </div>
             <div class="header-right">
                 <i class="fas fa-bell"></i>
-                <i class="fas fa-user-circle"></i>
             </div>
         </header>
         
         <main class="main-content">
             <div class="controls-bar">
                 <div class="left-controls">
-                    <button class="control-btn"><i class="fas fa-filter"></i> Filters</button>
+                    <!-- Added ID for JS to target -->
+                    <button class="control-btn" id="filter-toggle-btn"><i class="fas fa-filter"></i> Filters</button>
                     <div class="date-range">
                         <i class="fas fa-calendar-alt"></i>
                         <input type="text" id="date-range-picker" readonly>
                     </div>
                     <div class="pillbox-container">
-                        <span class="pill">Agents <i class="fas fa-times"></i></span>
-                        <input type="text" placeholder="20 sec">
+                        <!-- Pills are dynamically added here by JS -->
                     </div>
                 </div>
                 <div class="right-controls">
-                    <button class="control-btn"><i class="fas fa-columns"></i> Columns</button>
-                    <button class="control-btn"><i class="fas fa-file-csv"></i> CSV</button>
-                    <button class="control-btn"><i class="fas fa-file-excel"></i> XLSX</button>
+                    <!-- Added IDs for JS to target -->
+                    <button class="control-btn" id="csv-export-btn"><i class="fas fa-file-csv"></i> CSV</button>
+                    <button class="control-btn" id="xlsx-export-btn"><i class="fas fa-file-excel"></i> XLSX</button>
                 </div>
             </div>
 
@@ -177,28 +55,22 @@
                 <div class="filter-group">
                     <label for="filter-site">Site</label>
                     <select id="filter-site">
+                        <!-- Options will be populated by JS -->
                         <option value="">All</option>
-                        <option value="site-a">Site A</option>
-                        <option value="site-b">Site B</option>
-                        <option value="site-c">Site C</option>
                     </select>
                 </div>
                 <div class="filter-group">
                     <label for="filter-tl">Team Leader</label>
                     <select id="filter-tl">
+                         <!-- Options will be populated by JS -->
                         <option value="">All</option>
-                        <option value="tl-smith">Jane Smith</option>
-                        <option value="tl-jones">John Jones</option>
-                        <option value="tl-williams">Sarah Williams</option>
                     </select>
                 </div>
                 <div class="filter-group">
                     <label for="filter-projects">Projects</label>
                     <select id="filter-projects">
+                         <!-- Options will be populated by JS -->
                         <option value="">All</option>
-                        <option value="project-x">Project X</option>
-                        <option value="project-y">Project Y</option>
-                        <option value="project-z">Project Z</option>
                     </select>
                 </div>
                 <div class="filter-actions">
@@ -207,36 +79,44 @@
                 </div>
             </div>
 
-
             <div class="table-container">
+                 <!-- Added Loading Indicator for JS -->
+                <div id="loading" class="loading-overlay">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading data...</p>
+                </div>
                 <table class="data-table">
                     <thead>
                         <tr>
+                            <!-- Corrected data-sort-by values to match PHP/JS keys -->
                             <th data-sort-by="eds">EDS <i class="fas fa-sort-down"></i></th>
                             <th data-sort-by="employee">EMPLOYEE <i class="fas fa-sort"></i></th>
-                            <th data-sort-by="tl-name">TL NAME <i class="fas fa-sort"></i></th>
+                            <!-- <th data-sort-by="prod_date">DATE <i class="fas fa-sort"></i></th> -->
+                            <th data-sort-by="tl_name">TL NAME <i class="fas fa-sort"></i></th>
                             <th data-sort-by="records">RECORDS <i class="fas fa-sort"></i></th>
                             <th data-sort-by="hours">HOURS<i class="fas fa-sort"></i></th>
                             <th data-sort-by="shipment">SHIPMENT<i class="fas fa-sort"></i></th>
-                            <th data-sort-by="alloc-eds">ALLOC EDS<i class="fas fa-sort"></i></th>
+                            <th data-sort-by="alloc_eds">ALLOC EDS<i class="fas fa-sort"></i></th>
                             <th data-sort-by="tputs">TPUTS<i class="fas fa-sort"></i></th>
                             <th data-sort-by="vph">VPH <i class="fas fa-sort"></i></th>
                             <th data-sort-by="utilization">UTILIZATION<i class="fas fa-sort"></i></th>
-                            <th data-sort-by="prod-ks-tputs">PROD_KS_TPUTS<i class="fas fa-sort"></i></th>
-                            <th data-sort-by="payroll-ks-tputs">PAYROLL_KS_TPUTS<i class="fas fa-sort"></i></th>
+                            <th data-sort-by="prod_ks_tputs">PROD_KS_TPUTS<i class="fas fa-sort"></i></th>
+                            <th data-sort-by="payroll_ks_tputs">PAYROLL_KS_TPUTS<i class="fas fa-sort"></i></th>
                         </tr>
                     </thead>
                     <tbody>
-                        </tbody>
+                        <!-- Table body will be populated by JS -->
+                    </tbody>
                 </table>
             </div>
 
             <div class="table-footer">
                 <div class="footer-left">
-                    <i class="fas fa-chevron-left"></i>
-                    <span>1</span>
-                    <i class="fas fa-chevron-right"></i>
-                    <span class="entry-info">1,342 entries on 45 pages</span>
+                    <!-- Added IDs for JS to target -->
+                    <i id="prev-page-btn" class="fas fa-chevron-left"></i>
+                    <span id="page-number">1</span>
+                    <i id="next-page-btn" class="fas fa-chevron-right"></i>
+                    <span class="entry-info"></span> <!-- Content is set by JS -->
                 </div>
                 <div class="footer-right">
                     <span class="rows-label">Rows</span>
@@ -244,12 +124,16 @@
                         <option value="10">10</option>
                         <option value="30" selected>30</option>
                         <option value="50">50</option>
+                        <option value="100">100</option> <!-- Added option -->
                     </select>
                 </div>
             </div>
         </main>
     </div>
 
+    <!-- Added XLSX library for Excel export functionality -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="../js/bps_dashboard.js"></script>
 </body>
 </html>
+

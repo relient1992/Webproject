@@ -1,185 +1,44 @@
-// document.addEventListener('DOMContentLoaded', () => {
-//     const filterElements = {
-//         location: document.getElementById('location-filter'),
-//         project: document.getElementById('project-filter'),
-//         weekending: document.getElementById('weekending-filter'),
-//         platform: document.getElementById('platform-filter'),
-//         proddate: document.getElementById('proddate-filter'),
-//         process: document.getElementById('process-filter'),
-//         tl: document.getElementById('tl-filter'),
-//         taskname: document.getElementById('taskname-filter'),
-//         operator: document.getElementById('operator-filter'),
-//         taskproject: document.getElementById('taskproject-filter')
-//     };
+$(function() { // Use jQuery's ready function for initialization
 
-//     const applyButton = document.getElementById('apply-filters');
-//     const resetButton = document.getElementById('reset-filters');
-//     const tableBody = document.getElementById('dashboard-table-body');
+    // --- STATE MANAGEMENT ---
+    let masterData = [];     // Holds the original data from the server
+    let filteredData = [];   // Holds data after filters are applied
+    let sortState = { column: 'eds', direction: 'asc' };
+    let paginationState = {
+        currentPage: 1,
+        rowsPerPage: 30,
+        totalPages: 1
+    };
 
-//     let recordsChart, hoursChart;
+    // --- ELEMENT REFERENCES (using jQuery) ---
+    const tableBody = $('.data-table tbody');
+    const loadingIndicator = $('#loading');
+    const filterToggleBtn = $('#filter-toggle-btn');
+    const filterPanel = $('#filter-panel');
+    const applyFiltersBtn = $('.apply-filters-btn');
+    const clearFiltersBtn = $('.clear-filters-btn');
+    const pillboxContainer = $('.pillbox-container');
+    const headers = $('th[data-sort-by]');
+    const entryInfoSpan = $('.entry-info');
+    const pageNumberSpan = $('#page-number');
+    const prevPageBtn = $('#prev-page-btn');
+    const nextPageBtn = $('#next-page-btn');
+    const rowsPerPageSelect = $('#rows-per-page');
+    const csvExportBtn = $('#csv-export-btn');
+    const xlsxExportBtn = $('#xlsx-export-btn');
 
-//     // Fetch initial data and populate filters
-//     fetchData().then(initialData => {
-//         populateFilters(initialData);
-//         updateDashboard(initialData);
-//     });
+    // =========================================================================
+    // == 1. DATE PICKER INITIALIZATION ==
+    // =========================================================================
+    
+    function onDateChange(start, end) {
+        $('#date-range-picker').val(start.format('YYYY-MM-DD') + ' - ' + end.format('YYYY-MM-DD'));
+        fetchData(start.format('YYYY-MM-DD'), end.format('YYYY-MM-DD'));
+    }
 
-//     // Event Listeners
-//     applyButton.addEventListener('click', () => {
-//         const filters = getSelectedFilters();
-//         fetchData(filters).then(updateDashboard);
-//     });
-
-//     resetButton.addEventListener('click', () => {
-//         Object.values(filterElements).forEach(el => {
-//             if (el.type === 'select-multiple') {
-//                 Array.from(el.options).forEach(option => option.selected = false);
-//             } else {
-//                 el.value = '';
-//             }
-//         });
-//         fetchData().then(updateDashboard);
-//     });
-
-//     // Functions
-//     async function fetchData(filters = {}) {
-//         const query = new URLSearchParams(filters).toString();
-//         const response = await fetch(`fetch_data.php?${query}`);
-//         return await response.json();
-//     }
-
-//     function populateFilters(data) {
-//         const filterOptions = {
-//             Location: new Set(),
-//             'Primary Project': new Set(),
-//             Weekending: new Set(),
-//             Platform: new Set(),
-//             'Firefly Process': new Set(),
-//             'TL Name': new Set(),
-//             Taskname: new Set(),
-//             'Operator name': new Set(),
-//             'Task PROJECT': new Set()
-//         };
-
-//         data.forEach(row => {
-//             // Use the exact column names from your database
-//             if (row['Location']) filterOptions.Location.add(row['Location']);
-//             if (row['Primary Project']) filterOptions['Primary Project'].add(row['Primary Project']);
-//             if (row['Weekending']) filterOptions.Weekending.add(row['Weekending']);
-//             if (row['Platform']) filterOptions.Platform.add(row['Platform']);
-//             if (row['Firefly Process']) filterOptions['Firefly Process'].add(row['Firefly Process']);
-//             if (row['TL Name']) filterOptions['TL Name'].add(row['TL Name']);
-//             if (row['Taskname']) filterOptions.Taskname.add(row['Taskname']);
-//             if (row['Operator name']) filterOptions['Operator name'].add(row['Operator name']);
-//             if (row['Task PROJECT']) filterOptions['Task PROJECT'].add(row['Task PROJECT']);
-//         });
-
-//         // Populate dropdowns
-//         filterElements.location.innerHTML = [...filterOptions.Location].map(v => `<option>${v}</option>`).join('');
-//         filterElements.project.innerHTML = [...filterOptions['Primary Project']].map(v => `<option>${v}</option>`).join('');
-//         filterElements.weekending.innerHTML = [...filterOptions.Weekending].map(v => `<option>${v}</option>`).join('');
-//         filterElements.platform.innerHTML = [...filterOptions.Platform].map(v => `<option>${v}</option>`).join('');
-//         filterElements.process.innerHTML = [...filterOptions['Firefly Process']].map(v => `<option>${v}</option>`).join('');
-//         filterElements.tl.innerHTML = [...filterOptions['TL Name']].map(v => `<option>${v}</option>`).join('');
-//         filterElements.taskname.innerHTML = [...filterOptions.Taskname].map(v => `<option>${v}</option>`).join('');
-//         filterElements.operator.innerHTML = [...filterOptions['Operator name']].map(v => `<option>${v}</option>`).join('');
-//         filterElements.taskproject.innerHTML = [...filterOptions['Task PROJECT']].map(v => `<option>${v}</option>`).join('');
-//     }
-
-//     function getSelectedFilters() {
-//         const filters = {};
-//         Object.entries(filterElements).forEach(([key, el]) => {
-//             if (el.type === 'select-multiple') {
-//                 const selected = [...el.selectedOptions].map(opt => opt.value);
-//                 // Use the label text as the key for the query parameter
-//                 if (selected.length) filters[el.labels[0].innerText] = selected.join(',');
-//             } else if (el.value) {
-//                 filters[el.labels[0].innerText] = el.value;
-//             }
-//         });
-//         return filters;
-//     }
-
-//     function updateDashboard(data) {
-//         updateCharts(data);
-//         updateTable(data);
-//     }
-
-//     function updateCharts(data) {
-//         const operatorData = {};
-//         data.forEach(row => {
-//             const operator = row['Operator name'];
-//             if (!operatorData[operator]) {
-//                 operatorData[operator] = { records: 0, hours: 0 };
-//             }
-//             operatorData[operator].records += parseFloat(row.Records) || 0;
-//             operatorData[operator].hours += parseFloat(row.Hours) || 0;
-//         });
-
-//         const labels = Object.keys(operatorData);
-//         const records = labels.map(l => operatorData[l].records);
-//         const hours = labels.map(l => operatorData[l].hours);
-
-//         // Records Chart
-//         if (recordsChart) recordsChart.destroy();
-//         recordsChart = new Chart(document.getElementById('records-chart'), {
-//             type: 'bar',
-//             data: {
-//                 labels,
-//                 datasets: [{
-//                     label: 'Total Records',
-//                     data: records,
-//                     backgroundColor: 'rgba(52, 152, 219, 0.7)'
-//                 }]
-//             }
-//         });
-
-//         // Hours Chart
-//         if (hoursChart) hoursChart.destroy();
-//         hoursChart = new Chart(document.getElementById('hours-chart'), {
-//             type: 'doughnut',
-//             data: {
-//                 labels,
-//                 datasets: [{
-//                     label: 'Total Hours',
-//                     data: hours,
-//                     backgroundColor: ['#e74c3c', '#f1c40f', '#2ecc71', '#9b59b6', '#34495e', '#1abc9c', '#e67e22']
-//                 }]
-//             }
-//         });
-//     }
-
-//     function updateTable(data) {
-//         tableBody.innerHTML = '';
-//         if (!data || data.error) {
-//             tableBody.innerHTML = `<tr><td colspan="6">Error: ${data ? data.error : 'Could not load data.'}</td></tr>`;
-//             return;
-//         }
-//         data.forEach(row => {
-//             const tr = document.createElement('tr');
-//             tr.innerHTML = `
-//                 <td>${row.eds || ''}</td>
-//                 <td>${row['Operator name'] || ''}</td>
-//                 <td>${row['TL Name'] || ''}</td>
-//                 <td>${row.Records || 0}</td>
-//                 <td>${row.Hours || 0}</td>
-//                 <td>${row.Shipment || ''}</td>
-//             `;
-//             tableBody.appendChild(tr);
-//         });
-//     }
-// });
-
-
-$(function() {
-    // Initialize the date range picker
     $('#date-range-picker').daterangepicker({
-        opens: 'left',
-        startDate: moment().subtract(7, 'days'),
+        startDate: moment(),
         endDate: moment(),
-        locale: {
-            format: 'MMM D, YYYY'
-        },
         ranges: {
            'Today': [moment(), moment()],
            'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
@@ -188,145 +47,244 @@ $(function() {
            'This Month': [moment().startOf('month'), moment().endOf('month')],
            'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
         }
-    }, function(start, end, label) {
-        $('#date-range-picker').val(start.format('MMM D, YYYY') + ' — ' + end.format('MMM D, YYYY'));
-    });
+    }, onDateChange);
+    
 
-    // --- Table Sorting and Filtering Logic ---
-    const tableBody = document.querySelector('.data-table tbody');
-    const tableHeaders = document.querySelectorAll('.data-table th');
+    // =========================================================================
+    // == 2. DATA HANDLING AND RENDERING FUNCTIONS ==
+    // =========================================================================
 
-    // Sample data with new filter properties
-    const employeeData = [
-        { name: "Allie Rucker", site: "site-a", tl: "tl-smith", projects: "project-x", inbound: 73, inboundTrend: 73, serviceLevel: "98.75%", slTrend: "97.25%", answered: 72, answeredTrend: 70, answeredPercent: "98.64%", unanswered: 2, unansweredTrend: 1, unansweredPercent: "94.50%", inboundCC: "" },
-        { name: "Bob Katz", site: "site-b", tl: "tl-jones", projects: "project-y", inbound: 55, inboundTrend: 55, serviceLevel: "97.25%", slTrend: "94.00%", answered: 53, answeredTrend: 50, answeredPercent: "96.37%", unanswered: 3, unansweredTrend: 5, unansweredPercent: "91.25%", inboundCC: "" },
-        { name: "Hannah Campbell", site: "site-a", tl: "tl-smith", projects: "project-z", inbound: 67, inboundTrend: 67, serviceLevel: "94.25%", slTrend: "95.50%", answered: 64, answeredTrend: 63, answeredPercent: "95.52%", unanswered: 1, unansweredTrend: 2, unansweredPercent: "97.75%", inboundCC: "" },
-        { name: "Henry Green", site: "site-c", tl: "tl-williams", projects: "project-x", inbound: 32, inboundTrend: 32, serviceLevel: "100%", slTrend: "98.75%", answered: 30, answeredTrend: 28, answeredPercent: "93.75%", unanswered: 2, unansweredTrend: 2, unansweredPercent: "96.75%", inboundCC: "" },
-        { name: "Jasmine Welder", site: "site-b", tl: "tl-jones", projects: "project-z", inbound: 56, inboundTrend: 56, serviceLevel: "97.50%", slTrend: "98.75%", answered: 53, answeredTrend: 53, answeredPercent: "94.64%", unanswered: "-", unansweredTrend: 2, unansweredPercent: "91.00%", inboundCC: "" },
-        { name: "Jessica Hawk", site: "site-a", tl: "tl-smith", projects: "project-y", inbound: 28, inboundTrend: 28, serviceLevel: "99.25%", slTrend: "98.75%", answered: 27, answeredTrend: 24, answeredPercent: "96.43%", unanswered: 3, unansweredTrend: 3, unansweredPercent: "93.25%", inboundCC: "" },
-        { name: "John Wilson", site: "site-c", tl: "tl-williams", projects: "project-z", inbound: 35, inboundTrend: 35, serviceLevel: "98.75%", slTrend: "99.50%", answered: 34, answeredTrend: 33, answeredPercent: "97.14%", unanswered: 1, unansweredTrend: 4, unansweredPercent: "94.75%", inboundCC: "" },
-        { name: "Jordan Young", site: "site-b", tl: "tl-jones", projects: "project-x", inbound: 76, inboundTrend: 76, serviceLevel: "95.25%", slTrend: "96.50%", answered: 73, answeredTrend: 68, answeredPercent: "96.05%", unanswered: 5, unansweredTrend: 2, unansweredPercent: "89.50%", inboundCC: "" },
-        { name: "Karey Nguyen", site: "site-a", tl: "tl-smith", projects: "project-y", inbound: 61, inboundTrend: 61, serviceLevel: "97.50%", slTrend: "98.25%", answered: 60, answeredTrend: 58, answeredPercent: "98.36%", unanswered: 2, unansweredTrend: 3, unansweredPercent: "96.25%", inboundCC: "" },
-        { name: "Karl Thompson", site: "site-c", tl: "tl-williams", projects: "project-z", inbound: 50, inboundTrend: 50, serviceLevel: "82.25%", slTrend: "91.75%", answered: 46, answeredTrend: 40, answeredPercent: "92.00%", unanswered: 6, unansweredTrend: 3, unansweredPercent: "98.00%", inboundCC: "" },
-    ];
+    /**
+     * Fetches data from the PHP backend using the modern fetch() API.
+     * @param {string} startDate - The start date in YYYY-MM-DD format.
+     * @param {string} endDate - The end date in YYYY-MM-DD format.
+     */
+    async function fetchData(startDate, endDate) {
+        loadingIndicator.show(); // Use jQuery's show() method
+        
+        // Construct the URL with query parameters. The "../" navigates one directory up.
+        // This is a likely fix if your HTML is in a 'views' folder and your PHP is in the parent folder.
+        const urlWithParams = `../bps_dashboard.php?startDate=${startDate}&endDate=${endDate}`;
 
-    // Functions for rendering and sorting remain the same
-    function renderTable(data) {
-        tableBody.innerHTML = '';
-        data.forEach(employee => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td class="employee-cell">
-                    <img src="https://via.placeholder.com/30" alt="${employee.name}">
-                    <span>${employee.name}</span>
-                </td>
-                <td>${employee.inbound}</td>
-                <td>${employee.inboundTrend}</td>
-                <td>${employee.serviceLevel}</td>
-                <td>${employee.slTrend}</td>
-                <td>${employee.answered}</td>
-                <td>${employee.answeredTrend}</td>
-                <td>${employee.answeredPercent}</td>
-                <td>${employee.unanswered}</td>
-                <td>${employee.unansweredTrend}</td>
-                <td>${employee.unansweredPercent}</td>
-                <td>${employee.inboundCC}</td>
-            `;
-            tableBody.appendChild(row);
+        try {
+            const response = await fetch(urlWithParams);
+
+            // If the response is not OK, read the response as text to see the server error message.
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Server returned an error: ${response.status}. Response: ${errorText}`);
+            }
+
+            const data = await response.json();
+            masterData = data;
+            populateFilterDropdowns(masterData);
+            resetAndRender(); 
+
+        } catch (error) {
+            console.error("Failed to fetch data:", error);
+            // Display the detailed error message in the table for easier debugging.
+            tableBody.html(`<tr><td colspan="12" style="text-align:center; padding: 16px; color: red;">${error.message}</td></tr>`);
+        } finally {
+            loadingIndicator.hide(); // Use jQuery's hide() method
+        }
+    }
+
+    /**
+     * Main function to apply all client-side operations (filter, sort, paginate) and render the table.
+     */
+    function updateDashboardView() {
+        // 1. Apply single-select filters
+        const filters = {
+            site: $('#filter-site').val(),
+            tl_name: $('#filter-tl').val(),
+            projects: $('#filter-projects').val()
+        };
+
+        filteredData = masterData.filter(row => {
+            return Object.entries(filters).every(([key, value]) => !value || String(row[key]) === String(value));
+        });
+
+        // 2. Sort the filtered data
+        const sortedData = [...filteredData].sort((a, b) => {
+            const valA = a[sortState.column] ?? '';
+            const valB = b[sortState.column] ?? '';
+            const comparison = String(valA).localeCompare(String(valB), undefined, { numeric: true });
+            return sortState.direction === 'asc' ? comparison : -comparison;
+        });
+
+        // 3. Paginate the sorted data
+        updatePaginationState(sortedData.length);
+        const paginatedData = sortedData.slice(
+            (paginationState.currentPage - 1) * paginationState.rowsPerPage,
+            paginationState.currentPage * paginationState.rowsPerPage
+        );
+
+        // 4. Render everything
+        renderTable(paginatedData);
+        renderPills();
+        renderPaginationControls();
+    }
+    
+    /**
+     * Renders data into the HTML table body.
+     * @param {Array} dataToRender - The array of objects for the current page.
+     */
+    function renderTable(dataToRender) {
+        tableBody.empty();
+        if (dataToRender.length === 0) {
+            tableBody.append('<tr><td colspan="12" style="text-align:center; padding: 16px;">No data matches the current criteria.</td></tr>');
+            return;
+        }
+        dataToRender.forEach(row => {
+            const formattedRecords = row.records ? parseInt(row.records, 10).toLocaleString() : '';
+            const tr = `
+                <tr>
+                    <td>${row.eds ?? ''}</td>
+                    <td>${row.employee ?? ''}</td>
+                    <td>${row.tl_name ?? ''}</td>
+                    <td>${formattedRecords}</td
+                    <td>${row.hours ?? ''}</td>
+                    <td>${row.shipment ?? ''}</td>
+                    <td>${row.alloc_eds ?? ''}</td>
+                    <td>${row.tputs ?? ''}</td>
+                    <td>${row.vph ?? ''}</td>
+                    <td>${row.utilization ?? ''}</td>
+                    <td>${row.prod_ks_tputs ?? ''}</td>
+                    <td>${row.payroll_ks_tputs ?? ''}</td>
+                </tr>`;
+            tableBody.append(tr);
         });
     }
 
-    renderTable(employeeData);
-
-    tableHeaders.forEach(header => {
-        header.addEventListener('click', () => {
-            const sortBy = header.getAttribute('data-sort-by');
-            const sortOrder = header.getAttribute('data-sort-order') === 'desc' ? 'asc' : 'desc';
-            tableHeaders.forEach(h => h.removeAttribute('data-sort-order'));
-            header.setAttribute('data-sort-order', sortOrder);
-
-            const sortedData = [...employeeData].sort((a, b) => {
-                const aVal = a[sortBy.replace(/-/g, '')];
-                const bVal = b[sortBy.replace(/-/g, '')];
-
-                if (typeof aVal === 'string' && aVal.includes('%')) {
-                    const aNum = parseFloat(aVal.replace('%', ''));
-                    const bNum = parseFloat(bVal.replace('%', ''));
-                    return sortOrder === 'asc' ? aNum - bNum : bNum - aNum;
-                }
-                
-                return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
-            });
-            renderTable(sortedData);
-        });
-    });
-
-    // --- New Filter Logic ---
-    const filterBtn = document.querySelector('.control-btn');
-    const filterPanel = document.getElementById('filter-panel');
-    const applyFiltersBtn = document.querySelector('.apply-filters-btn');
-    const clearFiltersBtn = document.querySelector('.clear-filters-btn');
-    const pillboxContainer = document.querySelector('.pillbox-container');
-
-    // Toggle filter panel visibility
-    filterBtn.addEventListener('click', () => {
-        filterPanel.style.display = filterPanel.style.display === 'block' ? 'none' : 'block';
-    });
-
-    // Apply filters and create pillbox tags
-    applyFiltersBtn.addEventListener('click', () => {
-        const filters = {
-            site: document.getElementById('filter-site').value,
-            tl: document.getElementById('filter-tl').value,
-            projects: document.getElementById('filter-projects').value
+    // --- Helper functions for rendering UI components ---
+    
+    function populateFilterDropdowns(data) {
+        const populate = (selector, key) => {
+            const uniqueOptions = [...new Set(data.map(item => item[key]).filter(Boolean))].sort();
+            const select = $(selector);
+            select.html('<option value="">All</option>');
+            uniqueOptions.forEach(option => select.append(`<option value="${option}">${option}</option>`));
         };
-
-        // Clear existing dynamic pills
-        const dynamicPills = document.querySelectorAll('.dynamic-pill');
-        dynamicPills.forEach(pill => pill.remove());
-
-        let filteredData = [...employeeData];
-
-        // Apply filters
-        for (const key in filters) {
-            if (filters[key]) {
-                filteredData = filteredData.filter(employee => employee[key] === filters[key]);
-                
-                // Create and add pillbox tag
-                const pill = document.createElement('span');
-                pill.classList.add('dynamic-pill');
-                pill.innerHTML = `${key}: ${filters[key]} <span class="remove-pill">&times;</span>`;
-                pill.setAttribute('data-filter-key', key);
-                pillboxContainer.appendChild(pill);
+        populate('#filter-site', 'site');
+        populate('#filter-tl', 'tl_name');
+        populate('#filter-projects', 'projects');
+    }
+    
+    function renderPills() {
+        pillboxContainer.empty();
+        const createPill = (name, value, key) => {
+            if (value) {
+                pillboxContainer.append(`<div class="pill">${name}: ${value} <span class="remove-pill" data-filter-key="${key}">&times;</span></div>`);
             }
+        };
+        createPill('Site', $('#filter-site').val(), 'site');
+        createPill('Team Leader', $('#filter-tl').val(), 'tl_name');
+        createPill('Project', $('#filter-projects').val(), 'projects');
+    }
+
+    function updatePaginationState(totalItems) {
+        paginationState.rowsPerPage = parseInt(rowsPerPageSelect.val(), 10);
+        paginationState.totalPages = Math.ceil(totalItems / paginationState.rowsPerPage) || 1;
+        if (paginationState.currentPage > paginationState.totalPages) {
+            paginationState.currentPage = paginationState.totalPages;
         }
+    }
+
+    function renderPaginationControls() {
+        pageNumberSpan.text(paginationState.currentPage);
+        entryInfoSpan.text(`${filteredData.length.toLocaleString()} entries on ${paginationState.totalPages.toLocaleString()} pages`);
+        prevPageBtn.toggleClass('disabled', paginationState.currentPage === 1);
+        nextPageBtn.toggleClass('disabled', paginationState.currentPage === paginationState.totalPages);
+    }
+    
+    function resetAndRender() {
+        paginationState.currentPage = 1;
+        updateDashboardView();
+    }
+
+    // =========================================================================
+    // == 3. EVENT HANDLERS (Unchanged) ==
+    // =========================================================================
+    
+    filterToggleBtn.on('click', () => filterPanel.toggleClass('active'));
+
+    applyFiltersBtn.on('click', () => {
+        resetAndRender();
+        filterPanel.removeClass('active');
+    });
+
+    clearFiltersBtn.on('click', () => {
+        $('#filter-site, #filter-tl, #filter-projects').val('');
+        resetAndRender();
+        filterPanel.removeClass('active');
+    });
+
+    pillboxContainer.on('click', '.remove-pill', function() {
+        const key = $(this).data('filter-key');
+        const selectMap = { site: '#filter-site', tl_name: '#filter-tl', projects: '#filter-projects' };
+        $(selectMap[key]).val('');
+        resetAndRender();
+    });
+
+    headers.on('click', function() {
+        const column = $(this).data('sort-by');
+        headers.removeClass('sorted');
+        $(this).addClass('sorted');
+
+        if (sortState.column === column) {
+            sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortState.column = column;
+            sortState.direction = 'asc';
+        }
+
+        headers.find('i').attr('class', 'fas fa-sort');
+        $(this).find('i').attr('class', sortState.direction === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down');
         
-        renderTable(filteredData);
+        updateDashboardView();
     });
-
-    // Remove individual pillbox tags and re-filter
-    pillboxContainer.addEventListener('click', (e) => {
-        if (e.target.classList.contains('remove-pill')) {
-            const pillToRemove = e.target.closest('.dynamic-pill');
-            const keyToRemove = pillToRemove.getAttribute('data-filter-key');
-            
-            // Clear the corresponding select option
-            document.getElementById(`filter-${keyToRemove}`).value = '';
-            
-            // Remove the pill and re-apply filters
-            pillToRemove.remove();
-            applyFiltersBtn.click();
+    
+    prevPageBtn.on('click', () => {
+        if (paginationState.currentPage > 1) {
+            paginationState.currentPage--;
+            updateDashboardView();
         }
     });
 
-    // Clear all filters
-    clearFiltersBtn.addEventListener('click', () => {
-        document.getElementById('filter-site').value = '';
-        document.getElementById('filter-tl').value = '';
-        document.getElementById('filter-projects').value = '';
-        const dynamicPills = document.querySelectorAll('.dynamic-pill');
-        dynamicPills.forEach(pill => pill.remove());
-        renderTable(employeeData);
-        filterPanel.style.display = 'none';
+    nextPageBtn.on('click', () => {
+        if (paginationState.currentPage < paginationState.totalPages) {
+            paginationState.currentPage++;
+            updateDashboardView();
+        }
     });
+
+    rowsPerPageSelect.on('change', resetAndRender);
+
+    csvExportBtn.on('click', () => {
+        if (filteredData.length === 0) return alert('No data to export.');
+        const headers = Object.keys(filteredData[0]);
+        const csvRows = [headers.join(','), ...filteredData.map(row => headers.map(h => JSON.stringify(row[h])).join(','))];
+        const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'bps_dashboard_export.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+    });
+
+    xlsxExportBtn.on('click', () => {
+        if (filteredData.length === 0) return alert('No data to export.');
+        const worksheet = XLSX.utils.json_to_sheet(filteredData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "BPS Data");
+        XLSX.writeFile(workbook, "bps_dashboard_export.xlsx");
+    });
+
+    // =========================================================================
+    // == 4. INITIALIZATION CALL ==
+    // =========================================================================
+    onDateChange(moment(), moment());
+    $(`th[data-sort-by="${sortState.column}"] i`).removeClass('fa-sort').addClass('fa-sort-down');
+
 });

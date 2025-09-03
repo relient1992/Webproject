@@ -26,18 +26,25 @@ $(function() { // Use jQuery's ready function for initialization
     const rowsPerPageSelect = $('#rows-per-page');
     const csvExportBtn = $('#csv-export-btn');
     const xlsxExportBtn = $('#xlsx-export-btn');
+    const singleFilterSelects = $('#filter-site, #filter-tl, #filter-projects, #filter-taskname, #filter-fireflyprocess');
+    // --- References for the custom multi-select ---
+    const multiSelectContainer = $('#taskprojects-multiselect-container');
+    const multiSelectButton = multiSelectContainer.find('.multiselect-button');
+    const multiSelectDropdown = multiSelectContainer.find('.multiselect-dropdown');
+    const multiSelectLabel = multiSelectContainer.find('.multiselect-label');
 
     // =========================================================================
-    // == 1. DATE PICKER INITIALIZATION ==
+    // == 1. DATE PICKER INITIALIZATION
     // =========================================================================
     
-    function onDateChange(start, end) {
-        $('#date-range-picker').val(start.format('YYYY-MM-DD') + ' - ' + end.format('YYYY-MM-DD'));
-        fetchData(start.format('YYYY-MM-DD'), end.format('YYYY-MM-DD'));
+    function onDateChange() {
+        // When the date changes, we need to refetch both the table data AND the filter options
+        // because the available options might change with the date range.
+        initializePage(); 
     }
 
     $('#date-range-picker').daterangepicker({
-        startDate: moment(),
+        startDate: moment(), 
         endDate: moment(),
         ranges: {
            'Today': [moment(), moment()],
@@ -51,60 +58,113 @@ $(function() { // Use jQuery's ready function for initialization
     
 
     // =========================================================================
-    // == 2. DATA HANDLING AND RENDERING FUNCTIONS ==
+    // == 2. DATA HANDLING AND RENDERING
     // =========================================================================
 
-    /**
-     * Fetches data from the PHP backend using the modern fetch() API.
-     * @param {string} startDate - The start date in YYYY-MM-DD format.
-     * @param {string} endDate - The end date in YYYY-MM-DD format.
-     */
-    async function fetchData(startDate, endDate) {
-        loadingIndicator.show(); // Use jQuery's show() method
+    function getSelectedFilters() {
+        const selectedTaskProjects = multiSelectDropdown.find('input:checked').map(function() {
+            return $(this).val();
+        }).get();
+
+        return {
+            site: $('#filter-site').val(),
+            tl_name: $('#filter-tl').val(),
+            projects: $('#filter-projects').val(),
+            taskprojects: selectedTaskProjects.join(','),
+            taskname: $('#filter-taskname').val(),
+            fireflyprocess: $('#filter-fireflyprocess').val()
+        };
+    }
+
+    async function fetchData() {
+        loadingIndicator.css('display', 'flex'); 
         
-        // Construct the URL with query parameters. The "../" navigates one directory up.
-        // This is a likely fix if your HTML is in a 'views' folder and your PHP is in the parent folder.
-        const urlWithParams = `../bps_dashboard.php?startDate=${startDate}&endDate=${endDate}`;
+        const datePicker = $('#date-range-picker').data('daterangepicker');
+        const startDate = datePicker.startDate.format('YYYY-MM-DD');
+        const endDate = datePicker.endDate.format('YYYY-MM-DD');
+        const filters = getSelectedFilters();
+
+        const params = new URLSearchParams({ startDate, endDate, ...filters });
+        const urlWithParams = `../bps_dashboard.php?${params.toString()}`;
 
         try {
             const response = await fetch(urlWithParams);
-
-            // If the response is not OK, read the response as text to see the server error message.
             if (!response.ok) {
                 const errorText = await response.text();
-                throw new Error(`Server returned an error: ${response.status}. Response: ${errorText}`);
+                throw new Error(`HTTP error ${response.status}: ${errorText || 'Server error'}`);
             }
-
             const data = await response.json();
-            masterData = data;
-            populateFilterDropdowns(masterData);
+            masterData = data; 
+            filteredData = data;
+            
             resetAndRender(); 
-
         } catch (error) {
             console.error("Failed to fetch data:", error);
-            // Display the detailed error message in the table for easier debugging.
-            tableBody.html(`<tr><td colspan="12" style="text-align:center; padding: 16px; color: red;">${error.message}</td></tr>`);
+            tableBody.html(`<tr><td colspan="12" style="text-align:center; padding:16px; color:red;"><b>Error:</b> ${error.message}</td></tr>`);
         } finally {
-            loadingIndicator.hide(); // Use jQuery's hide() method
+            loadingIndicator.css('display', 'none'); 
+        }
+    }
+    
+    async function updateFilterOptions() {
+        const filters = getSelectedFilters();
+        const params = new URLSearchParams({ get_options: 'true', ...filters });
+        
+        try {
+            const response = await fetch(`../bps_dashboard.php?${params.toString()}`);
+            const options = await response.json();
+            
+            const populateSelect = (selector, data) => {
+                const select = $(selector);
+                const currentValue = select.val(); 
+                select.html('<option value="">All</option>');
+                data.forEach(item => {
+                    select.append(`<option value="${item.value}">${item.value}</option>`);
+                });
+                select.val(currentValue);
+            };
+
+            const populateMultiSelect = (data) => {
+                const currentValues = getSelectedFilters().taskprojects.split(',').filter(Boolean);
+                multiSelectDropdown.empty();
+                data.forEach(item => {
+                    const isChecked = currentValues.includes(item.value);
+                    const checkboxId = `taskproject-${item.value.replace(/\W/g, '_')}`; // Sanitize ID
+                    multiSelectDropdown.append(`
+                        <label for="${checkboxId}" class="multiselect-option">
+                            <input type="checkbox" id="${checkboxId}" value="${item.value}" ${isChecked ? 'checked' : ''}>
+                            ${item.value}
+                        </label>
+                    `);
+                });
+                updateMultiSelectLabel();
+            };
+
+            populateSelect('#filter-site', options.site);
+            populateSelect('#filter-tl', options.tl_name);
+            populateSelect('#filter-projects', options.projects);
+            populateMultiSelect(options.taskprojects);
+            populateSelect('#filter-taskname', options.taskname);
+            populateSelect('#filter-fireflyprocess', options.fireflyprocess);
+
+        } catch (error) {
+            console.error("Failed to update filter options:", error);
         }
     }
 
-    /**
-     * Main function to apply all client-side operations (filter, sort, paginate) and render the table.
-     */
+    function updateMultiSelectLabel() {
+        const selectedCount = multiSelectDropdown.find('input:checked').length;
+        if (selectedCount === 0) {
+            multiSelectLabel.text('Select Projects');
+        } else if (selectedCount === 1) {
+            multiSelectLabel.text(multiSelectDropdown.find('input:checked').val());
+        } else {
+            multiSelectLabel.text(`${selectedCount} selected`);
+        }
+    }
+
+
     function updateDashboardView() {
-        // 1. Apply single-select filters
-        const filters = {
-            site: $('#filter-site').val(),
-            tl_name: $('#filter-tl').val(),
-            projects: $('#filter-projects').val()
-        };
-
-        filteredData = masterData.filter(row => {
-            return Object.entries(filters).every(([key, value]) => !value || String(row[key]) === String(value));
-        });
-
-        // 2. Sort the filtered data
         const sortedData = [...filteredData].sort((a, b) => {
             const valA = a[sortState.column] ?? '';
             const valB = b[sortState.column] ?? '';
@@ -112,23 +172,17 @@ $(function() { // Use jQuery's ready function for initialization
             return sortState.direction === 'asc' ? comparison : -comparison;
         });
 
-        // 3. Paginate the sorted data
         updatePaginationState(sortedData.length);
         const paginatedData = sortedData.slice(
             (paginationState.currentPage - 1) * paginationState.rowsPerPage,
             paginationState.currentPage * paginationState.rowsPerPage
         );
 
-        // 4. Render everything
         renderTable(paginatedData);
         renderPills();
         renderPaginationControls();
     }
     
-    /**
-     * Renders data into the HTML table body.
-     * @param {Array} dataToRender - The array of objects for the current page.
-     */
     function renderTable(dataToRender) {
         tableBody.empty();
         if (dataToRender.length === 0) {
@@ -142,34 +196,20 @@ $(function() { // Use jQuery's ready function for initialization
                     <td>${row.eds ?? ''}</td>
                     <td>${row.employee ?? ''}</td>
                     <td>${row.tl_name ?? ''}</td>
-                    <td>${formattedRecords}</td
-                    <td>${row.hours ?? ''}</td>
+                    <td>${formattedRecords}</td>
+                    <td>${row.hours ? parseFloat(row.hours).toFixed(2) : ''}</td>
                     <td>${row.shipment ?? ''}</td>
                     <td>${row.alloc_eds ?? ''}</td>
-                    <td>${row.tputs ?? ''}</td>
-                    <td>${row.vph ?? ''}</td>
-                    <td>${row.utilization ?? ''}</td>
-                    <td>${row.prod_ks_tputs ?? ''}</td>
-                    <td>${row.payroll_ks_tputs ?? ''}</td>
+                    <td>${row.tputs ? parseFloat(row.tputs).toFixed(2) : ''}</td>
+                    <td>${row.vph ? parseFloat(row.vph).toFixed(2) : ''}</td>
+                    <td>${row.utilization ? (parseFloat(row.utilization) * 100).toFixed(2) + '%' : ''}</td>
+                    <td>${row.prod_ks_tputs ? parseFloat(row.prod_ks_tputs).toFixed(2) : ''}</td>
+                    <td>${row.payroll_ks_tputs ? parseFloat(row.payroll_ks_tputs).toFixed(2) : ''}</td>
                 </tr>`;
             tableBody.append(tr);
         });
     }
 
-    // --- Helper functions for rendering UI components ---
-    
-    function populateFilterDropdowns(data) {
-        const populate = (selector, key) => {
-            const uniqueOptions = [...new Set(data.map(item => item[key]).filter(Boolean))].sort();
-            const select = $(selector);
-            select.html('<option value="">All</option>');
-            uniqueOptions.forEach(option => select.append(`<option value="${option}">${option}</option>`));
-        };
-        populate('#filter-site', 'site');
-        populate('#filter-tl', 'tl_name');
-        populate('#filter-projects', 'projects');
-    }
-    
     function renderPills() {
         pillboxContainer.empty();
         const createPill = (name, value, key) => {
@@ -177,9 +217,17 @@ $(function() { // Use jQuery's ready function for initialization
                 pillboxContainer.append(`<div class="pill">${name}: ${value} <span class="remove-pill" data-filter-key="${key}">&times;</span></div>`);
             }
         };
+
         createPill('Site', $('#filter-site').val(), 'site');
         createPill('Team Leader', $('#filter-tl').val(), 'tl_name');
         createPill('Project', $('#filter-projects').val(), 'projects');
+        createPill('Taskname', $('#filter-taskname').val(), 'taskname');
+        createPill('Firefly Process', $('#filter-fireflyprocess').val(), 'fireflyprocess');
+        
+        const selectedTaskProjects = getSelectedFilters().taskprojects.split(',').filter(Boolean);
+        selectedTaskProjects.forEach(project => {
+            pillboxContainer.append(`<div class="pill">Task Project: ${project} <span class="remove-pill" data-filter-key="taskprojects" data-filter-value="${project}">&times;</span></div>`);
+        });
     }
 
     function updatePaginationState(totalItems) {
@@ -203,44 +251,79 @@ $(function() { // Use jQuery's ready function for initialization
     }
 
     // =========================================================================
-    // == 3. EVENT HANDLERS (Unchanged) ==
+    // == 3. EVENT HANDLERS 
     // =========================================================================
     
     filterToggleBtn.on('click', () => filterPanel.toggleClass('active'));
 
     applyFiltersBtn.on('click', () => {
-        resetAndRender();
+        fetchData();
         filterPanel.removeClass('active');
+        multiSelectDropdown.removeClass('active');
     });
 
     clearFiltersBtn.on('click', () => {
-        $('#filter-site, #filter-tl, #filter-projects').val('');
-        resetAndRender();
+        singleFilterSelects.val('');
+        multiSelectDropdown.find('input:checked').prop('checked', false);
+        fetchData();
+        updateFilterOptions(); 
         filterPanel.removeClass('active');
     });
 
     pillboxContainer.on('click', '.remove-pill', function() {
         const key = $(this).data('filter-key');
-        const selectMap = { site: '#filter-site', tl_name: '#filter-tl', projects: '#filter-projects' };
-        $(selectMap[key]).val('');
-        resetAndRender();
+        
+        if (key === 'taskprojects') {
+            const valueToRemove = $(this).data('filter-value');
+            multiSelectDropdown.find(`input[value="${valueToRemove}"]`).prop('checked', false);
+        } else {
+            $(`#filter-${key}`).val('');
+        }
+        
+        fetchData();
+        updateFilterOptions();
     });
+
+    // --- MODIFIED: More robust event handlers for the multi-select ---
+
+    // When a single-select filter changes, update the options in all other filters
+    singleFilterSelects.on('change', updateFilterOptions);
+
+    // When a checkbox is clicked, update the label and the other filter options
+    multiSelectDropdown.on('change', 'input[type="checkbox"]', function() {
+        updateMultiSelectLabel();
+        updateFilterOptions();
+    });
+
+    // Toggle the dropdown's visibility
+    multiSelectButton.on('click', (e) => {
+        e.stopPropagation(); // Prevent the document click handler from immediately closing it
+        multiSelectDropdown.toggleClass('active');
+    });
+
+    // Stop clicks inside the dropdown from closing it
+    multiSelectDropdown.on('click', (e) => {
+        e.stopPropagation();
+    });
+
+    // A single global handler to close the dropdown if clicking anywhere else
+    $(document).on('click', function() {
+        multiSelectDropdown.removeClass('active');
+    });
+
 
     headers.on('click', function() {
         const column = $(this).data('sort-by');
         headers.removeClass('sorted');
         $(this).addClass('sorted');
-
         if (sortState.column === column) {
             sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
         } else {
             sortState.column = column;
             sortState.direction = 'asc';
         }
-
         headers.find('i').attr('class', 'fas fa-sort');
         $(this).find('i').attr('class', sortState.direction === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down');
-        
         updateDashboardView();
     });
     
@@ -260,6 +343,7 @@ $(function() { // Use jQuery's ready function for initialization
 
     rowsPerPageSelect.on('change', resetAndRender);
 
+    // --- Export Handlers ---
     csvExportBtn.on('click', () => {
         if (filteredData.length === 0) return alert('No data to export.');
         const headers = Object.keys(filteredData[0]);
@@ -282,9 +366,14 @@ $(function() { // Use jQuery's ready function for initialization
     });
 
     // =========================================================================
-    // == 4. INITIALIZATION CALL ==
+    // == 4. INITIALIZATION CALL
     // =========================================================================
-    onDateChange(moment(), moment());
-    $(`th[data-sort-by="${sortState.column}"] i`).removeClass('fa-sort').addClass('fa-sort-down');
+    async function initializePage() {
+        await updateFilterOptions(); // Load all dropdown options first
+        await fetchData(); // Then fetch the initial table data
+        $(`th[data-sort-by="${sortState.column}"] i`).removeClass('fa-sort').addClass('fa-sort-down');
+    }
+    initializePage();
 
 });
+

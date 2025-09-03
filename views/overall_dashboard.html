@@ -73,6 +73,32 @@
                         <option value="">All</option>
                     </select>
                 </div>
+                <div class="filter-group">
+                    <label>Task Project</label>
+                    <div class="multiselect-container" id="taskprojects-multiselect-container">
+                        <button type="button" class="multiselect-button">
+                            <span class="multiselect-label">Select Projects</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="multiselect-dropdown">
+                            <!-- Checkbox options will be inserted here by JS -->
+                        </div>
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <label for="filter-taskname">Taskname</label>
+                    <select id="filter-taskname">
+                         <!-- Options will be populated by JS -->
+                        <option value="">All</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filter-fireflyprocess">Firefly Process</label>
+                    <select id="filter-fireflyprocess">
+                         <!-- Options will be populated by JS -->
+                        <option value="">All</option>
+                    </select>
+                </div>
                 <div class="filter-actions">
                     <button class="apply-filters-btn">Apply Filters</button>
                     <button class="clear-filters-btn">Clear All</button>
@@ -91,7 +117,6 @@
                             <!-- Corrected data-sort-by values to match PHP/JS keys -->
                             <th data-sort-by="eds">EDS <i class="fas fa-sort-down"></i></th>
                             <th data-sort-by="employee">EMPLOYEE <i class="fas fa-sort"></i></th>
-                            <!-- <th data-sort-by="prod_date">DATE <i class="fas fa-sort"></i></th> -->
                             <th data-sort-by="tl_name">TL NAME <i class="fas fa-sort"></i></th>
                             <th data-sort-by="records">RECORDS <i class="fas fa-sort"></i></th>
                             <th data-sort-by="hours">HOURS<i class="fas fa-sort"></i></th>

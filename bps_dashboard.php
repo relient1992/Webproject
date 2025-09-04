@@ -16,7 +16,7 @@ $username   = "supersu";
 $password   = "H110mds2!";
 $database   = "database_rda";
 
-/// Connect
+// Connect
 $conn = new mysqli($servername, $username, $password, $database);
 
 if ($conn->connect_error) {
@@ -25,14 +25,59 @@ if ($conn->connect_error) {
 }
 
 
-// --- MODIFIED: LOGIC TO FETCH DYNAMIC FILTER OPTIONS ---
+// --- DYNAMIC WHERE CLAUSE BUILDER ---
+// This function helps build the WHERE clause securely
+function build_where_clause($conn, $filters, &$params, &$types) {
+    $whereClauses = [];
+    
+    $filterMappings = [
+        'site' => 'site',
+        'tl_name' => '`TL Name`',
+        'projects' => '`Primary Project`',
+        'taskname' => 'TaskName',
+        'fireflyprocess' => '`Firefly Process`'
+    ];
+
+    foreach ($filterMappings as $paramName => $columnName) {
+        if (!empty($filters[$paramName])) {
+            $whereClauses[] = "$columnName = ?";
+            $params[] = $filters[$paramName];
+            $types .= 's';
+        }
+    }
+    
+    // Handle multi-select taskprojects
+    if (!empty($filters['taskprojects'])) {
+        $taskProjects = explode(',', $filters['taskprojects']);
+        $placeholders = implode(',', array_fill(0, count($taskProjects), '?'));
+        $whereClauses[] = "`Task PROJECT` IN ($placeholders)";
+        foreach ($taskProjects as $project) {
+            $params[] = $project;
+            $types .= 's';
+        }
+    }
+    
+    return empty($whereClauses) ? "" : "WHERE " . implode(' AND ', $whereClauses);
+}
+
+
+// --- LOGIC TO FETCH ALL FILTER OPTIONS ---
 if (isset($_GET['get_options'])) {
     
-    // Build a WHERE clause based on the currently selected filters
-    $whereClauses = [];
+    $filters = $_GET;
     $params = [];
     $types = '';
-    $filterMappings = [
+
+    // Always include date range in filter options
+    $startDate = $_GET['startDate'] ?? date('Y-m-d');
+    $endDate = $_GET['endDate'] ?? date('Y-m-d');
+    $dateClause = "proddate BETWEEN ? AND ?";
+    $params = [$startDate, $endDate];
+    $types = 'ss';
+
+    $options = [];
+    
+    $option_columns = [
         'site' => 'site',
         'tl_name' => '`TL Name`',
         'projects' => '`Primary Project`',
@@ -41,48 +86,31 @@ if (isset($_GET['get_options'])) {
         'fireflyprocess' => '`Firefly Process`'
     ];
 
-    foreach ($filterMappings as $paramName => $columnName) {
-        if (!empty($_GET[$paramName])) {
-            // MODIFIED: Handle multi-select for taskprojects
-            if ($paramName === 'taskprojects') {
-                $values = explode(',', $_GET[$paramName]);
-                if (count($values) > 0) {
-                    $placeholders = implode(',', array_fill(0, count($values), '?'));
-                    $whereClauses[] = "$columnName IN ($placeholders)";
-                    foreach ($values as $value) {
-                        $params[] = $value;
-                        $types .= 's';
-                    }
-                }
-            } else {
-                $whereClauses[] = "$columnName = ?";
-                $params[] = $_GET[$paramName];
-                $types .= 's';
-            }
+    foreach ($option_columns as $key => $column) {
+        $temp_filters = $filters;
+        unset($temp_filters[$key]); // Exclude the current filter from the WHERE clause for itself
+
+        $temp_params = $params; // Start with date params
+        $temp_types = $types;
+
+        $whereClauseForOptions = build_where_clause($conn, $temp_filters, $temp_params, $temp_types);
+        
+        $finalWhere = $dateClause;
+        if (!empty($whereClauseForOptions)) {
+            $finalWhere .= " AND " . substr($whereClauseForOptions, 6); // remove 'WHERE '
         }
-    }
-    $whereSql = !empty($whereClauses) ? " WHERE " . implode(' AND ', $whereClauses) : "";
 
-    // Queries to get the unique available options based on the WHERE clause above
-    $options = [];
-    $option_queries = [
-        'site' => "SELECT DISTINCT site as value FROM bps_dashboard $whereSql ORDER BY value",
-        'tl_name' => "SELECT DISTINCT `TL Name` as value FROM bps_dashboard $whereSql ORDER BY value",
-        'projects' => "SELECT DISTINCT `Primary Project` as value FROM bps_dashboard $whereSql ORDER BY value",
-        'taskprojects' => "SELECT DISTINCT `Task PROJECT` as value FROM bps_dashboard $whereSql ORDER BY value",
-        'taskname' => "SELECT DISTINCT TaskName as value FROM bps_dashboard $whereSql ORDER BY value",
-        'fireflyprocess' => "SELECT DISTINCT `Firefly Process` as value FROM bps_dashboard $whereSql ORDER BY value"
-    ];
-
-    foreach ($option_queries as $key => $sql) {
+        $sql = "SELECT DISTINCT $column as value FROM bps_dashboard WHERE $finalWhere AND $column IS NOT NULL AND $column != '' ORDER BY value";
+        
         $stmt = $conn->prepare($sql);
         if ($stmt) {
-            if (!empty($params)) {
-                $stmt->bind_param($types, ...$params);
-            }
+            $stmt->bind_param($temp_types, ...$temp_params);
             $stmt->execute();
             $result = $stmt->get_result();
-            $options[$key] = $result->fetch_all(MYSQLI_ASSOC);
+            $options[$key] = [];
+            while($row = $result->fetch_assoc()){
+                $options[$key][] = ['value' => $row['value']];
+            }
             $stmt->close();
         }
     }
@@ -93,81 +121,70 @@ if (isset($_GET['get_options'])) {
 }
 
 
-// --- DYNAMIC FILTERING LOGIC FOR TABLE DATA ---
+// --- LOGIC FOR FETCHING TABLE DATA ---
 
-// Base SQL query
-$sql = "SELECT 
-            eds,
-            GROUP_CONCAT(DISTINCT TaskName SEPARATOR ', ') AS taskname,
-            GROUP_CONCAT(DISTINCT `Task PROJECT` SEPARATOR ', ') as taskprojects,
-            GROUP_CONCAT(DISTINCT `Firefly Process` SEPARATOR ', ') as fireflyprocess,
-            GROUP_CONCAT(DISTINCT OperatorName SEPARATOR ', ') AS employee,
-            GROUP_CONCAT(DISTINCT `TL Name` SEPARATOR ', ') AS tl_name,
-            SUM(Records) AS records,
-            SUM(Hours) AS hours,
-            SUM(Shipment) AS shipment,
-            SUM(`ALLOC. EDS`) AS alloc_eds,
-            IF(SUM(Hours) > 0, SUM(shipment) / SUM(Hours), 0) AS tputs,
-            IF(SUM(`ALLOC. EDS`) > 0, SUM(shipment) / SUM(`ALLOC. EDS`), 0) AS vph,
-            IF(SUM(`ALLOC. EDS`) > 0, SUM(Hours) / SUM(`ALLOC. EDS`), 0) AS utilization,
-            IF(SUM(Hours) > 0, SUM(records) / SUM(Hours), 0) AS prod_ks_tputs,
-            IF(SUM(`ALLOC. EDS`) > 0, SUM(records) / SUM(`ALLOC. EDS`), 0) AS payroll_ks_tputs,
-            GROUP_CONCAT(DISTINCT site SEPARATOR ', ') AS site,
-            GROUP_CONCAT(DISTINCT `Primary Project` SEPARATOR ', ') AS projects
-        FROM 
-            bps_dashboard";
-
-// --- Build WHERE clause dynamically ---
-$whereClauses = [];
+$viewMode = $_GET['view_mode'] ?? 'employee';
+$sql = "";
 $params = [];
 $types = '';
 
-// Date Range (Always present)
+// Base WHERE clause from filters
+$baseWhereClause = build_where_clause($conn, $_GET, $params, $types);
+
+// Date range is added separately because it's always present for the main query
 $startDate = $_GET['startDate'] ?? date('Y-m-d');
 $endDate = $_GET['endDate'] ?? date('Y-m-d');
-$whereClauses[] = "proddate BETWEEN ? AND ?";
-$params[] = $startDate;
-$params[] = $endDate;
-$types .= 'ss';
+array_unshift($params, $endDate);
+array_unshift($params, $startDate);
+$types = 'ss' . $types;
 
-// Other filters (check if they are set and not empty)
-$filterMappings = [
-    'site' => 'site',
-    'tl_name' => '`TL Name`',
-    'projects' => '`Primary Project`',
-    'taskprojects' => '`Task PROJECT`',
-    'taskname' => 'TaskName',
-    'fireflyprocess' => '`Firefly Process`'
-];
-
-foreach ($filterMappings as $paramName => $columnName) {
-    if (!empty($_GET[$paramName])) {
-         // MODIFIED: Handle multi-select for taskprojects
-        if ($paramName === 'taskprojects' && !empty($_GET[$paramName])) {
-            $values = explode(',', $_GET[$paramName]);
-            if(count($values) > 0){
-                $placeholders = implode(',', array_fill(0, count($values), '?'));
-                $whereClauses[] = "$columnName IN ($placeholders)";
-                foreach ($values as $value) {
-                    $params[] = $value;
-                    $types .= 's';
-                }
-            }
-        } else {
-            $whereClauses[] = "$columnName = ?";
-            $params[] = $_GET[$paramName];
-            $types .= 's';
-        }
-    }
+$dateWhere = "WHERE proddate BETWEEN ? AND ?";
+$finalWhereClause = $dateWhere;
+if (!empty($baseWhereClause)) {
+    $finalWhereClause .= " AND " . substr($baseWhereClause, 6); // remove 'WHERE '
 }
 
-// Append WHERE clauses to the main SQL query
-if (!empty($whereClauses)) {
-    $sql .= " WHERE " . implode(' AND ', $whereClauses);
+
+if ($viewMode === 'employee') {
+    $sql = "SELECT 
+                eds,
+                GROUP_CONCAT(DISTINCT TaskName SEPARATOR ', ') AS taskname,
+                GROUP_CONCAT(DISTINCT `Task PROJECT` SEPARATOR ', ') as taskprojects,
+                GROUP_CONCAT(DISTINCT `Firefly Process` SEPARATOR ', ') as fireflyprocess,
+                GROUP_CONCAT(DISTINCT OperatorName SEPARATOR ', ') AS employee,
+                GROUP_CONCAT(DISTINCT `TL Name` SEPARATOR ', ') AS tl_name,
+                SUM(Records) AS records,
+                SUM(Hours) AS hours,
+                SUM(Shipment) AS shipment,
+                SUM(`ALLOC. EDS`) AS alloc_eds,
+                IF(SUM(Hours) > 0, SUM(shipment) / SUM(Hours), 0) AS tputs,
+                IF(SUM(`ALLOC. EDS`) > 0, SUM(shipment) / SUM(`ALLOC. EDS`), 0) AS vph,
+                IF(SUM(`ALLOC. EDS`) > 0, SUM(Hours) / SUM(`ALLOC. EDS`), 0) AS utilization,
+                IF(SUM(Hours) > 0, SUM(records) / SUM(Hours), 0) AS prod_ks_tputs,
+                IF(SUM(`ALLOC. EDS`) > 0, SUM(records) / SUM(`ALLOC. EDS`), 0) AS payroll_ks_tputs,
+                GROUP_CONCAT(DISTINCT site SEPARATOR ', ') AS site,
+                GROUP_CONCAT(DISTINCT `Primary Project` SEPARATOR ', ') AS projects
+            FROM 
+                bps_dashboard
+            $finalWhereClause
+            GROUP BY eds ORDER BY eds";
+} else { // Project View
+     $sql = "SELECT 
+                GROUP_CONCAT(DISTINCT `Task PROJECT` SEPARATOR ', ') as taskprojects,
+                GROUP_CONCAT(DISTINCT TaskName SEPARATOR ', ') AS taskname,
+                SUM(Records) AS records,
+                SUM(Hours) AS hours,
+                SUM(Shipment) AS shipment,
+                SUM(`ALLOC. EDS`) AS alloc_eds,
+                IF(SUM(Hours) > 0, SUM(shipment) / SUM(Hours), 0) AS tputs,
+                IF(SUM(`ALLOC. EDS`) > 0, SUM(shipment) / SUM(`ALLOC. EDS`), 0) AS vph,
+                IF(SUM(`ALLOC. EDS`) > 0, SUM(Hours) / SUM(`ALLOC. EDS`), 0) AS utilization
+            FROM 
+                bps_dashboard
+            $finalWhereClause
+            GROUP BY `Task PROJECT`, TaskName ORDER BY `Task PROJECT`, TaskName";
 }
 
-// Group only by EDS
-$sql .= " GROUP BY eds ORDER BY eds";
 
 $stmt = $conn->prepare($sql);
 
@@ -176,7 +193,6 @@ if ($stmt === false) {
     die(json_encode(['error' => 'Failed to prepare statement: ' . $conn->error]));
 }
 
-// Bind parameters if any exist
 if (!empty($params)) {
     $stmt->bind_param($types, ...$params);
 }

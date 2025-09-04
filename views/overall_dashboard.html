@@ -34,70 +34,78 @@
         <main class="main-content">
             <div class="controls-bar">
                 <div class="left-controls">
-                    <!-- Added ID for JS to target -->
-                    <button class="control-btn" id="filter-toggle-btn"><i class="fas fa-filter"></i> Filters</button>
+                    <button id="filter-toggle-btn" class="control-btn"><i class="fas fa-filter"></i> Filters</button>
                     <div class="date-range">
                         <i class="fas fa-calendar-alt"></i>
                         <input type="text" id="date-range-picker" readonly>
                     </div>
+                    <!-- New View Switcher -->
+                    <div class="view-switcher">
+                        <button id="employee-view-btn" class="view-btn active">Employee View</button>
+                        <button id="project-view-btn" class="view-btn">Project View</button>
+                    </div>
                     <div class="pillbox-container">
-                        <!-- Pills are dynamically added here by JS -->
+                        <!-- Pills will be populated by JS -->
                     </div>
                 </div>
                 <div class="right-controls">
-                    <!-- Added IDs for JS to target -->
-                    <button class="control-btn" id="csv-export-btn"><i class="fas fa-file-csv"></i> CSV</button>
-                    <button class="control-btn" id="xlsx-export-btn"><i class="fas fa-file-excel"></i> XLSX</button>
+                    <button id="csv-export-btn" class="control-btn"><i class="fas fa-file-csv"></i> CSV</button>
+                    <button id="xlsx-export-btn" class="control-btn"><i class="fas fa-file-excel"></i> XLSX</button>
                 </div>
             </div>
 
             <div class="filter-panel" id="filter-panel">
-                <div class="filter-group">
-                    <label for="filter-site">Site</label>
-                    <select id="filter-site">
-                        <!-- Options will be populated by JS -->
-                        <option value="">All</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label for="filter-tl">Team Leader</label>
-                    <select id="filter-tl">
-                         <!-- Options will be populated by JS -->
-                        <option value="">All</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label for="filter-projects">Projects</label>
-                    <select id="filter-projects">
-                         <!-- Options will be populated by JS -->
-                        <option value="">All</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label>Task Project</label>
-                    <div class="multiselect-container" id="taskprojects-multiselect-container">
-                        <button type="button" class="multiselect-button">
-                            <span class="multiselect-label">Select Projects</span>
-                            <i class="fas fa-chevron-down"></i>
-                        </button>
-                        <div class="multiselect-dropdown">
-                            <!-- Checkbox options will be inserted here by JS -->
+                <div class="filter-grid">
+                    <div class="filter-group">
+                        <label for="filter-site">Site</label>
+                        <select id="filter-site">
+                            <option value="">All</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filter-tl">Team Leader</label>
+                        <select id="filter-tl">
+                            <option value="">All</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filter-projects">Primary Project</label>
+                        <select id="filter-projects">
+                            <option value="">All</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Task Project</label>
+                        <div class="multiselect-container" id="taskprojects-multiselect-container">
+                            <button type="button" class="multiselect-button">
+                                <span class="multiselect-label">Select Projects</span>
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                            <div class="multiselect-dropdown">
+                                <!-- UPDATED: Container for options for scrolling -->
+                                <div class="multiselect-options-container">
+                                    <!-- Checkbox options will be inserted here by JS -->
+                                </div>
+                                <!-- ADDED: Buttons for Apply/Cancel -->
+                                <div class="multiselect-actions">
+                                    <button type="button" class="multiselect-cancel-btn">Cancel</button>
+                                    <button type="button" class="multiselect-apply-btn">Apply</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="filter-group">
-                    <label for="filter-taskname">Taskname</label>
-                    <select id="filter-taskname">
-                         <!-- Options will be populated by JS -->
-                        <option value="">All</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label for="filter-fireflyprocess">Firefly Process</label>
-                    <select id="filter-fireflyprocess">
-                         <!-- Options will be populated by JS -->
-                        <option value="">All</option>
-                    </select>
+                    <div class="filter-group">
+                        <label for="filter-taskname">Task Name</label>
+                        <select id="filter-taskname">
+                            <option value="">All</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filter-fireflyprocess">Firefly Process</label>
+                        <select id="filter-fireflyprocess">
+                            <option value="">All</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="filter-actions">
                     <button class="apply-filters-btn">Apply Filters</button>
@@ -106,28 +114,13 @@
             </div>
 
             <div class="table-container">
-                 <!-- Added Loading Indicator for JS -->
                 <div id="loading" class="loading-overlay">
                     <i class="fas fa-spinner fa-spin"></i>
                     <p>Loading data...</p>
                 </div>
                 <table class="data-table">
                     <thead>
-                        <tr>
-                            <!-- Corrected data-sort-by values to match PHP/JS keys -->
-                            <th data-sort-by="eds">EDS <i class="fas fa-sort-down"></i></th>
-                            <th data-sort-by="employee">EMPLOYEE <i class="fas fa-sort"></i></th>
-                            <th data-sort-by="tl_name">TL NAME <i class="fas fa-sort"></i></th>
-                            <th data-sort-by="records">RECORDS <i class="fas fa-sort"></i></th>
-                            <th data-sort-by="hours">HOURS<i class="fas fa-sort"></i></th>
-                            <th data-sort-by="shipment">SHIPMENT<i class="fas fa-sort"></i></th>
-                            <th data-sort-by="alloc_eds">ALLOC EDS<i class="fas fa-sort"></i></th>
-                            <th data-sort-by="tputs">TPUTS<i class="fas fa-sort"></i></th>
-                            <th data-sort-by="vph">VPH <i class="fas fa-sort"></i></th>
-                            <th data-sort-by="utilization">UTILIZATION<i class="fas fa-sort"></i></th>
-                            <th data-sort-by="prod_ks_tputs">PROD_KS_TPUTS<i class="fas fa-sort"></i></th>
-                            <th data-sort-by="payroll_ks_tputs">PAYROLL_KS_TPUTS<i class="fas fa-sort"></i></th>
-                        </tr>
+                        <!-- Table headers will be populated by JS -->
                     </thead>
                     <tbody>
                         <!-- Table body will be populated by JS -->
@@ -137,11 +130,10 @@
 
             <div class="table-footer">
                 <div class="footer-left">
-                    <!-- Added IDs for JS to target -->
                     <i id="prev-page-btn" class="fas fa-chevron-left"></i>
                     <span id="page-number">1</span>
                     <i id="next-page-btn" class="fas fa-chevron-right"></i>
-                    <span class="entry-info"></span> <!-- Content is set by JS -->
+                    <span class="entry-info"></span>
                 </div>
                 <div class="footer-right">
                     <span class="rows-label">Rows</span>
@@ -149,7 +141,6 @@
                         <option value="10">10</option>
                         <option value="30" selected>30</option>
                         <option value="50">50</option>
-                        <option value="100">100</option> <!-- Added option -->
                     </select>
                 </div>
             </div>

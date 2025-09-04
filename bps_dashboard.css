@@ -128,6 +128,33 @@ body {
     font-weight: bold;
 }
 
+/* View Switcher */
+.view-switcher {
+    display: flex;
+    border: 1px solid #e2e8f0;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.view-btn {
+    background-color: #fff;
+    border: none;
+    padding: 8px 15px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.view-btn.active {
+    background-color: #4c51bf;
+    color: #fff;
+}
+
+.view-btn:not(.active):hover {
+    background-color: #f7fafc;
+}
+
+
 /* Table */
 .table-container {
     position: relative; /* Needed for loading overlay */
@@ -235,7 +262,7 @@ body {
 
 .filter-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 20px;
 }
 
@@ -259,13 +286,11 @@ body {
     background-color: #fff;
 }
 
-/* --- NEW: Custom Multi-select Dropdown with Checkboxes --- */
+/* Custom Multi-select Dropdown with Checkboxes */
 .multiselect-container {
     position: relative;
     width: 100%;
-    -webkit-user-select: none; /* Safari */
-    -ms-user-select: none; /* IE 10+ */
-    user-select: none; /* Standard syntax */
+    user-select: none;
 }
 
 .multiselect-button {
@@ -299,21 +324,27 @@ body {
     border: 1px solid #ccc;
     border-top: none;
     border-radius: 0 0 5px 5px;
-    max-height: 200px;
-    overflow-y: auto;
     z-index: 100;
+    /* ADDED: Flexbox layout for scrolling content and sticky footer */
+    display: flex;
+    flex-direction: column;
+    max-height: 250px;
 }
 
 .multiselect-dropdown.active {
-    display: block;
+    display: flex; /* Changed from block to flex */
+}
+
+/* ADDED: Container for the scrollable options */
+.multiselect-options-container {
+    flex-grow: 1;
+    overflow-y: auto;
 }
 
 .multiselect-dropdown .multiselect-option {
     display: block;
     padding: 8px 12px;
     cursor: pointer;
-    font-weight: normal; 
-    margin-bottom: 0; 
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -327,7 +358,36 @@ body {
     margin-right: 8px;
     vertical-align: middle;
 }
-/* --- END: Custom Multi-select --- */
+
+/* ADDED: Styles for the new Apply/Cancel buttons */
+.multiselect-actions {
+    padding: 8px;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    background-color: #f7fafc;
+}
+
+.multiselect-actions button {
+    padding: 6px 12px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.multiselect-apply-btn {
+    background-color: #4c51bf;
+    color: #fff;
+    border-color: #4c51bf;
+}
+
+.multiselect-cancel-btn {
+    background-color: #fff;
+}
+
 
 .filter-actions {
     margin-top: 20px;

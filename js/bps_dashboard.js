@@ -1,24 +1,26 @@
 $(function() { // Use jQuery's ready function for initialization
 
     // --- STATE MANAGEMENT ---
-    let masterData = [];     // Holds the original data from the server
-    let filteredData = [];   // Holds data after filters are applied
+    let masterData = [];     
+    let filteredData = [];   
     let sortState = { column: 'eds', direction: 'asc' };
     let paginationState = {
         currentPage: 1,
         rowsPerPage: 30,
         totalPages: 1
     };
+    let currentView = 'employee'; // 'employee' or 'project'
+    let taskProjectSelectionBeforeOpen = []; // For canceling multi-select changes
 
-    // --- ELEMENT REFERENCES (using jQuery) ---
+    // --- ELEMENT REFERENCES ---
     const tableBody = $('.data-table tbody');
+    const tableHead = $('.data-table thead');
     const loadingIndicator = $('#loading');
     const filterToggleBtn = $('#filter-toggle-btn');
     const filterPanel = $('#filter-panel');
     const applyFiltersBtn = $('.apply-filters-btn');
     const clearFiltersBtn = $('.clear-filters-btn');
     const pillboxContainer = $('.pillbox-container');
-    const headers = $('th[data-sort-by]');
     const entryInfoSpan = $('.entry-info');
     const pageNumberSpan = $('#page-number');
     const prevPageBtn = $('#prev-page-btn');
@@ -27,19 +29,24 @@ $(function() { // Use jQuery's ready function for initialization
     const csvExportBtn = $('#csv-export-btn');
     const xlsxExportBtn = $('#xlsx-export-btn');
     const singleFilterSelects = $('#filter-site, #filter-tl, #filter-projects, #filter-taskname, #filter-fireflyprocess');
-    // --- References for the custom multi-select ---
+    const employeeViewBtn = $('#employee-view-btn');
+    const projectViewBtn = $('#project-view-btn');
     const multiSelectContainer = $('#taskprojects-multiselect-container');
     const multiSelectButton = multiSelectContainer.find('.multiselect-button');
     const multiSelectDropdown = multiSelectContainer.find('.multiselect-dropdown');
     const multiSelectLabel = multiSelectContainer.find('.multiselect-label');
-
+    
     // =========================================================================
-    // == 1. DATE PICKER INITIALIZATION
+    // == 1. INITIALIZATION & CORE LOGIC
     // =========================================================================
     
+    async function initializePage() {
+        renderTableStructure();
+        await updateFilterOptions(); 
+        await fetchData(); 
+    }
+
     function onDateChange() {
-        // When the date changes, we need to refetch both the table data AND the filter options
-        // because the available options might change with the date range.
         initializePage(); 
     }
 
@@ -55,11 +62,6 @@ $(function() { // Use jQuery's ready function for initialization
            'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
         }
     }, onDateChange);
-    
-
-    // =========================================================================
-    // == 2. DATA HANDLING AND RENDERING
-    // =========================================================================
 
     function getSelectedFilters() {
         const selectedTaskProjects = multiSelectDropdown.find('input:checked').map(function() {
@@ -84,7 +86,7 @@ $(function() { // Use jQuery's ready function for initialization
         const endDate = datePicker.endDate.format('YYYY-MM-DD');
         const filters = getSelectedFilters();
 
-        const params = new URLSearchParams({ startDate, endDate, ...filters });
+        const params = new URLSearchParams({ view_mode: currentView, startDate, endDate, ...filters });
         const urlWithParams = `../bps_dashboard.php?${params.toString()}`;
 
         try {
@@ -96,7 +98,6 @@ $(function() { // Use jQuery's ready function for initialization
             const data = await response.json();
             masterData = data; 
             filteredData = data;
-            
             resetAndRender(); 
         } catch (error) {
             console.error("Failed to fetch data:", error);
@@ -108,10 +109,17 @@ $(function() { // Use jQuery's ready function for initialization
     
     async function updateFilterOptions() {
         const filters = getSelectedFilters();
-        const params = new URLSearchParams({ get_options: 'true', ...filters });
+        const datePicker = $('#date-range-picker').data('daterangepicker');
+        const startDate = datePicker.startDate.format('YYYY-MM-DD');
+        const endDate = datePicker.endDate.format('YYYY-MM-DD');
+        const params = new URLSearchParams({ get_options: 'true', startDate, endDate, ...filters });
         
         try {
             const response = await fetch(`../bps_dashboard.php?${params.toString()}`);
+            if (!response.ok) { 
+                const errorText = await response.text();
+                throw new Error(`Failed to update filters. Server responded with ${response.status}: ${errorText}`);
+            }
             const options = await response.json();
             
             const populateSelect = (selector, data) => {
@@ -126,11 +134,12 @@ $(function() { // Use jQuery's ready function for initialization
 
             const populateMultiSelect = (data) => {
                 const currentValues = getSelectedFilters().taskprojects.split(',').filter(Boolean);
-                multiSelectDropdown.empty();
+                const dropdownContent = multiSelectDropdown.find('.multiselect-options-container');
+                dropdownContent.empty();
                 data.forEach(item => {
                     const isChecked = currentValues.includes(item.value);
-                    const checkboxId = `taskproject-${item.value.replace(/\W/g, '_')}`; // Sanitize ID
-                    multiSelectDropdown.append(`
+                    const checkboxId = `taskproject-${item.value.replace(/\W/g, '_')}`;
+                    dropdownContent.append(`
                         <label for="${checkboxId}" class="multiselect-option">
                             <input type="checkbox" id="${checkboxId}" value="${item.value}" ${isChecked ? 'checked' : ''}>
                             ${item.value}
@@ -152,6 +161,96 @@ $(function() { // Use jQuery's ready function for initialization
         }
     }
 
+    // =========================================================================
+    // == 3. RENDERING FUNCTIONS
+    // =========================================================================
+
+    function renderTableStructure() {
+        tableHead.empty();
+        let headersHtml = '';
+        if (currentView === 'employee') {
+            sortState.column = 'eds';
+            headersHtml = `
+                <tr>
+                    <th data-sort-by="eds">EDS <i class="fas fa-sort"></i></th>
+                    <th data-sort-by="employee">EMPLOYEE <i class="fas fa-sort"></i></th>
+                    <th data-sort-by="tl_name">TL NAME <i class="fas fa-sort"></i></th>
+                    <th data-sort-by="records">RECORDS <i class="fas fa-sort"></i></th>
+                    <th data-sort-by="hours">HOURS<i class="fas fa-sort"></i></th>
+                    <th data-sort-by="shipment">SHIPMENT<i class="fas fa-sort"></i></th>
+                    <th data-sort-by="alloc_eds">ALLOC EDS<i class="fas fa-sort"></i></th>
+                    <th data-sort-by="tputs">TPUTS<i class="fas fa-sort"></i></th>
+                    <th data-sort-by="vph">VPH <i class="fas fa-sort"></i></th>
+                    <th data-sort-by="utilization">UTILIZATION<i class="fas fa-sort"></i></th>
+                    <th data-sort-by="prod_ks_tputs">PROD_KS_TPUTS<i class="fas fa-sort"></i></th>
+                    <th data-sort-by="payroll_ks_tputs">PAYROLL_KS_TPUTS<i class="fas fa-sort"></i></th>
+                </tr>`;
+        } else { // Project View
+            sortState.column = 'taskprojects';
+            headersHtml = `
+                <tr>
+                    <th data-sort-by="taskprojects">TASK PROJECT <i class="fas fa-sort"></i></th>
+                    <th data-sort-by="taskname">TASK NAME <i class="fas fa-sort"></i></th>
+                    <th data-sort-by="records">RECORDS <i class="fas fa-sort"></i></th>
+                    <th data-sort-by="hours">HOURS<i class="fas fa-sort"></i></th>
+                    <th data-sort-by="shipment">SHIPMENT<i class="fas fa-sort"></i></th>
+                    <th data-sort-by="alloc_eds">ALLOC EDS<i class="fas fa-sort"></i></th>
+                    <th data-sort-by="tputs">TPUTS<i class="fas fa-sort"></i></th>
+                    <th data-sort-by="vph">VPH <i class="fas fa-sort"></i></th>
+                    <th data-sort-by="utilization">UTILIZATION<i class="fas fa-sort"></i></th>
+                </tr>`;
+        }
+        tableHead.html(headersHtml);
+        $(`.data-table th[data-sort-by="${sortState.column}"]`).addClass('sorted').find('i').removeClass('fa-sort').addClass('fa-sort-down');
+    }
+
+    function renderTable(dataToRender) {
+        tableBody.empty();
+        const noDataColspan = (currentView === 'employee') ? 12 : 9;
+
+        if (dataToRender.length === 0) {
+            tableBody.append(`<tr><td colspan="${noDataColspan}" style="text-align:center; padding: 16px;">No data matches the current criteria.</td></tr>`);
+            return;
+        }
+
+        dataToRender.forEach(row => {
+            const formattedRecords = row.records ? parseInt(row.records, 10).toLocaleString() : '';
+            let rowHtml = '';
+
+            if (currentView === 'employee') {
+                rowHtml = `
+                    <tr>
+                        <td>${row.eds ?? ''}</td>
+                        <td>${row.employee ?? ''}</td>
+                        <td>${row.tl_name ?? ''}</td>
+                        <td>${formattedRecords}</td>
+                        <td>${row.hours ? parseFloat(row.hours).toFixed(2) : ''}</td>
+                        <td>${row.shipment ?? ''}</td>
+                        <td>${row.alloc_eds ?? ''}</td>
+                        <td>${row.tputs ? parseFloat(row.tputs).toFixed(2) : ''}</td>
+                        <td>${row.vph ? parseFloat(row.vph).toFixed(2) : ''}</td>
+                        <td>${row.utilization ? (parseFloat(row.utilization) * 100).toFixed(2) + '%' : ''}</td>
+                        <td>${row.prod_ks_tputs ? parseFloat(row.prod_ks_tputs).toFixed(2) : ''}</td>
+                        <td>${row.payroll_ks_tputs ? parseFloat(row.payroll_ks_tputs).toFixed(2) : ''}</td>
+                    </tr>`;
+            } else { // Project View
+                rowHtml = `
+                    <tr>
+                        <td>${row.taskprojects ?? ''}</td>
+                        <td>${row.taskname ?? ''}</td>
+                        <td>${formattedRecords}</td>
+                        <td>${row.hours ? parseFloat(row.hours).toFixed(2) : ''}</td>
+                        <td>${row.shipment ?? ''}</td>
+                        <td>${row.alloc_eds ?? ''}</td>
+                        <td>${row.tputs ? parseFloat(row.tputs).toFixed(2) : ''}</td>
+                        <td>${row.vph ? parseFloat(row.vph).toFixed(2) : ''}</td>
+                        <td>${row.utilization ? (parseFloat(row.utilization) * 100).toFixed(2) + '%' : ''}</td>
+                    </tr>`;
+            }
+            tableBody.append(rowHtml);
+        });
+    }
+
     function updateMultiSelectLabel() {
         const selectedCount = multiSelectDropdown.find('input:checked').length;
         if (selectedCount === 0) {
@@ -163,73 +262,28 @@ $(function() { // Use jQuery's ready function for initialization
         }
     }
 
-
-    function updateDashboardView() {
-        const sortedData = [...filteredData].sort((a, b) => {
-            const valA = a[sortState.column] ?? '';
-            const valB = b[sortState.column] ?? '';
-            const comparison = String(valA).localeCompare(String(valB), undefined, { numeric: true });
-            return sortState.direction === 'asc' ? comparison : -comparison;
-        });
-
-        updatePaginationState(sortedData.length);
-        const paginatedData = sortedData.slice(
-            (paginationState.currentPage - 1) * paginationState.rowsPerPage,
-            paginationState.currentPage * paginationState.rowsPerPage
-        );
-
-        renderTable(paginatedData);
-        renderPills();
-        renderPaginationControls();
-    }
-    
-    function renderTable(dataToRender) {
-        tableBody.empty();
-        if (dataToRender.length === 0) {
-            tableBody.append('<tr><td colspan="12" style="text-align:center; padding: 16px;">No data matches the current criteria.</td></tr>');
-            return;
-        }
-        dataToRender.forEach(row => {
-            const formattedRecords = row.records ? parseInt(row.records, 10).toLocaleString() : '';
-            const tr = `
-                <tr>
-                    <td>${row.eds ?? ''}</td>
-                    <td>${row.employee ?? ''}</td>
-                    <td>${row.tl_name ?? ''}</td>
-                    <td>${formattedRecords}</td>
-                    <td>${row.hours ? parseFloat(row.hours).toFixed(2) : ''}</td>
-                    <td>${row.shipment ?? ''}</td>
-                    <td>${row.alloc_eds ?? ''}</td>
-                    <td>${row.tputs ? parseFloat(row.tputs).toFixed(2) : ''}</td>
-                    <td>${row.vph ? parseFloat(row.vph).toFixed(2) : ''}</td>
-                    <td>${row.utilization ? (parseFloat(row.utilization) * 100).toFixed(2) + '%' : ''}</td>
-                    <td>${row.prod_ks_tputs ? parseFloat(row.prod_ks_tputs).toFixed(2) : ''}</td>
-                    <td>${row.payroll_ks_tputs ? parseFloat(row.payroll_ks_tputs).toFixed(2) : ''}</td>
-                </tr>`;
-            tableBody.append(tr);
-        });
-    }
-
     function renderPills() {
         pillboxContainer.empty();
+        const filters = getSelectedFilters();
+
         const createPill = (name, value, key) => {
             if (value) {
                 pillboxContainer.append(`<div class="pill">${name}: ${value} <span class="remove-pill" data-filter-key="${key}">&times;</span></div>`);
             }
         };
 
-        createPill('Site', $('#filter-site').val(), 'site');
-        createPill('Team Leader', $('#filter-tl').val(), 'tl_name');
-        createPill('Project', $('#filter-projects').val(), 'projects');
-        createPill('Taskname', $('#filter-taskname').val(), 'taskname');
-        createPill('Firefly Process', $('#filter-fireflyprocess').val(), 'fireflyprocess');
+        createPill('Site', filters.site, 'site');
+        createPill('Team Leader', filters.tl_name, 'tl_name');
+        createPill('Primary Project', filters.projects, 'projects');
+        createPill('Taskname', filters.taskname, 'taskname');
+        createPill('Firefly Process', filters.fireflyprocess, 'fireflyprocess');
         
-        const selectedTaskProjects = getSelectedFilters().taskprojects.split(',').filter(Boolean);
+        const selectedTaskProjects = filters.taskprojects.split(',').filter(Boolean);
         selectedTaskProjects.forEach(project => {
             pillboxContainer.append(`<div class="pill">Task Project: ${project} <span class="remove-pill" data-filter-key="taskprojects" data-filter-value="${project}">&times;</span></div>`);
         });
     }
-
+    
     function updatePaginationState(totalItems) {
         paginationState.rowsPerPage = parseInt(rowsPerPageSelect.val(), 10);
         paginationState.totalPages = Math.ceil(totalItems / paginationState.rowsPerPage) || 1;
@@ -247,11 +301,27 @@ $(function() { // Use jQuery's ready function for initialization
     
     function resetAndRender() {
         paginationState.currentPage = 1;
-        updateDashboardView();
+        const sortedData = [...filteredData].sort((a, b) => {
+            const valA = a[sortState.column] ?? '';
+            const valB = b[sortState.column] ?? '';
+            const comparison = String(valA).localeCompare(String(valB), undefined, { numeric: true });
+            return sortState.direction === 'asc' ? comparison : -comparison;
+        });
+
+        updatePaginationState(sortedData.length);
+        const paginatedData = sortedData.slice(
+            (paginationState.currentPage - 1) * paginationState.rowsPerPage,
+            paginationState.currentPage * paginationState.rowsPerPage
+        );
+
+        renderTable(paginatedData);
+        renderPills();
+        renderPaginationControls();
     }
 
+
     // =========================================================================
-    // == 3. EVENT HANDLERS 
+    // == 4. EVENT HANDLERS 
     // =========================================================================
     
     filterToggleBtn.on('click', () => filterPanel.toggleClass('active'));
@@ -265,8 +335,7 @@ $(function() { // Use jQuery's ready function for initialization
     clearFiltersBtn.on('click', () => {
         singleFilterSelects.val('');
         multiSelectDropdown.find('input:checked').prop('checked', false);
-        fetchData();
-        updateFilterOptions(); 
+        initializePage();
         filterPanel.removeClass('active');
     });
 
@@ -277,73 +346,123 @@ $(function() { // Use jQuery's ready function for initialization
             const valueToRemove = $(this).data('filter-value');
             multiSelectDropdown.find(`input[value="${valueToRemove}"]`).prop('checked', false);
         } else {
-            $(`#filter-${key}`).val('');
+            const selectorMap = {
+                site: '#filter-site',
+                tl_name: '#filter-tl',
+                projects: '#filter-projects',
+                taskname: '#filter-taskname',
+                fireflyprocess: '#filter-fireflyprocess'
+            };
+            $(selectorMap[key]).val('');
         }
         
-        fetchData();
-        updateFilterOptions();
+        initializePage();
     });
 
-    // --- MODIFIED: More robust event handlers for the multi-select ---
-
-    // When a single-select filter changes, update the options in all other filters
-    singleFilterSelects.on('change', updateFilterOptions);
-
-    // When a checkbox is clicked, update the label and the other filter options
-    multiSelectDropdown.on('change', 'input[type="checkbox"]', function() {
-        updateMultiSelectLabel();
-        updateFilterOptions();
+    // --- View Switcher ---
+    employeeViewBtn.on('click', () => {
+        if(currentView !== 'employee') {
+            currentView = 'employee';
+            employeeViewBtn.addClass('active');
+            projectViewBtn.removeClass('active');
+            initializePage();
+        }
+    });
+    projectViewBtn.on('click', () => {
+        if(currentView !== 'project') {
+            currentView = 'project';
+            projectViewBtn.addClass('active');
+            employeeViewBtn.removeClass('active');
+            initializePage();
+        }
     });
 
-    // Toggle the dropdown's visibility
+
+    // --- Cascading Filter Logic for Multi-select ---
     multiSelectButton.on('click', (e) => {
-        e.stopPropagation(); // Prevent the document click handler from immediately closing it
+        e.stopPropagation();
+        const isOpen = multiSelectDropdown.hasClass('active');
+        if (!isOpen) {
+            taskProjectSelectionBeforeOpen = multiSelectDropdown.find('input:checked').map(function() {
+                return $(this).val();
+            }).get();
+        }
         multiSelectDropdown.toggleClass('active');
     });
-
-    // Stop clicks inside the dropdown from closing it
-    multiSelectDropdown.on('click', (e) => {
-        e.stopPropagation();
-    });
-
-    // A single global handler to close the dropdown if clicking anywhere else
-    $(document).on('click', function() {
+    
+    // --- FINAL FIX: More direct event handlers for apply/cancel ---
+    multiSelectDropdown.on('mousedown', '.multiselect-apply-btn', function(e) {
+        e.preventDefault(); 
+        e.stopPropagation(); 
         multiSelectDropdown.removeClass('active');
+        // Defer the async update to prevent race conditions
+        setTimeout(() => {
+            updateMultiSelectLabel();
+            updateFilterOptions();
+        }, 0);
+    });
+
+    multiSelectDropdown.on('mousedown', '.multiselect-cancel-btn', function(e) {
+        e.preventDefault(); 
+        e.stopPropagation(); 
+        multiSelectDropdown.removeClass('active');
+        multiSelectDropdown.find('input[type="checkbox"]').each(function() {
+            const value = $(this).val();
+            $(this).prop('checked', taskProjectSelectionBeforeOpen.includes(value));
+        });
     });
 
 
-    headers.on('click', function() {
-        const column = $(this).data('sort-by');
-        headers.removeClass('sorted');
-        $(this).addClass('sorted');
+    // --- Cascading Filter Logic for Single-selects ---
+    singleFilterSelects.on('change', updateFilterOptions);
+
+    $(document).on('click', function(e) {
+        if (!multiSelectContainer.is(e.target) && multiSelectContainer.has(e.target).length === 0) {
+            if (multiSelectDropdown.hasClass('active')) {
+                // If clicking outside, revert changes and close
+                multiSelectDropdown.find('input[type="checkbox"]').each(function() {
+                    const value = $(this).val();
+                    $(this).prop('checked', taskProjectSelectionBeforeOpen.includes(value));
+                });
+                multiSelectDropdown.removeClass('active');
+            }
+        }
+    });
+
+    tableHead.on('click', 'th', function() {
+        const th = $(this);
+        const column = th.data('sort-by');
+        if (!column) return;
+
+        $('.data-table th').removeClass('sorted');
+        th.addClass('sorted');
         if (sortState.column === column) {
             sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
         } else {
             sortState.column = column;
             sortState.direction = 'asc';
         }
-        headers.find('i').attr('class', 'fas fa-sort');
-        $(this).find('i').attr('class', sortState.direction === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down');
-        updateDashboardView();
+        $('.data-table th i').attr('class', 'fas fa-sort');
+        th.find('i').attr('class', sortState.direction === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down');
+        resetAndRender();
     });
     
     prevPageBtn.on('click', () => {
         if (paginationState.currentPage > 1) {
             paginationState.currentPage--;
-            updateDashboardView();
+            resetAndRender();
         }
     });
 
     nextPageBtn.on('click', () => {
         if (paginationState.currentPage < paginationState.totalPages) {
             paginationState.currentPage++;
-            updateDashboardView();
+            resetAndRender();
         }
     });
 
     rowsPerPageSelect.on('change', resetAndRender);
 
-    // --- Export Handlers ---
     csvExportBtn.on('click', () => {
         if (filteredData.length === 0) return alert('No data to export.');
         const headers = Object.keys(filteredData[0]);
@@ -366,13 +485,8 @@ $(function() { // Use jQuery's ready function for initialization
     });
 
     // =========================================================================
-    // == 4. INITIALIZATION CALL
+    // == 5. INITIALIZATION CALL
     // =========================================================================
-    async function initializePage() {
-        await updateFilterOptions(); // Load all dropdown options first
-        await fetchData(); // Then fetch the initial table data
-        $(`th[data-sort-by="${sortState.column}"] i`).removeClass('fa-sort').addClass('fa-sort-down');
-    }
     initializePage();
 
 });

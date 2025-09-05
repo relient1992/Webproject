@@ -11,6 +11,7 @@ $(function() { // Use jQuery's ready function for initialization
     };
     let currentView = 'employee';
     let taskProjectSelectionBeforeOpen = [];
+    let performanceChart = null; // Variable to hold the chart instance
 
     // --- ELEMENT REFERENCES ---
     const tableBody = $('.data-table tbody');
@@ -35,6 +36,11 @@ $(function() { // Use jQuery's ready function for initialization
     const multiSelectButton = multiSelectContainer.find('.multiselect-button');
     const multiSelectDropdown = multiSelectContainer.find('.multiselect-dropdown');
     const multiSelectLabel = multiSelectContainer.find('.multiselect-label');
+    const primaryMetricSelect = $('#primary-metric-select');
+    const secondaryMetricSelect = $('#secondary-metric-select');
+    // ADDED: References for chart toggle functionality
+    const chartSection = $('.chart-section');
+    const toggleChartBtn = $('#toggle-chart-btn');
     
     // =========================================================================
     // == 1. INITIALIZATION & CORE LOGIC
@@ -43,9 +49,21 @@ $(function() { // Use jQuery's ready function for initialization
     multiSelectDropdown.removeClass('active').hide();
 
     async function initializePage() {
-        renderTableStructure();
-        await updateFilterOptions(); 
-        await fetchData(); 
+        loadingIndicator.css('display', 'flex'); 
+        try {
+            populateMetricSelectors();
+            renderTableStructure();
+            
+            await Promise.all([
+                updateFilterOptions(),
+                fetchData(),
+                updateChart()
+            ]);
+        } catch (error) {
+            console.error("Page initialization failed:", error);
+        } finally {
+            loadingIndicator.css('display', 'none'); 
+        }
     }
 
     function onDateChange() {
@@ -81,8 +99,6 @@ $(function() { // Use jQuery's ready function for initialization
     }
 
     async function fetchData() {
-        loadingIndicator.css('display', 'flex'); 
-        
         const datePicker = $('#date-range-picker').data('daterangepicker');
         const startDate = datePicker.startDate.format('YYYY-MM-DD');
         const endDate = datePicker.endDate.format('YYYY-MM-DD');
@@ -104,8 +120,6 @@ $(function() { // Use jQuery's ready function for initialization
         } catch (error) {
             console.error("Failed to fetch data:", error);
             tableBody.html(`<tr><td colspan="12" style="text-align:center; padding:16px; color:red;"><b>Error:</b> ${error.message}</td></tr>`);
-        } finally {
-            loadingIndicator.css('display', 'none'); 
         }
     }
     
@@ -164,7 +178,123 @@ $(function() { // Use jQuery's ready function for initialization
     }
 
     // =========================================================================
-    // == 3. RENDERING FUNCTIONS
+    // == 3. CHARTING FUNCTIONS
+    // =========================================================================
+
+    const chartMetrics = {
+        records: { label: "Records", color: "#4c51bf" },
+        hours: { label: "Hours", color: "#ed64a6" },
+        shipment: { label: "Shipment", color: "#38b2ac" },
+        alloc_eds: { label: "Alloc. EDS", color: "#f56565" },
+        tputs: { label: "TPUTS", color: "#f6e05e" },
+        vph: { label: "VPH", color: "#a0aec0" },
+        utilization: { label: "Utilization (%)", color: "#667eea" },
+    };
+
+    function populateMetricSelectors() {
+        primaryMetricSelect.empty();
+        secondaryMetricSelect.empty();
+        secondaryMetricSelect.append('<option value="none">None</option>');
+
+        for (const [key, value] of Object.entries(chartMetrics)) {
+            primaryMetricSelect.append(`<option value="${key}">${value.label}</option>`);
+            secondaryMetricSelect.append(`<option value="${key}">${value.label}</option>`);
+        }
+        primaryMetricSelect.val('records');
+        secondaryMetricSelect.val('hours');
+    }
+
+    async function updateChart() {
+        const datePicker = $('#date-range-picker').data('daterangepicker');
+        const startDate = datePicker.startDate.format('YYYY-MM-DD');
+        const endDate = datePicker.endDate.format('YYYY-MM-DD');
+        const filters = getSelectedFilters();
+
+        const params = new URLSearchParams({ get_chart_data: 'true', startDate, endDate, ...filters });
+        
+        try {
+            const response = await fetch(`../bps_dashboard.php?${params.toString()}`);
+            const chartData = await response.json();
+
+            const primaryMetricKey = primaryMetricSelect.val();
+            const secondaryMetricKey = secondaryMetricSelect.val();
+
+            const labels = chartData.map(d => d.proddate);
+            const primaryData = chartData.map(d => parseFloat(d[primaryMetricKey] || 0));
+            const secondaryData = chartData.map(d => parseFloat(d[secondaryMetricKey] || 0));
+
+            const datasets = [{
+                label: chartMetrics[primaryMetricKey].label,
+                data: primaryData,
+                borderColor: chartMetrics[primaryMetricKey].color,
+                backgroundColor: chartMetrics[primaryMetricKey].color + '33',
+                yAxisID: 'y',
+                tension: 0.1,
+                fill: true,
+            }];
+
+            if (secondaryMetricKey !== 'none') {
+                datasets.push({
+                    label: chartMetrics[secondaryMetricKey].label,
+                    data: secondaryData,
+                    borderColor: chartMetrics[secondaryMetricKey].color,
+                    backgroundColor: chartMetrics[secondaryMetricKey].color + '33',
+                    yAxisID: 'y1',
+                    tension: 0.1,
+                    fill: true,
+                });
+            }
+
+            const ctx = document.getElementById('performance-chart').getContext('2d');
+            if (performanceChart) {
+                performanceChart.destroy();
+            }
+
+            performanceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: { display: true, text: chartMetrics[primaryMetricKey].label }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: secondaryMetricKey !== 'none',
+                            position: 'right',
+                            title: { display: true, text: secondaryMetricKey !== 'none' ? chartMetrics[secondaryMetricKey].label : '' },
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                        },
+                    },
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: { mode: 'index', intersect: false },
+                    },
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                }
+            });
+
+        } catch (error) {
+            console.error("Failed to update chart:", error);
+        }
+    }
+
+
+    // =========================================================================
+    // == 4. RENDERING FUNCTIONS
     // =========================================================================
 
     function renderTableStructure() {
@@ -286,19 +416,42 @@ $(function() { // Use jQuery's ready function for initialization
         });
     }
     
+    // --- UPDATED: Logic to handle 'All' option for rows per page ---
     function updatePaginationState(totalItems) {
-        paginationState.rowsPerPage = parseInt(rowsPerPageSelect.val(), 10);
+        const selectedRows = rowsPerPageSelect.val();
+        
+        if (selectedRows === 'all') {
+            paginationState.rowsPerPage = totalItems > 0 ? totalItems : 1;
+        } else {
+            paginationState.rowsPerPage = parseInt(selectedRows, 10);
+        }
+
         paginationState.totalPages = Math.ceil(totalItems / paginationState.rowsPerPage) || 1;
+        
         if (paginationState.currentPage > paginationState.totalPages) {
             paginationState.currentPage = paginationState.totalPages;
         }
     }
-
+    
+    // --- UPDATED: Logic to hide pagination controls when not needed ---
     function renderPaginationControls() {
+        const totalItems = filteredData.length;
         pageNumberSpan.text(paginationState.currentPage);
-        entryInfoSpan.text(`${filteredData.length.toLocaleString()} entries on ${paginationState.totalPages.toLocaleString()} pages`);
-        prevPageBtn.toggleClass('disabled', paginationState.currentPage === 1);
-        nextPageBtn.toggleClass('disabled', paginationState.currentPage === paginationState.totalPages);
+        entryInfoSpan.text(`${totalItems.toLocaleString()} entries on ${paginationState.totalPages.toLocaleString()} pages`);
+
+        const showControls = totalItems > paginationState.rowsPerPage && rowsPerPageSelect.val() !== 'all';
+
+        if (showControls) {
+            prevPageBtn.show();
+            nextPageBtn.show();
+            pageNumberSpan.show();
+            prevPageBtn.toggleClass('disabled', paginationState.currentPage === 1);
+            nextPageBtn.toggleClass('disabled', paginationState.currentPage === paginationState.totalPages);
+        } else {
+            prevPageBtn.hide();
+            nextPageBtn.hide();
+            pageNumberSpan.hide();
+        }
     }
     
     function resetAndRender() {
@@ -323,15 +476,15 @@ $(function() { // Use jQuery's ready function for initialization
 
 
     // =========================================================================
-    // == 4. EVENT HANDLERS 
+    // == 5. EVENT HANDLERS 
     // =========================================================================
     
     filterToggleBtn.on('click', () => filterPanel.toggleClass('active'));
 
     applyFiltersBtn.on('click', () => {
-        fetchData();
+        initializePage(); 
         filterPanel.removeClass('active');
-        multiSelectDropdown.removeClass('active');
+        multiSelectDropdown.removeClass('active').hide();
     });
 
     clearFiltersBtn.on('click', () => {
@@ -379,24 +532,35 @@ $(function() { // Use jQuery's ready function for initialization
         }
     });
 
-    // --- Multi-select Dropdown Logic (Rewritten for reliability) ---
+    // --- Chart Metric Selectors ---
+    primaryMetricSelect.on('change', updateChart);
+    secondaryMetricSelect.on('change', updateChart);
+    
+    // --- ADDED: Event handler for the chart toggle button ---
+    toggleChartBtn.on('click', function() {
+        chartSection.toggleClass('hidden');
+        const isHidden = chartSection.hasClass('hidden');
+        if (isHidden) {
+            $(this).html('<i class="fas fa-eye"></i> Show Chart');
+        } else {
+            $(this).html('<i class="fas fa-eye-slash"></i> Hide Chart');
+        }
+    });
 
-    // Open/Close the dropdown
-    // Toggle open/close on button click
+
+    // --- Multi-select Dropdown Logic ---
     multiSelectButton.on('click', function(e) {
         e.stopPropagation();
         const isOpen = multiSelectDropdown.hasClass('active');
         if (!isOpen) {
-            // Save state before opening
             taskProjectSelectionBeforeOpen = multiSelectDropdown.find('input:checked')
                 .map(function() { return $(this).val(); }).get();
-            multiSelectDropdown.addClass('active').show(); // show
+            multiSelectDropdown.addClass('active').show();
         } else {
-            multiSelectDropdown.removeClass('active').hide(); // close
+            multiSelectDropdown.removeClass('active').hide();
         }
     });
 
-    // Apply button: keep selections + close
     multiSelectDropdown.on('click', '.multiselect-apply-btn', function(e) {
         e.stopPropagation();
         updateMultiSelectLabel();
@@ -404,7 +568,6 @@ $(function() { // Use jQuery's ready function for initialization
         multiSelectDropdown.removeClass('active').hide();
     });
 
-    // Cancel button: revert + close
     multiSelectDropdown.on('click', '.multiselect-cancel-btn', function(e) {
         e.stopPropagation();
         multiSelectDropdown.find('input[type="checkbox"]').each(function() {
@@ -412,14 +575,11 @@ $(function() { // Use jQuery's ready function for initialization
         });
         multiSelectDropdown.removeClass('active').hide();
     });
-
     
-    // Handle clicks on individual checkboxes (does not close dropdown)
     multiSelectDropdown.on('change', 'input[type="checkbox"]', function() {
         updateMultiSelectLabel();
     });
 
-    // Prevent clicks inside the dropdown from closing it
     multiSelectDropdown.on('click', function(e) {
         e.stopPropagation();
     });
@@ -427,8 +587,6 @@ $(function() { // Use jQuery's ready function for initialization
     // --- Cascading Filter Logic for Single-selects ---
     singleFilterSelects.on('change', updateFilterOptions);
 
-    // --- Global click handler to close dropdowns when clicking outside ---
-    // Outside click = cancel
     $(document).on('click', function() {
         if (multiSelectDropdown.hasClass('active')) {
             multiSelectDropdown.find('input[type="checkbox"]').each(function() {
@@ -488,16 +646,44 @@ $(function() { // Use jQuery's ready function for initialization
         URL.revokeObjectURL(url);
     });
 
-    xlsxExportBtn.on('click', () => {
-        if (filteredData.length === 0) return alert('No data to export.');
-        const worksheet = XLSX.utils.json_to_sheet(filteredData);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "BPS Data");
-        XLSX.writeFile(workbook, "bps_dashboard_export.xlsx");
+    xlsxExportBtn.on('click', async function() {
+        const originalButtonHtml = $(this).html();
+        $(this).html('<i class="fas fa-spinner fa-spin"></i> Downloading...').prop('disabled', true);
+        
+        try {
+            const datePicker = $('#date-range-picker').data('daterangepicker');
+            const startDate = datePicker.startDate.format('YYYY-MM-DD');
+            const endDate = datePicker.endDate.format('YYYY-MM-DD');
+            
+            const params = new URLSearchParams({ get_export_data: 'true', startDate, endDate });
+            const response = await fetch(`../bps_dashboard.php?${params.toString()}`);
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch export data.');
+            }
+
+            const exportData = await response.json();
+
+            if (exportData.length === 0) {
+                alert('No data to export for the selected date range.');
+                return;
+            }
+
+            const worksheet = XLSX.utils.json_to_sheet(exportData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "BPS Raw Data");
+            XLSX.writeFile(workbook, `bps_dashboard_raw_export_${startDate}_to_${endDate}.xlsx`);
+
+        } catch (error) {
+            console.error("Export failed:", error);
+            alert("An error occurred during the export.");
+        } finally {
+            $(this).html(originalButtonHtml).prop('disabled', false);
+        }
     });
 
     // =========================================================================
-    // == 5. INITIALIZATION CALL
+    // == 6. INITIALIZATION CALL
     // =========================================================================
     initializePage();
 

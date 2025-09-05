@@ -23,7 +23,8 @@ const rolePages = {
         "lhi_weekly_efficiency.html",
         "fedex_manifest_conso_data.html",
         "lhi_inventory.html",
-        "daily_attendance_status.html"
+        "daily_attendance_status.html",
+        "bps_overall_dashboard.php"
 
     ],
     'Admin': [
@@ -40,7 +41,8 @@ const rolePages = {
         "lhi_weekly_efficiency.html",
         "fedex_manifest_conso_data.html",
         "lhi_inventory.html",
-        "daily_attendance_status.html"
+        "daily_attendance_status.html",
+        "bps_overall_dashboard.php"
     ],
     'User': [
         "active_attrition.html",
@@ -89,7 +91,8 @@ const rolePages = {
         "team_member.html",
         "quality_scores.html",
         "fedex_manifest_conso_data.html",
-        "daily_attendance_status.html"
+        "daily_attendance_status.html",
+        "bps_overall_dashboard.php"
 
     ],
     'bps_manager': [
@@ -104,7 +107,8 @@ const rolePages = {
         "bu_bps.html",
         "quality_scores.html",
         "fedex_manifest_conso_data.html",
-        "daily_attendance_status.html"
+        "daily_attendance_status.html",
+        "bps_overall_dashboard.php"
 
     ],
     'bps_user': [
@@ -116,7 +120,8 @@ const rolePages = {
         "team_member.html",
         "quality_scores.html",
         "fedex_manifest_conso_data.html",
-        "daily_attendance_status.html"
+        "daily_attendance_status.html",
+        "bps_overall_dashboard.php"
     ]
 
 };
@@ -335,8 +340,8 @@ function initializeRouter() {
             const target = link.getAttribute('target');
 
             // Special handling for the ESS link
-            if (target === '_blank' && (title === 'ess' || dataPage === 'ess_url_goes_here.html')) { // Adjust 'ess_url_goes_here.html' to your actual ESS page file or a unique identifier
-                return;
+            if (link.dataset.external === "true" || target === '_blank') {
+                return; // let browser handle it (new tab, no active class)
             }
 
             // For all other links, prevent default and load the view as an SPA
@@ -408,7 +413,7 @@ function loadView(viewName) {
         return;
     }
 
-    const pageFile = `${viewName}.html`;
+    const pageFile = viewName.includes(".") ? viewName : `${viewName}.html`;
 
     // Enforce access control based on USER_ROLE and allowed pages
     if (USER_ROLE !== 'Super User') {
@@ -422,7 +427,7 @@ function loadView(viewName) {
     let showLoadingScreen = false; 
     let loadingPromise = Promise.resolve(); 
 
-    fetch(`views/${viewName}.html`)
+    fetch(`views/${pageFile}`)
         .then(res => {
             if (!res.ok) {
                 throw new Error("View not found");
@@ -1066,3 +1071,4 @@ window.addEventListener("popstate", () => {
         loadView("active_attrition"); // default
     }
 });
+

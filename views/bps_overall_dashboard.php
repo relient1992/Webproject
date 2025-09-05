@@ -1,9 +1,27 @@
+<?php
+session_start(); // Start the session at the very top
+
+// Prevent browser caching
+header("Cache-Control: no-cache, no-store, must-revalidate"); // HTTP 1.1
+header("Pragma: no-cache"); // HTTP 1.0
+header("Expires: 0"); // Proxies
+
+// Check if user is logged in (session variable exists)
+if (!isset($_SESSION['employee_id'])) {
+    // Redirect to login page if not logged in.
+    // IMPORTANT: Adjust the path to your login page if it's not 'index.html' in the main directory.
+    header('Location: ../../index.html'); // Assuming login is two levels up from /views/
+    exit();
+}
+?>
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BPS Dashboard</title>
+    <title>BPS Overall Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script type="text/javascript" src="https://cdn.jsdelivr.net/jquery/latest/jquery.min.js"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>

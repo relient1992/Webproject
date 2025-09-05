@@ -15,7 +15,9 @@ document.addEventListener("DOMContentLoaded", () => {
             "lhi_weekly_efficiency.html",
             "fedex_manifest_conso_data.html",
             "lhi_inventory.html",
-            "daily_attendance_status.html"
+            "daily_attendance_status.html",
+            "bps_overall_dashboard.php"
+
 
         ],
         Manager: [
@@ -38,7 +40,8 @@ document.addEventListener("DOMContentLoaded", () => {
             "lhi_weekly_efficiency.html",
             "fedex_manifest_conso_data.html",
             "lhi_inventory.html",
-            "daily_attendance_status.html"
+            "daily_attendance_status.html",
+            "bps_overall_dashboard.php"
 
         ],
         User: [
@@ -88,7 +91,8 @@ document.addEventListener("DOMContentLoaded", () => {
             "team_member.html",
             "quality_scores.html",
             "fedex_manifest_conso_data.html",
-            "daily_attendance_status.html"
+            "daily_attendance_status.html",
+            "bps_overall_dashboard.php"
 
         ],
         bps_manager: [
@@ -103,7 +107,8 @@ document.addEventListener("DOMContentLoaded", () => {
             "bu_bps.html",
             "quality_scores.html",
             "fedex_manifest_conso_data.html",
-            "daily_attendance_status.html"
+            "daily_attendance_status.html",
+            "bps_overall_dashboard.php"
 
         ],
         bps_user: [
@@ -115,7 +120,8 @@ document.addEventListener("DOMContentLoaded", () => {
             "team_member.html",
             "quality_scores.html",
             "fedex_manifest_conso_data.html",
-            "daily_attendance_status.html"
+            "daily_attendance_status.html",
+            "bps_overall_dashboard.php"
         ]           
         
     };
@@ -124,7 +130,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Find all sidebar <a> links and match against href targets
     document.querySelectorAll('.sidebar a[data-view]').forEach(link => {
-        const page = `${link.dataset.view}.html`;
+        const view = link.dataset.view;
+        const page = view.includes('.') ? view : `${view}.html`; // ✅ handles .php or .html
         if (!userAllowedPages.includes(page)) {
             link.style.display = 'none';
         }
@@ -132,7 +139,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Handle child dropdown items (if inside div.child-dropdown)
     document.querySelectorAll('.child-dropdown a[data-view]').forEach(link => {
-        const page = `${link.dataset.view}.html`;
+        const view = link.dataset.view;
+        const page = view.includes('.') ? view : `${view}.html`; // ✅ same logic
         if (!userAllowedPages.includes(page)) {
             link.style.display = 'none';
         }

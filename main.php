@@ -74,6 +74,22 @@ if (!isset($_SESSION['employee_id'])) {
                     <h3>ESS</h3>
                 </a>
 
+                <a href="./views/bps_overall_dashboard.php" 
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-view="bps_overall_dashboard.php"
+                    data-external="true"
+                    onclick="event.stopPropagation(); window.open(this.href, '_blank'); return false;">
+                        <span class="material-icons-sharp">dashboard</span>
+                        <h3>BPS Overall Dashboard</h3>
+                </a>
+                <!-- <a href="./views/overall_dashboard.php" target="_blank"
+                        rel="noopener noreferrer"
+                        onclick="event.stopPropagation(); window.open(this.href, '_blank'); return false;">
+                    <span class="material-icons-sharp">dashboard</span>
+                    <h3>BPS Overall Dashboard</h3>
+                </a> -->
+
                 <!-- <a href="#" data-view="bps_dashboard">
                     <span class="material-icons-sharp">grid_view</span>
                     <h3>BPS Dashboard</h3>
@@ -92,6 +108,7 @@ if (!isset($_SESSION['employee_id'])) {
                     </a>
                     <div class="child-dropdown">
                         <a href="#" data-view="bps_dashboard"><h3>BPS Dashboard</h3></a>
+
                         <a href="#" data-view="bps_bfp"><h3>BPS BFP</h3></a>
                         <a href="#" data-view="project_efficiency"><h3>Project Efficiency</h3></a>
                         <a href="#" data-view="quality_scores"><h3>Quality Scores</h3></a>

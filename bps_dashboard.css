@@ -35,6 +35,14 @@ body {
     font-size: 18px;
 }
 
+.header-logo {
+    height: 30px;
+    width: auto;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+
 .header-center nav a {
     text-decoration: none;
     color: #a0aec0;
@@ -80,6 +88,11 @@ body {
 
 .control-btn:hover {
     background-color: #f7fafc;
+}
+
+.control-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
 }
 
 .date-range {
@@ -152,6 +165,72 @@ body {
 
 .view-btn:not(.active):hover {
     background-color: #f7fafc;
+}
+
+/* ADDED: New Chart Section Styles */
+
+.hidden {
+    display: none !important;
+}
+
+
+.chart-section {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+    transition: all 0.3s ease-in-out;
+}
+
+.chart-section.hidden {
+    display: none;
+}
+
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.chart-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.chart-controls {
+    display: flex;
+    justify-content: flex-end;
+    gap: 20px;
+    margin-bottom: 15px;
+}
+
+.metric-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.metric-selector label {
+    font-size: 14px;
+    color: #718096;
+}
+
+.metric-selector select {
+    border: 1px solid #e2e8f0;
+    padding: 6px 10px;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+.chart-container {
+    position: relative;
+    height: 230px; /* Adjust height as needed */
 }
 
 
@@ -325,18 +404,15 @@ body {
     border-top: none;
     border-radius: 0 0 5px 5px;
     z-index: 1000;
-    /* ADDED: Flexbox layout for scrolling content and sticky footer */
     display: flex;
     flex-direction: column;
     max-height: 250px;
-    overflow-y: auto;
 }
 
 .multiselect-dropdown.active {
-    display: block; /* Changed from block to flex */
+    display: flex;
 }
 
-/* ADDED: Container for the scrollable options */
 .multiselect-options-container {
     flex-grow: 1;
     overflow-y: auto;
@@ -360,7 +436,6 @@ body {
     vertical-align: middle;
 }
 
-/* ADDED: Styles for the new Apply/Cancel buttons */
 .multiselect-actions {
     padding: 8px;
     border-top: 1px solid #e2e8f0;
@@ -391,6 +466,7 @@ body {
 
 
 .filter-actions {
+    grid-column: 1 / -1; /* Make it span the full width of the grid */
     margin-top: 20px;
     display: flex;
     justify-content: flex-end;

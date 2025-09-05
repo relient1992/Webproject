@@ -9,8 +9,8 @@ $(function() { // Use jQuery's ready function for initialization
         rowsPerPage: 30,
         totalPages: 1
     };
-    let currentView = 'employee'; // 'employee' or 'project'
-    let taskProjectSelectionBeforeOpen = []; // For canceling multi-select changes
+    let currentView = 'employee';
+    let taskProjectSelectionBeforeOpen = [];
 
     // --- ELEMENT REFERENCES ---
     const tableBody = $('.data-table tbody');
@@ -40,6 +40,8 @@ $(function() { // Use jQuery's ready function for initialization
     // == 1. INITIALIZATION & CORE LOGIC
     // =========================================================================
     
+    multiSelectDropdown.removeClass('active').hide();
+
     async function initializePage() {
         renderTableStructure();
         await updateFilterOptions(); 
@@ -377,58 +379,66 @@ $(function() { // Use jQuery's ready function for initialization
         }
     });
 
+    // --- Multi-select Dropdown Logic (Rewritten for reliability) ---
 
-    // --- Cascading Filter Logic for Multi-select ---
-    multiSelectButton.on('click', (e) => {
+    // Open/Close the dropdown
+    // Toggle open/close on button click
+    multiSelectButton.on('click', function(e) {
         e.stopPropagation();
         const isOpen = multiSelectDropdown.hasClass('active');
         if (!isOpen) {
-            taskProjectSelectionBeforeOpen = multiSelectDropdown.find('input:checked').map(function() {
-                return $(this).val();
-            }).get();
+            // Save state before opening
+            taskProjectSelectionBeforeOpen = multiSelectDropdown.find('input:checked')
+                .map(function() { return $(this).val(); }).get();
+            multiSelectDropdown.addClass('active').show(); // show
+        } else {
+            multiSelectDropdown.removeClass('active').hide(); // close
         }
-        multiSelectDropdown.toggleClass('active');
-    });
-    
-    // --- FINAL FIX: More direct event handlers for apply/cancel ---
-    multiSelectDropdown.on('mousedown', '.multiselect-apply-btn', function(e) {
-        e.preventDefault(); 
-        e.stopPropagation(); 
-        multiSelectDropdown.removeClass('active');
-        // Defer the async update to prevent race conditions
-        setTimeout(() => {
-            updateMultiSelectLabel();
-            updateFilterOptions();
-        }, 0);
     });
 
-    multiSelectDropdown.on('mousedown', '.multiselect-cancel-btn', function(e) {
-        e.preventDefault(); 
-        e.stopPropagation(); 
-        multiSelectDropdown.removeClass('active');
+    // Apply button: keep selections + close
+    multiSelectDropdown.on('click', '.multiselect-apply-btn', function(e) {
+        e.stopPropagation();
+        updateMultiSelectLabel();
+        updateFilterOptions();
+        multiSelectDropdown.removeClass('active').hide();
+    });
+
+    // Cancel button: revert + close
+    multiSelectDropdown.on('click', '.multiselect-cancel-btn', function(e) {
+        e.stopPropagation();
         multiSelectDropdown.find('input[type="checkbox"]').each(function() {
-            const value = $(this).val();
-            $(this).prop('checked', taskProjectSelectionBeforeOpen.includes(value));
+            $(this).prop('checked', taskProjectSelectionBeforeOpen.includes($(this).val()));
         });
+        multiSelectDropdown.removeClass('active').hide();
     });
 
+    
+    // Handle clicks on individual checkboxes (does not close dropdown)
+    multiSelectDropdown.on('change', 'input[type="checkbox"]', function() {
+        updateMultiSelectLabel();
+    });
+
+    // Prevent clicks inside the dropdown from closing it
+    multiSelectDropdown.on('click', function(e) {
+        e.stopPropagation();
+    });
 
     // --- Cascading Filter Logic for Single-selects ---
     singleFilterSelects.on('change', updateFilterOptions);
 
-    $(document).on('click', function(e) {
-        if (!multiSelectContainer.is(e.target) && multiSelectContainer.has(e.target).length === 0) {
-            if (multiSelectDropdown.hasClass('active')) {
-                // If clicking outside, revert changes and close
-                multiSelectDropdown.find('input[type="checkbox"]').each(function() {
-                    const value = $(this).val();
-                    $(this).prop('checked', taskProjectSelectionBeforeOpen.includes(value));
-                });
-                multiSelectDropdown.removeClass('active');
-            }
+    // --- Global click handler to close dropdowns when clicking outside ---
+    // Outside click = cancel
+    $(document).on('click', function() {
+        if (multiSelectDropdown.hasClass('active')) {
+            multiSelectDropdown.find('input[type="checkbox"]').each(function() {
+                $(this).prop('checked', taskProjectSelectionBeforeOpen.includes($(this).val()));
+            });
+            multiSelectDropdown.removeClass('active').hide();
         }
     });
 
+    // --- Table Sorting ---
     tableHead.on('click', 'th', function() {
         const th = $(this);
         const column = th.data('sort-by');
@@ -447,6 +457,7 @@ $(function() { // Use jQuery's ready function for initialization
         resetAndRender();
     });
     
+    // --- Pagination ---
     prevPageBtn.on('click', () => {
         if (paginationState.currentPage > 1) {
             paginationState.currentPage--;
@@ -463,6 +474,7 @@ $(function() { // Use jQuery's ready function for initialization
 
     rowsPerPageSelect.on('change', resetAndRender);
 
+    // --- Export Handlers ---
     csvExportBtn.on('click', () => {
         if (filteredData.length === 0) return alert('No data to export.');
         const headers = Object.keys(filteredData[0]);

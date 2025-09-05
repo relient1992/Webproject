@@ -324,15 +324,16 @@ body {
     border: 1px solid #ccc;
     border-top: none;
     border-radius: 0 0 5px 5px;
-    z-index: 100;
+    z-index: 1000;
     /* ADDED: Flexbox layout for scrolling content and sticky footer */
     display: flex;
     flex-direction: column;
     max-height: 250px;
+    overflow-y: auto;
 }
 
 .multiselect-dropdown.active {
-    display: flex; /* Changed from block to flex */
+    display: block; /* Changed from block to flex */
 }
 
 /* ADDED: Container for the scrollable options */

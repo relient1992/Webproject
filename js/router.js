@@ -24,7 +24,9 @@ const rolePages = {
         "fedex_manifest_conso_data.html",
         "lhi_inventory.html",
         "daily_attendance_status.html",
-        "bps_overall_dashboard.php"
+        "bps_overall_dashboard.php",
+        "fedex_aus_hourly_count.html"
+        
 
     ],
     'Admin': [
@@ -42,7 +44,9 @@ const rolePages = {
         "fedex_manifest_conso_data.html",
         "lhi_inventory.html",
         "daily_attendance_status.html",
-        "bps_overall_dashboard.php"
+        "bps_overall_dashboard.php",
+        "fedex_aus_hourly_count.html"
+
     ],
     'User': [
         "active_attrition.html",
@@ -92,7 +96,8 @@ const rolePages = {
         "quality_scores.html",
         "fedex_manifest_conso_data.html",
         "daily_attendance_status.html",
-        "bps_overall_dashboard.php"
+        "bps_overall_dashboard.php",
+        "fedex_aus_hourly_count.html"
 
     ],
     'bps_manager': [
@@ -108,7 +113,8 @@ const rolePages = {
         "quality_scores.html",
         "fedex_manifest_conso_data.html",
         "daily_attendance_status.html",
-        "bps_overall_dashboard.php"
+        "bps_overall_dashboard.php",
+        "fedex_aus_hourly_count.html"
 
     ],
     'bps_user': [
@@ -121,7 +127,8 @@ const rolePages = {
         "quality_scores.html",
         "fedex_manifest_conso_data.html",
         "daily_attendance_status.html",
-        "bps_overall_dashboard.php"
+        "bps_overall_dashboard.php",
+        "fedex_aus_hourly_count.html"
     ]
 
 };

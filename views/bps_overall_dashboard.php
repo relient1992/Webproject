@@ -52,10 +52,16 @@ if (!isset($_SESSION['employee_id'])) {
         </header>
         
         <main class="main-content">
-            <div class="chart-section">
+            <div class="chart-section" id="chart-section">
                 <div class="chart-header">
                     <h2 class="chart-title">Performance Metrics</h2>
                     <div class="chart-controls">
+                        <!-- ADDED: Time aggregation switcher for the chart -->
+                        <div class="view-switcher chart-period-switcher">
+                            <button id="chart-daily-btn" class="view-btn active" data-period="daily">Daily</button>
+                            <button id="chart-weekly-btn" class="view-btn" data-period="weekly">Weekly</button>
+                            <button id="chart-monthly-btn" class="view-btn" data-period="monthly">Monthly</button>
+                        </div>
                         <div class="metric-selector">
                             <label for="primary-metric-select">Primary Metric:</label>
                             <select id="primary-metric-select"></select>

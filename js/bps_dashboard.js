@@ -12,6 +12,7 @@ $(function() { // Use jQuery's ready function for initialization
     let currentView = 'employee';
     let taskProjectSelectionBeforeOpen = [];
     let performanceChart = null; // Variable to hold the chart instance
+    let chartPeriod = 'daily'; // ADDED: State for chart aggregation period
 
     // --- ELEMENT REFERENCES ---
     const tableBody = $('.data-table tbody');
@@ -38,9 +39,10 @@ $(function() { // Use jQuery's ready function for initialization
     const multiSelectLabel = multiSelectContainer.find('.multiselect-label');
     const primaryMetricSelect = $('#primary-metric-select');
     const secondaryMetricSelect = $('#secondary-metric-select');
-    // ADDED: References for chart toggle functionality
     const chartSection = $('.chart-section');
     const toggleChartBtn = $('#toggle-chart-btn');
+    // ADDED: References for chart period buttons
+    const chartPeriodSwitcher = $('.chart-period-switcher');
     
     // =========================================================================
     // == 1. INITIALIZATION & CORE LOGIC
@@ -210,7 +212,8 @@ $(function() { // Use jQuery's ready function for initialization
         const endDate = datePicker.endDate.format('YYYY-MM-DD');
         const filters = getSelectedFilters();
 
-        const params = new URLSearchParams({ get_chart_data: 'true', startDate, endDate, ...filters });
+        // UPDATED: Send the chart aggregation period to the server
+        const params = new URLSearchParams({ get_chart_data: 'true', chart_period: chartPeriod, startDate, endDate, ...filters });
         
         try {
             const response = await fetch(`../bps_dashboard.php?${params.toString()}`);
@@ -218,6 +221,11 @@ $(function() { // Use jQuery's ready function for initialization
 
             const primaryMetricKey = primaryMetricSelect.val();
             const secondaryMetricKey = secondaryMetricSelect.val();
+
+            let chartTitle = chartMetrics[primaryMetricKey].label;
+            if (secondaryMetricKey !== 'none') {
+                chartTitle += ` vs. ${chartMetrics[secondaryMetricKey].label}`;
+            }
 
             const labels = chartData.map(d => d.proddate);
             const primaryData = chartData.map(d => parseFloat(d[primaryMetricKey] || 0));
@@ -279,6 +287,12 @@ $(function() { // Use jQuery's ready function for initialization
                     plugins: {
                         legend: { position: 'top' },
                         tooltip: { mode: 'index', intersect: false },
+                        title: {
+                            display: true,
+                            text: chartTitle,
+                            font: { size: 18 },
+                            padding: { top: 10, bottom: 10 }
+                        }
                     },
                     interaction: {
                         mode: 'index',
@@ -416,7 +430,6 @@ $(function() { // Use jQuery's ready function for initialization
         });
     }
     
-    // --- UPDATED: Logic to handle 'All' option for rows per page ---
     function updatePaginationState(totalItems) {
         const selectedRows = rowsPerPageSelect.val();
         
@@ -433,7 +446,6 @@ $(function() { // Use jQuery's ready function for initialization
         }
     }
     
-    // --- UPDATED: Logic to hide pagination controls when not needed ---
     function renderPaginationControls() {
         const totalItems = filteredData.length;
         pageNumberSpan.text(paginationState.currentPage);
@@ -536,7 +548,6 @@ $(function() { // Use jQuery's ready function for initialization
     primaryMetricSelect.on('change', updateChart);
     secondaryMetricSelect.on('change', updateChart);
     
-    // --- ADDED: Event handler for the chart toggle button ---
     toggleChartBtn.on('click', function() {
         chartSection.toggleClass('hidden');
         const isHidden = chartSection.hasClass('hidden');
@@ -544,6 +555,17 @@ $(function() { // Use jQuery's ready function for initialization
             $(this).html('<i class="fas fa-eye"></i> Show Chart');
         } else {
             $(this).html('<i class="fas fa-eye-slash"></i> Hide Chart');
+        }
+    });
+
+    // --- ADDED: Event handler for the chart period switcher ---
+    chartPeriodSwitcher.on('click', '.view-btn', function() {
+        const clickedPeriod = $(this).data('period');
+        if (clickedPeriod !== chartPeriod) {
+            chartPeriod = clickedPeriod;
+            chartPeriodSwitcher.find('.view-btn').removeClass('active');
+            $(this).addClass('active');
+            updateChart();
         }
     });
 

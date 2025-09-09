@@ -16,7 +16,8 @@ document.addEventListener("DOMContentLoaded", () => {
             "fedex_manifest_conso_data.html",
             "lhi_inventory.html",
             "daily_attendance_status.html",
-            "bps_overall_dashboard.php"
+            "bps_overall_dashboard.php",
+            "fedex_aus_hourly_count.html"
 
 
         ],
@@ -41,7 +42,8 @@ document.addEventListener("DOMContentLoaded", () => {
             "fedex_manifest_conso_data.html",
             "lhi_inventory.html",
             "daily_attendance_status.html",
-            "bps_overall_dashboard.php"
+            "bps_overall_dashboard.php",
+            "fedex_aus_hourly_count.html"
 
         ],
         User: [
@@ -92,7 +94,8 @@ document.addEventListener("DOMContentLoaded", () => {
             "quality_scores.html",
             "fedex_manifest_conso_data.html",
             "daily_attendance_status.html",
-            "bps_overall_dashboard.php"
+            "bps_overall_dashboard.php",
+            "fedex_aus_hourly_count.html"
 
         ],
         bps_manager: [
@@ -108,7 +111,8 @@ document.addEventListener("DOMContentLoaded", () => {
             "quality_scores.html",
             "fedex_manifest_conso_data.html",
             "daily_attendance_status.html",
-            "bps_overall_dashboard.php"
+            "bps_overall_dashboard.php",
+            "fedex_aus_hourly_count.html"
 
         ],
         bps_user: [
@@ -121,7 +125,8 @@ document.addEventListener("DOMContentLoaded", () => {
             "quality_scores.html",
             "fedex_manifest_conso_data.html",
             "daily_attendance_status.html",
-            "bps_overall_dashboard.php"
+            "bps_overall_dashboard.php",
+            "fedex_aus_hourly_count.html"
         ]           
         
     };

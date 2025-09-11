@@ -25,7 +25,8 @@ const rolePages = {
         "lhi_inventory.html",
         "daily_attendance_status.html",
         "bps_overall_dashboard.php",
-        "fedex_aus_hourly_count.html"
+        "fedex_aus_hourly_count.html",
+        "web_training.php"
         
 
     ],
@@ -129,7 +130,22 @@ const rolePages = {
         "daily_attendance_status.html",
         "bps_overall_dashboard.php",
         "fedex_aus_hourly_count.html"
-    ]
+    ],
+
+    'bps_quality_user': [
+        "active_attrition.html",
+        "bps_absenteeism.html",
+        "bps_attendance_db.html",
+        "bps_dashboard.html",
+        "project_efficiency.html",
+        "team_member.html",
+        "quality_scores.html",
+        "fedex_manifest_conso_data.html",
+        "daily_attendance_status.html",
+        "bps_overall_dashboard.php",
+        "fedex_aus_hourly_count.html",
+        "web_training.php"
+    ]   
 
 };
 

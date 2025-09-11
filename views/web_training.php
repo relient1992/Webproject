@@ -1,3 +1,21 @@
+<?php
+session_start(); // Start the session at the very top
+
+// Prevent browser caching
+header("Cache-Control: no-cache, no-store, must-revalidate"); // HTTP 1.1
+header("Pragma: no-cache"); // HTTP 1.0
+header("Expires: 0"); // Proxies
+
+// Check if user is logged in (session variable exists)
+if (!isset($_SESSION['employee_id'])) {
+    // Redirect to login page if not logged in.
+    // IMPORTANT: Adjust the path to your login page if it's not 'index.html' in the main directory.
+    header('Location: ../../index.html'); // Assuming login is two levels up from /views/
+    exit();
+}
+?>
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,7 +23,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Training Material Builder (File Edition)</title>
     
-    <link rel="stylesheet" href="web_training.css">
+    <link rel="stylesheet" href="../web_training.css">
     
     <!-- External Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
@@ -22,6 +40,11 @@
                 <div class="header-bar">
                     <h1>Training Builder</h1>
                     <div id="project-status">No data loaded</div>
+                </div>
+
+                <div class="project-title-container">
+                    <label for="project-title-input">Training Title</label>
+                    <input type="text" id="project-title-input" placeholder="Enter Title for the Training">
                 </div>
                 
                 <h2>Step 1: Add or Upload Modules</h2>
@@ -46,8 +69,15 @@
                     <input type="text" id="module-title-input" placeholder="Enter the title for this module">
                     
                     <label>Module Content</label>
-                    <div class="editor-toolbar">
-                        <button id="editor-img-btn">Insert Image</button>
+                    <div class="editor-toolbar" id="wysiwyg-toolbar">
+                        <button class="toolbar-btn" data-command="bold" title="Bold"><b>B</b></button>
+                        <button class="toolbar-btn" data-command="italic" title="Italic"><i>I</i></button>
+                        <button class="toolbar-btn" data-command="underline" title="Underline"><u>U</u></button>
+                        <button class="toolbar-btn" data-command="insertUnorderedList" title="Bulleted List">●</button>
+                        <button class="toolbar-btn" data-command="insertOrderedList" title="Numbered List">1.</button>
+                        <button class="toolbar-btn" data-command="createLink" title="Create Link">🔗</button>
+                        <button class="toolbar-btn" data-command="insertTable" title="Insert Table">▦</button>
+                        <button class="toolbar-btn" data-command="insertImage" title="Insert Image">🖼️</button>
                         <input type="file" id="image-upload" accept="image/*" class="hidden">
                     </div>
                     <div id="module-content-editor" contenteditable="true"></div>
@@ -80,7 +110,7 @@
     </div>
 
     <!-- App Logic -->
-    <script src="web_training.js"></script>
+    <script src="../js/web_training.js"></script>
 </body>
 </html>
 

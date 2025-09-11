@@ -83,6 +83,15 @@ if (!isset($_SESSION['employee_id'])) {
                         <span class="material-icons-sharp">dashboard</span>
                         <h3>BPS Overall Dashboard</h3>
                 </a>
+                <a href="./views/web_training.php" 
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-view="web_training.php"
+                    data-external="true"
+                    onclick="event.stopPropagation(); window.open(this.href, '_blank'); return false;">
+                        <span class="material-icons-sharp">build</span>
+                        <h3>BPS Training Material Creation</h3>
+                </a>
                 <!-- <a href="./views/overall_dashboard.php" target="_blank"
                         rel="noopener noreferrer"
                         onclick="event.stopPropagation(); window.open(this.href, '_blank'); return false;">

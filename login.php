@@ -58,7 +58,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 7 => 'lhi_user',
                 8 => 'bps_admin',
                 9 => 'bps_manager',
-                10 => 'bps_user'
+                10 => 'bps_user',
+                11 => 'bps_quality_user'
             ];
             $roleName = $roleMap[$user['role_id']] ?? 'User';
             $_SESSION['user_role'] = $roleName;

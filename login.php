@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['position'] = $user['POSITION'] ?? '';
 
             $roleMap = [
-                1 => 'Super User',
+                1 => 'super_user',
                 2 => 'Manager',
                 3 => 'Admin',
                 4 => 'User',

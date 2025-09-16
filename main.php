@@ -191,6 +191,17 @@ if (!isset($_SESSION['employee_id'])) {
                     <h3>LHI Financial</h3>
                 </a>
 
+                <a href="./views/database_update.php" 
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-view="database_update.php"
+                    data-external="true"
+                    onclick="event.stopPropagation(); window.open(this.href, '_blank'); return false;">
+                        <span class="material-icons-sharp">build</span>
+                        <h3>Database Update</h3>
+                </a>
+
+
                 <div class="dropdown">
                     <a href="#" class="parent">
                         <span class="material-icons-sharp">query_stats</span>

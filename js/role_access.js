@@ -144,6 +144,33 @@ document.addEventListener("DOMContentLoaded", () => {
             "bps_overall_dashboard.php",
             "fedex_aus_hourly_count.html",
             "web_training.php"
+        ],
+        
+        super_user: [
+            "active_attrition.html",
+            "bps_absenteeism.html",
+            "bps_attendance_db.html",
+            "bps_bfp.html",
+            "bps_dashboard.html",
+            "lhi_absenteeism.html",
+            "project_efficiency.html",
+            "team_member.html",
+            "lhi_financial.html",
+            "bps_financial.html",
+            "lhi_bfp.html",
+            "lhi_dashboard.html",
+            "bu_bps.html",
+            "bu_lhi.html",
+            "quality_scores.html",
+            "lhi_scorecard.html",
+            "lhi_weekly_efficiency.html",
+            "fedex_manifest_conso_data.html",
+            "lhi_inventory.html",
+            "daily_attendance_status.html",
+            "bps_overall_dashboard.php",
+            "fedex_aus_hourly_count.html",
+            "web_training.php",
+            "database_update.php"
         ]   
         
     };

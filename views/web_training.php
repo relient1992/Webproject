@@ -23,6 +23,7 @@ if (!isset($_SESSION['employee_id'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Training Material Builder (File Edition)</title>
     
+    <!-- NOTE: Please ensure this path is correct for your project structure -->
     <link rel="stylesheet" href="../web_training.css">
     
     <!-- External Libraries -->
@@ -55,7 +56,7 @@ if (!isset($_SESSION['employee_id'])) {
                 </div>
 
                 <h2>Step 2: Arrange & Edit Modules</h2>
-                <ol id="toc-list"></ol>
+                <ul id="toc-list" class="sortable-list"></ul>
             </div>
 
             <!-- Right Panel: Content Editor -->
@@ -64,9 +65,13 @@ if (!isset($_SESSION['employee_id'])) {
                     <p>Select a module on the left to edit its content, or add a new one.</p>
                 </div>
                 <div id="editor-container" class="hidden">
-                    <h2>Edit Module Content</h2>
-                    <label for="module-title-input">Module Title</label>
-                    <input type="text" id="module-title-input" placeholder="Enter the title for this module">
+                    <div class="editor-header">
+                        <div class="editor-title-group">
+                            <label for="module-title-input">Module Title</label>
+                            <input type="text" id="module-title-input" placeholder="Enter the title for this module">
+                        </div>
+                        <button id="add-submodule-btn" class="button-secondary" title="Add a sub-module to this module">＋ Sub-module</button>
+                    </div>
                     
                     <label>Module Content</label>
                     <div class="editor-toolbar" id="wysiwyg-toolbar">
@@ -78,6 +83,18 @@ if (!isset($_SESSION['employee_id'])) {
                         <button class="toolbar-btn" data-command="createLink" title="Create Link">🔗</button>
                         <button class="toolbar-btn" data-command="insertTable" title="Insert Table">▦</button>
                         <button class="toolbar-btn" data-command="insertImage" title="Insert Image">🖼️</button>
+                        
+                        <!-- Added Font Size Selector -->
+                        <select id="font-size-selector" class="font-size-selector" title="Font Size">
+                            <option value="">Size</option>
+                            <option value="1">Smallest</option>
+                            <option value="2">Small</option>
+                            <option value="3">Normal</option>
+                            <option value="4">Large</option>
+                            <option value="5">Huge</option>
+                            <option value="6">Largest</option>
+                        </select>
+                        
                         <input type="file" id="image-upload" accept="image/*" class="hidden">
                     </div>
                     <div id="module-content-editor" contenteditable="true"></div>
@@ -109,7 +126,7 @@ if (!isset($_SESSION['employee_id'])) {
         </div>
     </div>
 
-    <!-- App Logic -->
+    <!-- NOTE: Please ensure this path is correct for your project structure -->
     <script src="../js/web_training.js"></script>
 </body>
 </html>

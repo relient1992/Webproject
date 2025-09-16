@@ -3,14 +3,13 @@ document.addEventListener('DOMContentLoaded', () => {
     let projectTitle = 'Company Training Portal';
     let modules = [];
     let activeModuleId = null;
-    let isDirty = false; // Flag to track if there are unsaved changes
+    let isDirty = false;
 
     // --- ELEMENT REFERENCES ---
     const appContainer = document.getElementById('app-container');
     const welcomeScreen = document.getElementById('welcome-screen');
     const loadDataInput = document.getElementById('load-data-input');
     const startNewBtn = document.getElementById('start-new-btn');
-    
     const projectStatus = document.getElementById('project-status');
     const projectTitleInput = document.getElementById('project-title-input');
     const tocList = document.getElementById('toc-list');
@@ -18,45 +17,100 @@ document.addEventListener('DOMContentLoaded', () => {
     const addModuleBtn = document.getElementById('add-module-btn');
     const exportBtn = document.getElementById('export-btn');
     const saveDataFileBtn = document.getElementById('save-data-file-btn');
-    
     const editorPlaceholder = document.getElementById('editor-placeholder');
     const editorContainer = document.getElementById('editor-container');
     const moduleTitleInput = document.getElementById('module-title-input');
+    const addSubmoduleBtn = document.getElementById('add-submodule-btn');
     const moduleContentEditor = document.getElementById('module-content-editor');
     const saveModuleBtn = document.getElementById('save-module-btn');
     const deleteModuleBtn = document.getElementById('delete-module-btn');
     const imageUpload = document.getElementById('image-upload');
     const wysiwygToolbar = document.getElementById('wysiwyg-toolbar');
 
-    // --- CORE FUNCTIONS ---
+    // --- HELPER FUNCTIONS ---
+    const findModuleById = (id, list = modules) => {
+        for (const module of list) {
+            if (module.id === id) return { module, parentList: list };
+            if (module.submodules) {
+                const found = findModuleById(id, module.submodules);
+                if (found) return found;
+            }
+        }
+        return null;
+    };
 
-    function setDirty(state = true) {
+    const setDirty = (state = true) => {
         isDirty = state;
         projectStatus.textContent = state ? 'Unsaved changes' : 'All changes saved';
         projectStatus.style.color = state ? 'var(--danger-color)' : 'var(--success-color)';
-    }
-
-    function startApp() {
-        welcomeScreen.classList.add('hidden');
-        appContainer.classList.remove('hidden');
-    }
-    
-    const renderToc = () => {
-        tocList.innerHTML = '';
-        modules.forEach(module => {
-            const listItem = document.createElement('li');
-            listItem.dataset.id = module.id;
-            listItem.className = module.id === activeModuleId ? 'active' : '';
-            listItem.innerHTML = `<span class="drag-handle">☰</span><span class="file-name">${module.title}</span>`;
-            listItem.addEventListener('click', () => selectModule(module.id));
-            tocList.appendChild(listItem);
-        });
     };
 
+    const startApp = () => {
+        welcomeScreen.classList.add('hidden');
+        appContainer.classList.remove('hidden');
+    };
+
+    // --- CORE RENDERING & SELECTION ---
+    const renderToc = (list = modules, container = tocList) => {
+        if (container === tocList) container.innerHTML = ''; // Clear only the root list
+        list.forEach(module => {
+            const listItem = document.createElement('li');
+            listItem.dataset.id = module.id;
+            
+            const itemContent = document.createElement('div');
+            itemContent.className = 'toc-item-content';
+            
+            let toggleHtml = '';
+            // Show toggle only if submodules exist.
+            if (module.submodules && module.submodules.length > 0) {
+                toggleHtml = `<span class="toggle ${module.collapsed ? 'collapsed' : ''}"></span>`;
+            } else {
+                 toggleHtml = `<span class="toggle" style="visibility: hidden;"></span>`;
+            }
+
+            itemContent.innerHTML = `
+                ${toggleHtml}
+                <span class="drag-handle">☰</span>
+                <span class="file-name">${module.title}</span>
+            `;
+            
+            listItem.appendChild(itemContent);
+            container.appendChild(listItem);
+
+            // Click listener for selecting the module (on the filename)
+            itemContent.querySelector('.file-name').addEventListener('click', () => selectModule(module.id));
+            
+            // Click listener for toggling
+            const toggle = itemContent.querySelector('.toggle');
+            if (toggle.style.visibility !== 'hidden') {
+                toggle.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    module.collapsed = !module.collapsed;
+                    renderToc();
+                });
+            }
+
+            // Highlight the active module
+            if (module.id === activeModuleId) {
+                itemContent.classList.add('active');
+            }
+
+            // Render sub-modules
+            if (module.submodules) {
+                const sublist = document.createElement('ul');
+                sublist.className = `sortable-list ${module.collapsed ? 'collapsed' : ''}`;
+                listItem.appendChild(sublist);
+                renderToc(module.submodules, sublist);
+            }
+        });
+        if (container === tocList) initializeSortables();
+    };
+    
     const selectModule = (id) => {
         activeModuleId = id;
-        const module = modules.find(m => m.id === id);
-        if (module) {
+        const result = findModuleById(id);
+        if (result) {
+            const { module } = result;
             editorPlaceholder.classList.add('hidden');
             editorContainer.classList.remove('hidden');
             moduleTitleInput.value = module.title;
@@ -68,138 +122,142 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         renderToc();
     };
-    
-    // --- EVENT LISTENERS ---
 
+    // --- EVENT LISTENERS ---
     startNewBtn.addEventListener('click', () => {
-        if (isDirty && !confirm("You have unsaved changes. Are you sure you want to start a new project?")) {
-            return;
-        }
+        if (isDirty && !confirm("You have unsaved changes. Start new?")) return;
         projectTitle = 'Company Training Portal';
         modules = [];
         projectTitleInput.value = projectTitle;
         renderToc();
         selectModule(null);
         startApp();
-        projectStatus.textContent = "New Project";
-        projectStatus.style.color = 'var(--text-secondary)';
         setDirty(false);
     });
-    
+
     loadDataInput.addEventListener('change', (event) => {
-        if (isDirty && !confirm("You have unsaved changes that will be lost. Are you sure you want to load a new file?")) {
-            return;
-        }
+        if (isDirty && !confirm("Unsaved changes will be lost. Load file?")) return;
         const file = event.target.files[0];
-        if (!file || !file.type.match('application/json')) {
-            alert('Please select a valid .json file.');
-            return;
-        }
+        if (!file) return;
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
                 const data = JSON.parse(e.target.result);
-                if (Array.isArray(data.modules)) {
-                    projectTitle = data.projectTitle || 'Company Training Portal';
-                    modules = data.modules;
-                    projectTitleInput.value = projectTitle;
-                    renderToc();
-                    selectModule(null);
-                    startApp();
-                    setDirty(false);
-                    projectStatus.textContent = `Loaded: ${file.name}`;
-                } else {
-                    throw new Error("Invalid data structure in JSON file.");
-                }
-            } catch (error) {
-                alert(`Error reading file: ${error.message}`);
-            }
+                projectTitle = data.projectTitle || 'Company Training Portal';
+                modules = data.modules || [];
+                projectTitleInput.value = projectTitle;
+                renderToc();
+                selectModule(null);
+                startApp();
+                setDirty(false);
+            } catch (error) { alert(`Error reading file: ${error.message}`); }
         };
         reader.readAsText(file);
         event.target.value = null;
     });
-    
+
     projectTitleInput.addEventListener('input', () => setDirty());
 
     addModuleBtn.addEventListener('click', () => {
-        const newModule = {
-            id: Date.now().toString(),
-            title: 'New Module',
-            content: '<p>Start typing your content here...</p>'
-        };
+        const newModule = { id: Date.now().toString(), title: 'New Module', content: '<p></p>', submodules: [], collapsed: false };
         modules.push(newModule);
         renderToc();
         selectModule(newModule.id);
         setDirty();
     });
-
-    fileInput.addEventListener('change', async (event) => {
-        for (const file of event.target.files) {
-            try {
-                const arrayBuffer = await file.arrayBuffer();
-                const result = await mammoth.convertToHtml({ arrayBuffer });
-                modules.push({
-                    id: Date.now().toString(),
-                    title: file.name.replace(/\.docx?$/i, ''),
-                    content: result.value,
-                });
-            } catch (error) {
-                console.error("Error converting DOCX:", error);
-                alert(`Could not process the file: ${file.name}`);
+    
+    if(addSubmoduleBtn) {
+        addSubmoduleBtn.addEventListener('click', () => {
+            if (!activeModuleId) {
+                alert("Please select a parent module first.");
+                return;
             }
-        }
-        renderToc();
-        setDirty();
-        event.target.value = null;
-    });
+            const result = findModuleById(activeModuleId);
+            if(result) {
+                const newModule = { id: Date.now().toString(), title: 'New Sub-module', content: '<p></p>', submodules: [], collapsed: false };
+                if (!result.module.submodules) result.module.submodules = [];
+                result.module.submodules.push(newModule);
+                result.module.collapsed = false; // Ensure parent is expanded
+                renderToc();
+                selectModule(newModule.id);
+                setDirty();
+            }
+        });
+    }
 
     saveModuleBtn.addEventListener('click', () => {
         if (!activeModuleId) return;
-        const moduleIndex = modules.findIndex(m => m.id === activeModuleId);
-        if (moduleIndex > -1) {
-            modules[moduleIndex].title = moduleTitleInput.value;
-            modules[moduleIndex].content = moduleContentEditor.innerHTML;
+        const result = findModuleById(activeModuleId);
+        if (result) {
+            result.module.title = moduleTitleInput.value;
+            result.module.content = moduleContentEditor.innerHTML;
             renderToc();
             setDirty();
-            alert('Changes applied. Remember to "Save Data to File" to make them permanent.');
+            alert('Changes applied.');
         }
     });
 
     deleteModuleBtn.addEventListener('click', () => {
-        if (!activeModuleId || !confirm('Are you sure you want to delete this module?')) return;
-        modules = modules.filter(m => m.id !== activeModuleId);
-        renderToc();
-        selectModule(null);
-        setDirty();
-    });
-    
-    new Sortable(tocList, {
-        animation: 150,
-        handle: '.drag-handle',
-        ghostClass: 'sortable-ghost',
-        onEnd: (evt) => {
-            const movedItem = modules.splice(evt.oldIndex, 1)[0];
-            modules.splice(evt.newIndex, 0, movedItem);
+        if (!activeModuleId || !confirm('Delete this module and all its sub-modules?')) return;
+        const result = findModuleById(activeModuleId);
+        if (result) {
+            const index = result.parentList.findIndex(m => m.id === activeModuleId);
+            result.parentList.splice(index, 1);
+            renderToc();
+            selectModule(null);
             setDirty();
         }
     });
+    
+    // --- DRAG AND DROP (SortableJS) ---
+    function initializeSortables() {
+        document.querySelectorAll('#toc-list, #toc-list ul').forEach(list => {
+            if(list.sortable) list.sortable.destroy();
+            new Sortable(list, {
+                group: 'nested',
+                animation: 150,
+                handle: '.drag-handle',
+                ghostClass: 'sortable-ghost',
+                onEnd: (evt) => {
+                    const itemId = evt.item.dataset.id;
+                    const newParentEl = evt.to.closest('li');
+                    
+                    const oldLocation = findModuleById(itemId);
+                    if (!oldLocation) return;
+                    const item = oldLocation.parentList.splice(oldLocation.parentList.findIndex(m => m.id === itemId), 1)[0];
 
-    // --- WYSIWYG Editor & Image Upload Logic ---
+                    if (newParentEl) {
+                        const parentId = newParentEl.dataset.id;
+                        const newParentResult = findModuleById(parentId);
+                        if(newParentResult) {
+                            const newParent = newParentResult.module;
+                            if (!newParent.submodules) newParent.submodules = [];
+                            newParent.submodules.splice(evt.newIndex, 0, item);
+                        }
+                    } else {
+                        modules.splice(evt.newIndex, 0, item);
+                    }
+                    renderToc();
+                    setDirty();
+                }
+            });
+        });
+    }
+
+    // --- WYSIWYG & UPLOAD ---
     wysiwygToolbar.addEventListener('click', (e) => {
         const button = e.target.closest('.toolbar-btn');
         if (!button) return;
-
         e.preventDefault();
         const command = button.dataset.command;
-
         if (command === 'createLink') {
-            const url = prompt("Enter the URL:");
+            const url = prompt("Enter URL:");
             if (url) document.execCommand(command, false, url);
         } else if (command === 'insertImage') {
             imageUpload.click();
         } else if (command === 'insertTable') {
-            const rows = parseInt(prompt("Enter number of rows:", "2"), 10);
-            const cols = parseInt(prompt("Enter number of columns:", "2"), 10);
+            const rows = parseInt(prompt("Rows:", "2"), 10);
+            const cols = parseInt(prompt("Columns:", "2"), 10);
             if (rows > 0 && cols > 0) insertTable(rows, cols);
         } else {
             document.execCommand(command, false, null);
@@ -207,17 +265,28 @@ document.addEventListener('DOMContentLoaded', () => {
         moduleContentEditor.focus();
     });
 
+    const fontSizeSelector = document.getElementById('font-size-selector');
+    if(fontSizeSelector) {
+        fontSizeSelector.addEventListener('change', (e) => {
+            const size = e.target.value;
+            if (size) {
+                 // Use font tag for broader compatibility as formatBlock is inconsistent
+                document.execCommand('styleWithCSS', false, false);
+                document.execCommand('fontSize', false, size);
+                document.execCommand('styleWithCSS', false, true);
+            }
+            e.target.value = ""; // Reset selector
+            moduleContentEditor.focus();
+        });
+    }
+
     function insertTable(rows, cols) {
         let tableHtml = '<table style="width:100%; border-collapse: collapse;"><thead><tr>';
-        for(let i = 0; i < cols; i++) {
-            tableHtml += '<th style="border: 1px solid #ccc; padding: 8px; text-align: left;">Header</th>';
-        }
+        for(let i = 0; i < cols; i++) tableHtml += `<th style="border: 1px solid #ccc; padding: 8px;">Header ${i+1}</th>`;
         tableHtml += '</tr></thead><tbody>';
         for (let i = 0; i < rows; i++) {
             tableHtml += '<tr>';
-            for (let j = 0; j < cols; j++) {
-                tableHtml += '<td style="border: 1px solid #ccc; padding: 8px;"><p><br></p></td>';
-            }
+            for (let j = 0; j < cols; j++) tableHtml += '<td style="border: 1px solid #ccc; padding: 8px;"><p><br></p></td>';
             tableHtml += '</tr>';
         }
         tableHtml += '</tbody></table><p><br></p>';
@@ -226,78 +295,53 @@ document.addEventListener('DOMContentLoaded', () => {
 
     imageUpload.addEventListener('change', (event) => {
         const file = event.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const imgHtml = `<img src="${e.target.result}" style="max-width: 100%; height: auto;">`;
-                document.execCommand('insertHTML', false, imgHtml);
-                setDirty();
-            };
-            reader.readAsDataURL(file);
-        }
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const imgHtml = `<img src="${e.target.result}" style="max-width: 100%; height: auto;">`;
+            document.execCommand('insertHTML', false, imgHtml);
+            setDirty();
+        };
+        reader.readAsDataURL(file);
         event.target.value = null;
     });
 
-    function updateToolbar() {
-        const commands = ['bold', 'italic', 'underline', 'insertUnorderedList', 'insertOrderedList'];
-        commands.forEach(command => {
-            const button = wysiwygToolbar.querySelector(`[data-command="${command}"]`);
-            if (button) button.classList.toggle('active', document.queryCommandState(command));
-        });
-    }
-
-    document.addEventListener('selectionchange', updateToolbar);
-    moduleContentEditor.addEventListener('keyup', updateToolbar);
-    moduleContentEditor.addEventListener('click', updateToolbar);
-
     // --- DATA & VIEWER EXPORT ---
     saveDataFileBtn.addEventListener('click', () => {
-        if (modules.length === 0 && projectTitleInput.value.trim() === '') {
-            alert("There is no data to save.");
-            return;
-        }
         projectTitle = projectTitleInput.value;
         const content = JSON.stringify({ projectTitle, modules }, null, 2);
         const blob = new Blob([content], { type: 'application/json' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.download = 'training_portal_data.json';
-        document.body.appendChild(link);
         link.click();
-        document.body.removeChild(link);
         setDirty(false);
     });
     
-    exportBtn.addEventListener('click', async () => {
-        if (isDirty && !confirm("You have unsaved changes. Are you sure you want to generate the viewer without saving your data file first?")) return;
-        if (modules.length === 0) {
-            alert('Please add modules before exporting.');
-            return;
-        }
-        exportBtn.textContent = 'Generating...';
-        exportBtn.disabled = true;
-        try {
-            const modulesWithPlainText = modules.map(m => {
+    exportBtn.addEventListener('click', () => {
+        if (isDirty && !confirm("Unsaved changes exist. Generate viewer anyway?")) return;
+        if (modules.length === 0) return alert('Please add modules first.');
+        
+        const flattenedModules = [];
+        const flatten = (list) => {
+            list.forEach(m => {
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = m.content;
-                return { ...m, plainText: tempDiv.textContent || tempDiv.innerText || "" };
+                flattenedModules.push({ ...m, plainText: tempDiv.textContent || "" });
+                if (m.submodules) flatten(m.submodules);
             });
-            const viewerCss = generateViewerCss();
-            const viewerJs = generateViewerJs();
-            const finalHtml = generateSingleFileViewerHtml(projectTitleInput.value, modulesWithPlainText, viewerCss, viewerJs);
-            const blob = new Blob([finalHtml], { type: 'text/html' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = 'training-portal.html';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        } catch (error) {
-            console.error('Failed to generate HTML file:', error);
-        } finally {
-            exportBtn.textContent = 'Generate & Download Viewer Website';
-            exportBtn.disabled = false;
-        }
+        };
+        flatten(modules);
+
+        const viewerCss = generateViewerCss();
+        const viewerJs = generateViewerJs();
+        const finalHtml = generateSingleFileViewerHtml(projectTitleInput.value, modules, flattenedModules, viewerCss, viewerJs);
+        
+        const blob = new Blob([finalHtml], { type: 'text/html' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'training-portal.html';
+        link.click();
     });
 
     window.addEventListener('beforeunload', (event) => {
@@ -306,79 +350,142 @@ document.addEventListener('DOMContentLoaded', () => {
             event.returnValue = '';
         }
     });
+    
+    initializeSortables();
 });
 
-// --- TEMPLATE GENERATION FUNCTIONS ---
-function generateSingleFileViewerHtml(title, modules, css, js) {
-    const tocHtml = modules.map((m, index) =>
-        `<li><a href="#${m.id}">${index + 1}. ${m.title}</a></li>`
-    ).join('');
-    const moduleDataScript = `<script>const allModules = ${JSON.stringify(modules)};</script>`;
-    return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${title}</title><style>${css}</style></head><body><header><h1>${title}</h1><div class="search-container"><input type="text" id="search-input" placeholder="Search training materials..."></div></header><div class="container"><nav class="sidebar"><h2>Table of Contents</h2><ul>${tocHtml}</ul></nav><main class="content"><div id="search-results"></div><article id="main-content"></article></main></div>${moduleDataScript}<script>${js}</script></body></html>`;
+// --- TEMPLATE GENERATION FUNCTIONS (for the exported viewer file) ---
+function generateSingleFileViewerHtml(title, tocModules, allModulesData, css, js) {
+    const generateTocHtml = (list) => {
+        let html = '<ul>';
+        list.forEach((m) => {
+            const hasSubmodules = m.submodules && m.submodules.length > 0;
+            html += `<li class="${hasSubmodules ? '' : 'no-children'} ${m.collapsed ? 'collapsed' : ''}">`;
+            if (hasSubmodules) {
+                 html += `<span class="toggle"></span>`;
+            }
+            html += `<a href="#${m.id}">${m.title}</a>`;
+            if (hasSubmodules) {
+                html += generateTocHtml(m.submodules);
+            }
+            html += '</li>';
+        });
+        html += '</ul>';
+        return html;
+    };
+    const tocHtml = generateTocHtml(tocModules);
+    const moduleDataScript = `<script>const allModules = ${JSON.stringify(allModulesData)};</script>`;
+    return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${title}</title><style>${css}</style></head><body><header><h1>${title}</h1><div class="search-container"><input type="text" id="search-input" placeholder="Search..."><div id="suggestions-box"></div></div></header><div class="container"><nav class="sidebar"><h2>Table of Contents</h2><div class="toc-container">${tocHtml}</div></nav><main class="content"><div id="search-results"></div><article id="main-content"></article></main></div>${moduleDataScript}<script>${js}</script></body></html>`;
 }
 
 function generateViewerJs() {
     return `
     document.addEventListener('DOMContentLoaded', () => {
         const searchInput = document.getElementById('search-input');
+        const suggestionsBox = document.getElementById('suggestions-box');
         const resultsContainer = document.getElementById('search-results');
         const mainContent = document.getElementById('main-content');
-        const tocLinks = document.querySelectorAll('.sidebar ul li a');
+        const tocContainer = document.querySelector('.sidebar .toc-container');
 
         const displayModule = (moduleId) => {
             const module = allModules.find(m => m.id === moduleId);
             if (module) {
                 mainContent.innerHTML = \`<h1>\${module.title}</h1>\${module.content}\`;
-                resultsContainer.innerHTML = '';
                 resultsContainer.style.display = 'none';
                 mainContent.style.display = 'block';
-
-                tocLinks.forEach(link => {
-                    link.classList.toggle('active', link.getAttribute('href') === \`#\${moduleId}\`);
+                tocContainer.querySelectorAll('a').forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href') === \`#\${moduleId}\`) {
+                        link.classList.add('active');
+                        // Expand parents
+                        let parent = link.parentElement.parentElement.closest('li');
+                        while(parent) {
+                            parent.classList.remove('collapsed');
+                            parent = parent.parentElement.closest('li');
+                        }
+                    }
                 });
-                makeTablesResizable();
                 setupImageZoom();
             }
         };
 
-        tocLinks.forEach(link => {
-            link.addEventListener('click', (e) => {
+        const highlightText = (text, query) => {
+            if (!query) return text;
+            const regex = new RegExp(query.replace(/[.*+?^\\\${}()|[\\]\\\\]/g, '\\\\$&'), 'gi');
+            return text.replace(regex, (match) => \`<mark>\${match}</mark>\`);
+        };
+
+        tocContainer.addEventListener('click', (e) => {
+            const link = e.target.closest('a');
+            const toggle = e.target.closest('.toggle');
+
+            if (link) {
                 e.preventDefault();
-                const moduleId = e.currentTarget.getAttribute('href').substring(1);
+                const moduleId = link.getAttribute('href').substring(1);
                 window.location.hash = moduleId;
                 displayModule(moduleId);
-            });
+            }
+            if (toggle) {
+                toggle.parentElement.classList.toggle('collapsed');
+            }
         });
 
-        searchInput.addEventListener('keyup', () => {
+        searchInput.addEventListener('input', () => {
             const query = searchInput.value.toLowerCase().trim();
             if (query.length < 2) {
-                resultsContainer.style.display = 'none';
-                if(mainContent.style.display === 'none') {
-                    mainContent.style.display = 'block';
-                    const currentId = window.location.hash.substring(1) || (allModules[0] ? allModules[0].id : null);
-                    if(currentId) displayModule(currentId);
-                }
+                suggestionsBox.style.display = 'none';
                 return;
             }
-            const results = allModules.filter(m => 
-                m.title.toLowerCase().includes(query) || 
-                m.plainText.toLowerCase().includes(query)
-            );
-            mainContent.style.display = 'none';
-            resultsContainer.style.display = 'block';
-            displayResults(results);
+            const suggestions = allModules
+                .filter(m => m.title.toLowerCase().includes(query))
+                .slice(0, 5);
+            
+            if (suggestions.length > 0) {
+                suggestionsBox.innerHTML = suggestions.map(s => \`<div data-id="\${s.id}">\${highlightText(s.title, query)}</div>\`).join('');
+                suggestionsBox.style.display = 'block';
+            } else {
+                suggestionsBox.style.display = 'none';
+            }
+        });
+        
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const query = searchInput.value.toLowerCase().trim();
+                suggestionsBox.style.display = 'none';
+                if(query.length < 2) return;
+                const results = allModules.filter(m => m.title.toLowerCase().includes(query) || m.plainText.toLowerCase().includes(query));
+                mainContent.style.display = 'none';
+                resultsContainer.style.display = 'block';
+                displayResults(results, query);
+            }
         });
 
-        const displayResults = (results) => {
+        suggestionsBox.addEventListener('click', (e) => {
+            const target = e.target.closest('[data-id]');
+            if (target) {
+                const moduleId = target.dataset.id;
+                window.location.hash = moduleId;
+                displayModule(moduleId);
+                suggestionsBox.style.display = 'none';
+                searchInput.value = '';
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.search-container')) {
+                suggestionsBox.style.display = 'none';
+            }
+        });
+
+        const displayResults = (results, query) => {
             if (results.length === 0) {
                 resultsContainer.innerHTML = '<h2>Search Results</h2><p>No results found.</p>';
                 return;
             }
             const html = results.map(item => \`
                 <div class="result-item">
-                    <h3><a href="#\${item.id}" class="result-link">\${item.title}</a></h3>
-                    <p>\${item.plainText.substring(0, 150)}...</p>
+                    <h3><a href="#\${item.id}" class="result-link">\${highlightText(item.title, query)}</a></h3>
+                    <p>\${highlightText(item.plainText.substring(0, 250), query)}...</p>
                 </div>
             \`).join('');
             resultsContainer.innerHTML = \`<h2>Search Results</h2>\${html}\`;
@@ -388,34 +495,6 @@ function generateViewerJs() {
                     const moduleId = e.currentTarget.getAttribute('href').substring(1);
                     window.location.hash = moduleId;
                     displayModule(moduleId);
-                });
-            });
-        };
-
-        const makeTablesResizable = () => {
-            document.querySelectorAll('.content table').forEach(table => {
-                const headers = table.querySelectorAll('th');
-                headers.forEach(header => {
-                    const resizeHandle = document.createElement('div');
-                    resizeHandle.className = 'resize-handle';
-                    header.appendChild(resizeHandle);
-                    resizeHandle.addEventListener('mousedown', (e) => {
-                        e.preventDefault();
-                        let startX = e.pageX;
-                        let startWidth = header.offsetWidth;
-                        const mouseMoveHandler = (moveEvent) => {
-                            const newWidth = startWidth + (moveEvent.pageX - startX);
-                            if (newWidth > 40) {
-                                header.style.width = \`\${newWidth}px\`;
-                            }
-                        };
-                        const mouseUpHandler = () => {
-                            document.removeEventListener('mousemove', mouseMoveHandler);
-                            document.removeEventListener('mouseup', mouseUpHandler);
-                        };
-                        document.addEventListener('mousemove', mouseMoveHandler);
-                        document.addEventListener('mouseup', mouseUpHandler);
-                    });
                 });
             });
         };
@@ -511,9 +590,7 @@ function generateViewerJs() {
                 setTimeout(() => modal.remove(), 300);
             };
             
-            // Prevent context menu on right-click inside modal
             modal.addEventListener('contextmenu', e => e.preventDefault());
-
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) closeModal();
             });
@@ -526,47 +603,48 @@ function generateViewerJs() {
         if (initialModuleId && allModules.some(m => m.id === initialModuleId)) {
             displayModule(initialModuleId);
         } else if (allModules.length > 0) {
-            displayModule(allModules[0].id);
-            window.location.hash = allModules[0].id;
+            const firstModuleLink = document.querySelector('.sidebar .toc-container ul a');
+            if (firstModuleLink) {
+                 const firstModuleId = firstModuleLink.getAttribute('href').substring(1);
+                 displayModule(firstModuleId);
+                 window.location.hash = firstModuleId;
+            }
         }
     });
     `;
 }
-
 function generateViewerCss() {
     return `
-    :root {
-        --primary-color: #007bff;
-        --border-color: #dee2e6;
-        --background-light: #f8f9fa;
-        --background-white: #ffffff;
-        --text-primary: #212529;
-        --text-secondary: #6c757d;
-    }
-    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0;background-color:#f4f7f9;color: var(--text-primary)}
-    header{background-color:var(--background-white);padding:1rem 2rem;border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center}
+    :root { --primary-color: #007bff; --border-color: #dee2e6; --text-primary: #212529; }
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0;background-color:#f4f7f9;color: var(--text-primary);}
+    header{background-color:white;padding:1rem 2rem;border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center}
     header h1{margin:0;font-size:1.5rem;color:#005a9e}
-    .search-container input{width:300px;padding:.5rem .75rem;border-radius:5px;border:1px solid #cdd5de;font-size:1rem}
+    .search-container{position:relative; width: 300px;}
+    .search-container input{width:100%;padding:.5rem .75rem;border-radius:5px;border:1px solid #cdd5de;font-size:1rem; box-sizing: border-box;}
+    #suggestions-box{display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1px solid var(--border-color);border-top:none;border-radius:0 0 5px 5px;z-index:100; max-height: 300px; overflow-y: auto;}
+    #suggestions-box div{padding:0.75rem;cursor:pointer;}
+    #suggestions-box div:hover{background-color:#e9f2fa;}
+    #suggestions-box mark{background: #fff3cd; padding: 0; font-weight: bold; color: inherit;}
     .container{display:flex;max-width:1600px;margin:0 auto;height:calc(100vh - 70px)}
-    .sidebar{width:320px;flex-shrink:0;background-color:var(--background-white);padding:1rem;border-right:1px solid var(--border-color);overflow-y:auto}
+    .sidebar{width:320px;flex-shrink:0;background-color:white;padding:1rem;border-right:1px solid var(--border-color);overflow-y:auto}
     .sidebar h2{margin-top:0;font-size:1.2rem;border-bottom:1px solid #eee;padding-bottom:.5rem}
-    .sidebar ul{list-style-type:none;padding:0;margin:0}
-    .sidebar ul li a{display:block;padding:.75rem 1rem;text-decoration:none;color:var(--text-primary);border-radius:5px;transition:background-color .2s}
-    .sidebar ul li a:hover{background-color:#e9f2fa}
-    .sidebar ul li a.active{background-color:var(--primary-color);color:#fff;font-weight:700}
-    .content{flex-grow:1;padding:2rem 3rem;overflow-y:auto; position: relative;}
+    .sidebar ul{list-style-type:none;padding-left: 1.2rem; margin:0; border-left: 1px solid #e9ecef;}
+    .sidebar .toc-container > ul {padding-left: 0; border-left: none;}
+    .sidebar li { position: relative; }
+    .sidebar li a{display:inline-block;padding:.2rem .4rem;text-decoration:none;color:var(--text-primary);border-radius:5px;transition:background-color .2s; margin-left: 5px;}
+    .sidebar li a:hover{background-color:#e9f2fa}
+    .sidebar li a.active{background-color:var(--primary-color);color:#fff;font-weight:700}
+    .sidebar .toggle { position: absolute; left: -8px; top: 4px; cursor: pointer; width: 16px; height: 16px; transition: transform 0.2s ease; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid #ccc;}
+    .sidebar .toggle::before { content: '−'; font-size: 14px; color: #555; line-height: 1;}
+    .sidebar li.collapsed > .toggle::before { content: '+'; }
+    .sidebar li.no-children > .toggle { visibility: hidden; }
+    .sidebar li.collapsed > ul { display: none; }
+    .content{flex-grow:1;padding:2rem 3rem;overflow-y:auto;}
     .content h1,.content h2{color:#005a9e;border-bottom:1px solid var(--border-color);padding-bottom:.5rem}
-    .content img{max-width:100%;height:auto;border-radius:5px;margin:1rem 0;display: block; cursor: zoom-in;}
-    #search-results h2{font-size:1.25rem}
-    .result-item{border:1px solid var(--border-color);background-color:var(--background-white);padding:1rem;margin-bottom:1rem;border-radius:5px}
+    .result-item{border:1px solid var(--border-color);background-color:white;padding:1rem;margin-bottom:1rem;border-radius:5px}
     .result-item h3{margin-top:0}.result-item a{text-decoration:none;color:var(--primary-color)}
-    .result-item p{margin-bottom:0;font-size:.9rem;color:var(--text-secondary)}
-    .content table{border-collapse:collapse;width:100%;table-layout:fixed}
-    .content th{position:relative}
-    .resize-handle{position:absolute;top:0;right:-2.5px;width:5px;height:100%;cursor:col-resize;user-select:none; z-index: 10;}
-    #module-content-editor table{border-collapse:collapse;width:100%;margin:1rem 0}
-    #module-content-editor th, #module-content-editor td {border:1px solid #ccc;padding:8px;text-align:left}
-    #module-content-editor th{background-color:#f2f2f2}
+    .result-item p{margin-bottom:0;font-size:.9rem;color:#6c757d}
+    .result-item mark {background: #fff3cd; padding: 0; font-weight: bold; color: inherit;}
     .zoom-modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:flex;justify-content:center;align-items:center;z-index:1000;opacity:0;transition:opacity .3s ease;overflow:hidden;}
     .zoom-modal.visible{opacity:1}
     .zoom-modal img{max-width:95%;max-height:95%;object-fit:contain;transition:transform 0.1s linear;border:2px solid white; border-radius: 5px; cursor: zoom-in;}

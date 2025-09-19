@@ -25,28 +25,35 @@ if ($conn->connect_error) {
     die(json_encode(['error' => "Database connection failed."]));
 }
 
-// --- UPDATED Helper function to build WHERE clauses dynamically ---
+// --- Helper function to build WHERE clauses dynamically ---
 function build_where_clause($exclude_key = null) {
-    $conditions = ["site != 'OTHER SITE'"]; 
+    $conditions = ["b.site != 'OTHER SITE'"]; 
     $params = [];
     $types = '';
 
     // Date Range (Always present)
     $startDate = $_GET['startDate'] ?? date('Y-m-d');
     $endDate = $_GET['endDate'] ?? date('Y-m-d');
-    $conditions[] = "proddate BETWEEN ? AND ?";
+    $conditions[] = "b.proddate BETWEEN ? AND ?";
     $params[] = $startDate;
     $params[] = $endDate;
     $types .= 'ss';
 
     $filterMappings = [
-        'site' => 'site',
-        'tl_name' => '`TL Name`',
-        'projects' => '`Primary Project`',
-        'taskprojects' => '`Task PROJECT`',
-        'taskname' => 'TaskName',
-        'fireflyprocess' => '`Firefly Process`'
+        'site' => 'b.site',
+        'tl_name' => 'el.SUPERVISOR',
+        'projects' => 'b.`Primary Project`',
+        'taskprojects' => 'b.`Task PROJECT`',
+        'taskname' => 'b.TaskName',
+        'fireflyprocess' => 'b.`Firefly Process`'
     ];
+    
+    // Special handling for employee EDS filter
+    if(!empty($_GET['employee_eds']) && $exclude_key !== 'employee_eds') {
+        $conditions[] = "b.eds = ?";
+        $params[] = $_GET['employee_eds'];
+        $types .= 's';
+    }
 
     foreach ($filterMappings as $paramName => $columnName) {
         if ($paramName === $exclude_key) continue; 
@@ -70,8 +77,8 @@ function build_where_clause($exclude_key = null) {
         }
     }
 
-    $conditionClause = !empty($conditions) ? implode(' AND ', $conditions) : "";
-    return ['conditions' => $conditionClause, 'params' => $params, 'types' => $types];
+    $conditionClause = !empty($conditions) ? " WHERE " . implode(' AND ', $conditions) : "";
+    return ['clause' => $conditionClause, 'params' => $params, 'types' => $types];
 }
 
 
@@ -81,29 +88,22 @@ function build_where_clause($exclude_key = null) {
 if (isset($_GET['get_options'])) {
     $options = [];
     
-    $option_queries = [
-        'site' => "SELECT DISTINCT site as value FROM bps_dashboard WHERE site IN ('Subic', 'Clark')",
-        'tl_name' => 'SELECT DISTINCT `TL Name` as value FROM bps_dashboard',
-        'projects' => 'SELECT DISTINCT `Primary Project` as value FROM bps_dashboard',
-        'taskprojects' => 'SELECT DISTINCT `Task PROJECT` as value FROM bps_dashboard',
-        'taskname' => 'SELECT DISTINCT TaskName as value FROM bps_dashboard',
-        'fireflyprocess' => 'SELECT DISTINCT `Firefly Process` as value FROM bps_dashboard'
+    // REWRITTEN LOGIC FOR RELIABILITY
+    $base_from_clause = "FROM bps_dashboard b LEFT JOIN employee_listings el ON b.eds = el.EDS";
+
+    $option_selects = [
+        'site' => "SELECT DISTINCT b.site as value",
+        'tl_name' => 'SELECT DISTINCT el.SUPERVISOR as value',
+        'projects' => 'SELECT DISTINCT b.`Primary Project` as value',
+        'taskprojects' => 'SELECT DISTINCT b.`Task PROJECT` as value',
+        'taskname' => 'SELECT DISTINCT b.TaskName as value',
+        'fireflyprocess' => 'SELECT DISTINCT b.`Firefly Process` as value'
     ];
 
-    foreach ($option_queries as $key => $base_sql) {
+    foreach ($option_selects as $key => $select_clause) {
         $filter_data = build_where_clause($key);
-        $sql = $base_sql;
         
-        if (strpos(strtoupper($sql), 'WHERE') !== false) {
-            if (!empty($filter_data['conditions'])) {
-                 $sql .= ' AND ' . $filter_data['conditions'];
-            }
-        } else {
-            if (!empty($filter_data['conditions'])) {
-                $sql .= ' WHERE ' . $filter_data['conditions'];
-            }
-        }
-        $sql .= " ORDER BY value";
+        $sql = $select_clause . " " . $base_from_clause . " " . $filter_data['clause'] . " ORDER BY value";
 
         $stmt = $conn->prepare($sql);
         if ($stmt) {
@@ -118,7 +118,9 @@ if (isset($_GET['get_options'])) {
             }
             $stmt->close();
         } else {
-            $options[$key] = ['error' => $conn->error];
+            // Log error if statement fails to prepare
+            error_log("Failed to prepare statement for key '$key': " . $conn->error);
+            $options[$key] = [];
         }
     }
     
@@ -131,39 +133,33 @@ if (isset($_GET['get_options'])) {
 // 2. Fetch data for the performance chart
 if (isset($_GET['get_chart_data'])) {
     $filter_data = build_where_clause();
-    $chart_period = $_GET['chart_period'] ?? 'daily'; // Get the aggregation period
+    $chart_period = $_GET['chart_period'] ?? 'daily';
 
-    // --- UPDATED: Expressions for selecting and grouping dates ---
-    $date_select_expression = "proddate"; // Default to daily
-    $date_group_expression = "proddate";  // Default to daily
+    $date_select_expression = "b.proddate";
+    $date_group_expression = "b.proddate";
 
     if ($chart_period === 'weekly') {
-        // Select the date of the Monday of that week for a clean label
-        $date_select_expression = "STR_TO_DATE(CONCAT(YEARWEEK(proddate, 1),' Monday'), '%x%v %W')";
-        // Group by the unique year-week identifier
-        $date_group_expression = "YEARWEEK(proddate, 1)";
+        $date_select_expression = "STR_TO_DATE(CONCAT(YEARWEEK(b.proddate, 1),' Monday'), '%x%v %W')";
+        $date_group_expression = "YEARWEEK(b.proddate, 1)";
     } elseif ($chart_period === 'monthly') {
-        // Select the first day of the month for a clean label
-        $date_select_expression = "DATE_FORMAT(proddate, '%Y-%m-01')";
-        // Group by the unique year-month identifier
-        $date_group_expression = "DATE_FORMAT(proddate, '%Y-%m')";
+        $date_select_expression = "DATE_FORMAT(b.proddate, '%Y-%m-01')";
+        $date_group_expression = "DATE_FORMAT(b.proddate, '%Y-%m')";
     }
 
     $sql = "SELECT 
                 {$date_select_expression} as proddate,
-                SUM(Records) AS records,
-                SUM(Hours) AS hours,
-                SUM(Shipment) AS shipment,
-                SUM(`ALLOC. EDS`) AS alloc_eds,
-                IF(SUM(Hours) > 0, SUM(shipment) / SUM(Hours), 0) AS tputs,
-                IF(SUM(`ALLOC. EDS`) > 0, SUM(shipment) / SUM(`ALLOC. EDS`), 0) AS vph,
-                IF(SUM(`ALLOC. EDS`) > 0, SUM(Hours) / SUM(`ALLOC. EDS`), 0) AS utilization
-            FROM bps_dashboard";
-
-    if (!empty($filter_data['conditions'])) {
-        $sql .= " WHERE " . $filter_data['conditions'];
-    }
-    $sql .= " GROUP BY {$date_group_expression} ORDER BY {$date_group_expression} ASC";
+                SUM(b.Records) AS records,
+                SUM(b.Hours) AS hours,
+                SUM(b.Shipment) AS shipment,
+                SUM(b.`ALLOC. EDS`) AS alloc_eds,
+                IF(SUM(b.Hours) > 0, SUM(b.shipment) / SUM(b.Hours), 0) AS tputs,
+                IF(SUM(b.`ALLOC. EDS`) > 0, SUM(b.shipment) / SUM(b.`ALLOC. EDS`), 0) AS vph,
+                IF(SUM(b.`ALLOC. EDS`) > 0, SUM(b.Hours) / SUM(b.`ALLOC. EDS`), 0) AS utilization
+            FROM bps_dashboard b
+            LEFT JOIN employee_listings el ON b.eds = el.EDS
+            {$filter_data['clause']}
+            GROUP BY {$date_group_expression}
+            ORDER BY {$date_group_expression} ASC";
 
     $stmt = $conn->prepare($sql);
     if ($stmt && !empty($filter_data['types'])) {
@@ -186,7 +182,10 @@ if (isset($_GET['get_export_data'])) {
     $startDate = $_GET['startDate'] ?? date('Y-m-d');
     $endDate = $_GET['endDate'] ?? date('Y-m-d');
     
-    $sql = "SELECT * FROM bps_dashboard WHERE proddate BETWEEN ? AND ? AND site != 'OTHER SITE'";
+    $sql = "SELECT b.*, el.FULLNAME, el.SUPERVISOR 
+            FROM bps_dashboard b
+            LEFT JOIN employee_listings el ON b.eds = el.EDS
+            WHERE b.proddate BETWEEN ? AND ? AND b.site != 'OTHER SITE'";
     
     $stmt = $conn->prepare($sql);
     $stmt->bind_param('ss', $startDate, $endDate);
@@ -202,49 +201,83 @@ if (isset($_GET['get_export_data'])) {
     exit();
 }
 
+// 4. Fetch data for employee task modal
+if (isset($_GET['get_employee_tasks'])) {
+    $filter_data = build_where_clause();
+        
+    $sql = "SELECT 
+                b.`Task PROJECT` as taskprojects,
+                b.TaskName as taskname,
+                SUM(b.Records) AS records,
+                SUM(b.Hours) AS hours,
+                SUM(b.Shipment) AS shipment,
+                SUM(b.`ALLOC. EDS`) AS alloc_eds,
+                IF(SUM(b.Hours) > 0, SUM(b.shipment) / SUM(b.Hours), 0) AS tputs,
+                IF(SUM(b.`ALLOC. EDS`) > 0, SUM(b.shipment) / SUM(b.`ALLOC. EDS`), 0) AS vph,
+                IF(SUM(b.`ALLOC. EDS`) > 0, SUM(b.Hours) / SUM(b.`ALLOC. EDS`), 0) AS utilization
+            FROM bps_dashboard b
+            LEFT JOIN employee_listings el ON b.eds = el.EDS
+            {$filter_data['clause']}
+            GROUP BY b.`Task PROJECT`, b.TaskName
+            ORDER BY b.`Task PROJECT`, b.TaskName";
+    
+    $stmt = $conn->prepare($sql);
+    if($stmt && !empty($filter_data['types'])) {
+        $stmt->bind_param($filter_data['types'], ...$filter_data['params']);
+    }
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $data = [];
+    while ($row = $result->fetch_assoc()) {
+        $data[] = $row;
+    }
+    $stmt->close();
+    $conn->close();
+    echo json_encode($data);
+    exit();
+}
 
-// 4. Fetch data for the main table (default action)
+
+// 5. Fetch data for the main table (default action)
 $view_mode = $_GET['view_mode'] ?? 'employee';
 $filter_data = build_where_clause();
 $sql = '';
 
 if ($view_mode === 'employee') {
     $sql = "SELECT 
-                eds,
-                GROUP_CONCAT(DISTINCT OperatorName SEPARATOR ', ') AS employee,
-                GROUP_CONCAT(DISTINCT `TL Name` SEPARATOR ', ') AS tl_name,
-                SUM(Records) AS records,
-                SUM(Hours) AS hours,
-                SUM(Shipment) AS shipment,
-                SUM(`ALLOC. EDS`) AS alloc_eds,
-                IF(SUM(Hours) > 0, SUM(shipment) / SUM(Hours), 0) AS tputs,
-                IF(SUM(`ALLOC. EDS`) > 0, SUM(shipment) / SUM(`ALLOC. EDS`), 0) AS vph,
-                IF(SUM(`ALLOC. EDS`) > 0, SUM(Hours) / SUM(`ALLOC. EDS`), 0) AS utilization,
-                IF(SUM(Hours) > 0, SUM(records) / SUM(Hours), 0) AS prod_ks_tputs,
-                IF(SUM(`ALLOC. EDS`) > 0, SUM(records) / SUM(`ALLOC. EDS`), 0) AS payroll_ks_tputs
-            FROM bps_dashboard";
+                b.eds,
+                el.FULLNAME AS employee,
+                el.SUPERVISOR AS tl_name,
+                SUM(b.Records) AS records,
+                SUM(b.Hours) AS hours,
+                SUM(b.Shipment) AS shipment,
+                SUM(b.`ALLOC. EDS`) AS alloc_eds,
+                IF(SUM(b.Hours) > 0, SUM(b.shipment) / SUM(b.Hours), 0) AS tputs,
+                IF(SUM(b.`ALLOC. EDS`) > 0, SUM(b.shipment) / SUM(b.`ALLOC. EDS`), 0) AS vph,
+                IF(SUM(b.`ALLOC. EDS`) > 0, SUM(b.Hours) / SUM(b.`ALLOC. EDS`), 0) AS utilization,
+                IF(SUM(b.Hours) > 0, SUM(b.records) / SUM(b.Hours), 0) AS prod_ks_tputs,
+                IF(SUM(b.`ALLOC. EDS`) > 0, SUM(b.records) / SUM(b.`ALLOC. EDS`), 0) AS payroll_ks_tputs
+            FROM bps_dashboard b
+            LEFT JOIN employee_listings el ON b.eds = el.EDS
+            {$filter_data['clause']}
+            GROUP BY b.eds, el.FULLNAME, el.SUPERVISOR 
+            ORDER BY b.eds";
 } else { // project view
     $sql = "SELECT 
-                `Task PROJECT` as taskprojects,
-                TaskName as taskname,
-                SUM(Records) AS records,
-                SUM(Hours) AS hours,
-                SUM(Shipment) AS shipment,
-                SUM(`ALLOC. EDS`) AS alloc_eds,
-                IF(SUM(Hours) > 0, SUM(shipment) / SUM(Hours), 0) AS tputs,
-                IF(SUM(`ALLOC. EDS`) > 0, SUM(shipment) / SUM(`ALLOC. EDS`), 0) AS vph,
-                IF(SUM(`ALLOC. EDS`) > 0, SUM(Hours) / SUM(`ALLOC. EDS`), 0) AS utilization
-            FROM bps_dashboard";
-}
-
-if (!empty($filter_data['conditions'])) {
-    $sql .= " WHERE " . $filter_data['conditions'];
-}
-
-if ($view_mode === 'employee') {
-    $sql .= " GROUP BY eds ORDER BY eds";
-} else {
-    $sql .= " GROUP BY `Task PROJECT`, TaskName ORDER BY `Task PROJECT`, TaskName";
+                b.`Task PROJECT` as taskprojects,
+                b.TaskName as taskname,
+                SUM(b.Records) AS records,
+                SUM(b.Hours) AS hours,
+                SUM(b.Shipment) AS shipment,
+                SUM(b.`ALLOC. EDS`) AS alloc_eds,
+                IF(SUM(b.Hours) > 0, SUM(b.shipment) / SUM(b.Hours), 0) AS tputs,
+                IF(SUM(b.`ALLOC. EDS`) > 0, SUM(b.shipment) / SUM(b.`ALLOC. EDS`), 0) AS vph,
+                IF(SUM(b.`ALLOC. EDS`) > 0, SUM(b.Hours) / SUM(b.`ALLOC. EDS`), 0) AS utilization
+            FROM bps_dashboard b
+            LEFT JOIN employee_listings el ON b.eds = el.EDS
+            {$filter_data['clause']}
+            GROUP BY b.`Task PROJECT`, b.TaskName 
+            ORDER BY b.`Task PROJECT`, b.TaskName";
 }
 
 $stmt = $conn->prepare($sql);

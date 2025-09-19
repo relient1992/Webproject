@@ -27,21 +27,51 @@ if (!isset($_SESSION['employee_id'])) {
 </head>
 <body>
 
-    <div class="container">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/paparse.min.js"></script>
+</head>
+<body>
+
+<div class="container">
         <h1>BPS Dashboard Manager</h1>
         <div class="main-actions">
-            <button class="btn-add" id="addNewBtn">Add New Record</button>
+            <!-- <button class="btn-add" id="addNewBtn">Add New Record</button> -->
             <button class="btn-import" id="importBtn">Advanced Import</button>
         </div>
         <div id="table-container">
-            <p>Loading data...</p>
+            <!-- <p>Loading data...</p> -->
         </div>
     </div>
 
+    <!-- Add/Edit Modal -->
     <div id="dataModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add Record</h2>
+            </div>
+            <form id="dataForm">
+                <!-- UPDATED: The name attribute is now 'record_id' -->
+                <input type="hidden" id="recordId" name="record_id">
+                
+                <div class="form-group">
+                    <label for="metric_name">Metric Name</label>
+                    <input type="text" id="metric_name" name="metric_name" required>
+                </div>
+                <div class="form-group">
+                    <label for="metric_value">Metric Value</label>
+                    <input type="text" id="metric_value" name="metric_value" required>
+                </div>
+                <div class="form-group">
+                    <label for="details">Details</label>
+                    <textarea id="details" name="details" rows="4"></textarea>
+                </div>
+                <button type="submit" class="btn-save">Save</button>
+                <button type="button" class="btn-cancel" data-modal-id="dataModal">Cancel</button>
+            </form>
         </div>
+    </div>
 
 
+    <!-- Advanced Import Modal -->
     <div id="importModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -53,8 +83,7 @@ if (!isset($_SESSION['employee_id'])) {
                     <label for="importType">Import For:</label>
                     <select id="importType" name="importType">
                         <option value="bps_dashboard" selected>BPS Dashboard</option>
-                        <option value="sales_data">Sales Data (Example)</option>
-                        <option value="inventory_log">Inventory Log (Example)</option>
+
                     </select>
                 </div>
                 <div class="form-group">
@@ -67,7 +96,16 @@ if (!isset($_SESSION['employee_id'])) {
             <div id="import-stage-2" style="display: none;">
                 <p><strong>Analysis Complete.</strong></p>
                 <p id="analysisResult"></p>
-                <p>Select the date range you wish to overwrite in the database:</p>
+                
+                <div class="form-group">
+                    <label>Import Mode:</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="importMode" value="overwrite" checked> Overwrite</label>
+                        <label><input type="radio" name="importMode" value="append"> Append</label>
+                    </div>
+                </div>
+
+                <p>Select the date range to apply this action to:</p>
                 <div class="form-group">
                     <label for="startDate">Start Date</label>
                     <input type="date" id="startDate" name="startDate">
@@ -76,7 +114,7 @@ if (!isset($_SESSION['employee_id'])) {
                     <label for="endDate">End Date</label>
                     <input type="date" id="endDate" name="endDate">
                 </div>
-                <button type="button" class="btn-save" id="processImportBtn">Import & Overwrite</button>
+                <button type="button" class="btn-save" id="processImportBtn">Process Import</button>
             </div>
 
             <div id="import-feedback" style="display: none;">
@@ -84,7 +122,7 @@ if (!isset($_SESSION['employee_id'])) {
                 <p id="feedbackText">Processing... Please wait.</p>
             </div>
 
-            <button type="button" class="btn-cancel" id="cancelImportBtn">Cancel</button>
+            <button type="button" class="btn-cancel" data-modal-id="importModal">Cancel</button>
         </div>
     </div>
 

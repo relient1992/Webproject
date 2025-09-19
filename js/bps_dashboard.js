@@ -11,12 +11,13 @@ $(function() { // Use jQuery's ready function for initialization
     };
     let currentView = 'employee';
     let taskProjectSelectionBeforeOpen = [];
-    let performanceChart = null; // Variable to hold the chart instance
+    let performanceChart = null;
     let chartPeriod = 'daily'; // ADDED: State for chart aggregation period
 
     // --- ELEMENT REFERENCES ---
     const tableBody = $('.data-table tbody');
-    const tableHead = $('.data-table thead');
+    // UPDATED: Made selector specific to the new ID to avoid affecting the modal
+    const tableHead = $('#main-table-container .data-table thead');
     const loadingIndicator = $('#loading');
     const filterToggleBtn = $('#filter-toggle-btn');
     const filterPanel = $('#filter-panel');
@@ -41,9 +42,16 @@ $(function() { // Use jQuery's ready function for initialization
     const secondaryMetricSelect = $('#secondary-metric-select');
     const chartSection = $('.chart-section');
     const toggleChartBtn = $('#toggle-chart-btn');
-    // ADDED: References for chart period buttons
     const chartPeriodSwitcher = $('.chart-period-switcher');
     
+    // --- Modal References ---
+    const modal = $('#employee-task-modal');
+    const modalTitle = $('#modal-title');
+    const modalCloseBtn = $('#modal-close-btn');
+    const modalTableHead = $('#modal-table-head');
+    const modalTableBody = $('#modal-table-body');
+    const modalLoading = $('#modal-loading');
+
     // =========================================================================
     // == 1. INITIALIZATION & CORE LOGIC
     // =========================================================================
@@ -211,9 +219,9 @@ $(function() { // Use jQuery's ready function for initialization
         const startDate = datePicker.startDate.format('YYYY-MM-DD');
         const endDate = datePicker.endDate.format('YYYY-MM-DD');
         const filters = getSelectedFilters();
+        const chart_period = chartPeriodSwitcher.find('.active').data('period') || 'daily';
 
-        // UPDATED: Send the chart aggregation period to the server
-        const params = new URLSearchParams({ get_chart_data: 'true', chart_period: chartPeriod, startDate, endDate, ...filters });
+        const params = new URLSearchParams({ get_chart_data: 'true', chart_period, startDate, endDate, ...filters });
         
         try {
             const response = await fetch(`../bps_dashboard.php?${params.toString()}`);
@@ -364,15 +372,16 @@ $(function() { // Use jQuery's ready function for initialization
             let rowHtml = '';
 
             if (currentView === 'employee') {
+                 // Add data attributes for the modal
                 rowHtml = `
-                    <tr>
+                    <tr data-eds="${row.eds}" data-employee-name="${row.employee}">
                         <td>${row.eds ?? ''}</td>
-                        <td>${row.employee ?? ''}</td>
+                        <td class="employee-cell clickable">${row.employee ?? ''}</td>
                         <td>${row.tl_name ?? ''}</td>
                         <td>${formattedRecords}</td>
                         <td>${row.hours ? parseFloat(row.hours).toFixed(2) : ''}</td>
                         <td>${row.shipment ?? ''}</td>
-                        <td>${row.alloc_eds ?? ''}</td>
+                        <td>${row.alloc_eds ? parseFloat(row.alloc_eds).toFixed(2) : ''}</td>
                         <td>${row.tputs ? parseFloat(row.tputs).toFixed(2) : ''}</td>
                         <td>${row.vph ? parseFloat(row.vph).toFixed(2) : ''}</td>
                         <td>${row.utilization ? (parseFloat(row.utilization) * 100).toFixed(2) + '%' : ''}</td>
@@ -387,7 +396,7 @@ $(function() { // Use jQuery's ready function for initialization
                         <td>${formattedRecords}</td>
                         <td>${row.hours ? parseFloat(row.hours).toFixed(2) : ''}</td>
                         <td>${row.shipment ?? ''}</td>
-                        <td>${row.alloc_eds ?? ''}</td>
+                        <td>${row.alloc_eds ? parseFloat(row.alloc_eds).toFixed(2) : ''}</td>
                         <td>${row.tputs ? parseFloat(row.tputs).toFixed(2) : ''}</td>
                         <td>${row.vph ? parseFloat(row.vph).toFixed(2) : ''}</td>
                         <td>${row.utilization ? (parseFloat(row.utilization) * 100).toFixed(2) + '%' : ''}</td>
@@ -558,7 +567,7 @@ $(function() { // Use jQuery's ready function for initialization
         }
     });
 
-    // --- ADDED: Event handler for the chart period switcher ---
+    // --- ADDED: Event handler for chart period switcher ---
     chartPeriodSwitcher.on('click', '.view-btn', function() {
         const clickedPeriod = $(this).data('period');
         if (clickedPeriod !== chartPeriod) {
@@ -703,6 +712,84 @@ $(function() { // Use jQuery's ready function for initialization
             $(this).html(originalButtonHtml).prop('disabled', false);
         }
     });
+    
+    // --- ADDED: Modal Event Handlers ---
+    tableBody.on('click', '.employee-cell.clickable', async function() {
+        const row = $(this).closest('tr');
+        const eds = row.data('eds');
+        const employeeName = row.data('employee-name');
+
+        modalTitle.text(`Task Details for: ${employeeName}`);
+        modal.removeClass('hidden');
+        modalLoading.css('display', 'flex');
+        modalTableBody.empty();
+
+        // Prepare headers for the modal table
+        const modalHeaders = `
+            <tr>
+                <th>TASK PROJECT</th>
+                <th>TASK NAME</th>
+                <th>RECORDS</th>
+                <th>HOURS</th>
+                <th>SHIPMENT</th>
+                <th>ALLOC EDS</th>
+                <th>TPUTS</th>
+                <th>VPH</th>
+                <th>UTILIZATION</th>
+            </tr>`;
+        modalTableHead.html(modalHeaders);
+        
+        // Fetch the detailed data for this employee
+        const datePicker = $('#date-range-picker').data('daterangepicker');
+        const startDate = datePicker.startDate.format('YYYY-MM-DD');
+        const endDate = datePicker.endDate.format('YYYY-MM-DD');
+        const filters = getSelectedFilters();
+        const params = new URLSearchParams({ 
+            get_employee_tasks: 'true', 
+            employee_eds: eds,
+            startDate, 
+            endDate, 
+            ...filters 
+        });
+
+        try {
+            const response = await fetch(`../bps_dashboard.php?${params.toString()}`);
+            const taskData = await response.json();
+
+            if (taskData.length === 0) {
+                modalTableBody.html('<tr><td colspan="9" style="text-align:center; padding:16px;">No tasks found for this employee with the current filters.</td></tr>');
+            } else {
+                taskData.forEach(task => {
+                    const taskRowHtml = `
+                        <tr>
+                            <td>${task.taskprojects ?? ''}</td>
+                            <td>${task.taskname ?? ''}</td>
+                            <td>${task.records ? parseInt(task.records, 10).toLocaleString() : ''}</td>
+                            <td>${task.hours ? parseFloat(task.hours).toFixed(2) : ''}</td>
+                            <td>${task.shipment ?? ''}</td>
+                            <td>${task.alloc_eds ? parseFloat(task.alloc_eds).toFixed(2) : ''}</td>
+                            <td>${task.tputs ? parseFloat(task.tputs).toFixed(2) : ''}</td>
+                            <td>${task.vph ? parseFloat(task.vph).toFixed(2) : ''}</td>
+                            <td>${task.utilization ? (parseFloat(task.utilization) * 100).toFixed(2) + '%' : ''}</td>
+                        </tr>`;
+                    modalTableBody.append(taskRowHtml);
+                });
+            }
+        } catch (error) {
+            console.error('Failed to fetch employee task details:', error);
+            modalTableBody.html(`<tr><td colspan="9" style="text-align:center; padding:16px; color:red;">Failed to load task details.</td></tr>`);
+        } finally {
+            modalLoading.css('display', 'none');
+        }
+    });
+
+    modalCloseBtn.on('click', () => modal.addClass('hidden'));
+    modal.on('click', function(e) {
+        if (e.target === this) {
+            $(this).addClass('hidden');
+        }
+    });
+
 
     // =========================================================================
     // == 6. INITIALIZATION CALL

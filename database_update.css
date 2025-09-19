@@ -63,11 +63,19 @@ button:hover {
     opacity: 0.85;
 }
 
+.main-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
 .btn-add { background-color: #2ecc71; }
 .btn-edit { background-color: #f39c12; }
 .btn-delete { background-color: #e74c3c; }
 .btn-save { background-color: #3498db; }
 .btn-cancel { background-color: #95a5a6; }
+.btn-import { background-color: #8e44ad; }
+.btn-analyze { background-color: #2980b9; }
 
 /* Modal Styles */
 .modal { 
@@ -103,21 +111,10 @@ button:hover {
     border-bottom: 1px solid #ddd; 
 }
 
-.modal-header h2 { 
-    margin: 0; 
-}
-
-.form-group { 
-    margin-bottom: 15px; 
-}
-
-.form-group label { 
-    display: block; 
-    margin-bottom: 5px; 
-    font-weight: bold; 
-}
-
-.form-group input, .form-group textarea { 
+.modal-header h2 { margin: 0; }
+.form-group { margin-bottom: 15px; }
+.form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+.form-group input, .form-group textarea, .form-group select { 
     width: 100%; 
     padding: 8px; 
     border: 1px solid #ccc; 
@@ -125,25 +122,15 @@ button:hover {
     box-sizing: border-box; 
 }
 
-.main-actions {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
-}
-
-.btn-import { background-color: #8e44ad; }
-.btn-analyze { background-color: #2980b9; }
-
 #import-stage-2 {
     border-top: 1px solid #ddd;
     margin-top: 20px;
     padding-top: 20px;
 }
 
-/* Loader for feedback */
 .loader {
-    border: 4px solid #f3f3f3; /* Light grey */
-    border-top: 4px solid #3498db; /* Blue */
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
     border-radius: 50%;
     width: 30px;
     height: 30px;
@@ -159,3 +146,19 @@ button:hover {
 #import-feedback {
     text-align: center;
 }
+
+/* NEW: Styles for the radio button options */
+.radio-group {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+}
+.radio-group input[type="radio"] {
+    width: auto;
+    margin-right: 10px;
+}
+.radio-group label {
+    margin-bottom: 0;
+    font-weight: normal;
+}
+

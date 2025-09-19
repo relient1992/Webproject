@@ -21,13 +21,14 @@ if (!isset($_SESSION['employee_id'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BPS Overall Dashboard</title>
+    <title>BPS Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script type="text/javascript" src="https://cdn.jsdelivr.net/jquery/latest/jquery.min.js"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+    <!-- This should point to your actual CSS file -->
     <link rel="stylesheet" href="../bps_dashboard.css">
 </head>
 <body>
@@ -52,15 +53,15 @@ if (!isset($_SESSION['employee_id'])) {
         </header>
         
         <main class="main-content">
-            <div class="chart-section" id="chart-section">
+            <div id="chart-section" class="chart-section">
                 <div class="chart-header">
                     <h2 class="chart-title">Performance Metrics</h2>
                     <div class="chart-controls">
-                        <!-- ADDED: Time aggregation switcher for the chart -->
-                        <div class="view-switcher chart-period-switcher">
-                            <button id="chart-daily-btn" class="view-btn active" data-period="daily">Daily</button>
-                            <button id="chart-weekly-btn" class="view-btn" data-period="weekly">Weekly</button>
-                            <button id="chart-monthly-btn" class="view-btn" data-period="monthly">Monthly</button>
+                        <!-- ADDED: Chart period switcher buttons -->
+                        <div class="chart-period-switcher">
+                            <button class="view-btn active" data-period="daily">Daily</button>
+                            <button class="view-btn" data-period="weekly">Weekly</button>
+                            <button class="view-btn" data-period="monthly">Monthly</button>
                         </div>
                         <div class="metric-selector">
                             <label for="primary-metric-select">Primary Metric:</label>
@@ -156,7 +157,7 @@ if (!isset($_SESSION['employee_id'])) {
                 </div>
             </div>
 
-            <div class="table-container">
+            <div class="table-container" id="main-table-container">
                 <div id="loading" class="loading-overlay">
                     <i class="fas fa-spinner fa-spin"></i>
                     <p>Loading data...</p>
@@ -180,7 +181,6 @@ if (!isset($_SESSION['employee_id'])) {
                 </div>
                 <div class="footer-right">
                     <span class="rows-label">Rows</span>
-                    <!-- UPDATED: Added '100' and 'All' options -->
                     <select name="rows" id="rows-per-page">
                         <option value="10">10</option>
                         <option value="30" selected>30</option>
@@ -193,7 +193,35 @@ if (!isset($_SESSION['employee_id'])) {
         </main>
     </div>
 
+    <!-- Employee Task Detail Modal -->
+    <div id="employee-task-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Task Details</h2>
+                <button id="modal-close-btn" class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                 <div class="table-container">
+                    <div id="modal-loading" class="loading-overlay">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Loading tasks...</p>
+                    </div>
+                    <table class="data-table">
+                        <thead id="modal-table-head">
+                           <!-- Modal headers will be set by JS -->
+                        </thead>
+                        <tbody id="modal-table-body">
+                            <!-- Data will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- This should point to your actual JS file -->
     <script src="../js/bps_dashboard.js"></script>
 </body>
 </html>

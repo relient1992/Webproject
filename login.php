@@ -1,5 +1,6 @@
 <?php
-session_start();
+require_once 'log_functions.php'; 
+// session_start();
 
 $servername = "10.200.168.89";
 $username   = "supersu";
@@ -64,6 +65,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $roleName = $roleMap[$user['role_id']] ?? 'User';
             $_SESSION['user_role'] = $roleName;
 
+            // --- ADDED: Log the successful login event ---
+            logActivity($conn, 'login', 'User logged in successfully.');
+            // ---------------------------------------------
+
             echo "<script>
                 Swal.fire({
                     icon: 'success',
@@ -103,3 +108,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $conn->close();
+?>

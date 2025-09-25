@@ -81,6 +81,11 @@ if (!isset($_SESSION['employee_id'])) {
                         <button class="toolbar-btn" data-command="insertUnorderedList" title="Bulleted List">●</button>
                         <button class="toolbar-btn" data-command="insertOrderedList" title="Numbered List">1.</button>
                         <button class="toolbar-btn" data-command="createLink" title="Create Link">🔗</button>
+                        
+                        <!-- START: Added Module Link Button -->
+                        <button class="toolbar-btn" data-command="insertModuleLink" title="Link to Module">📄🔗</button>
+                        <!-- END: Added Module Link Button -->
+                        
                         <button class="toolbar-btn" data-command="insertTable" title="Insert Table">▦</button>
                         <button class="toolbar-btn" data-command="insertImage" title="Insert Image">🖼️</button>
                         

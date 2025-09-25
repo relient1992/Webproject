@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let modules = [];
     let activeModuleId = null;
     let isDirty = false;
+    let savedSelection = null; // To store editor selection range
 
     // --- ELEMENT REFERENCES ---
     const appContainer = document.getElementById('app-container');
@@ -253,6 +254,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (command === 'createLink') {
             const url = prompt("Enter URL:");
             if (url) document.execCommand(command, false, url);
+        } else if (command === 'insertModuleLink') {
+            openModuleLinkModal();
         } else if (command === 'insertImage') {
             imageUpload.click();
         } else if (command === 'insertTable') {
@@ -264,18 +267,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         moduleContentEditor.focus();
     });
+    
+    // Save selection when editor loses focus
+    moduleContentEditor.addEventListener('blur', () => {
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+            savedSelection = selection.getRangeAt(0);
+        }
+    });
 
     const fontSizeSelector = document.getElementById('font-size-selector');
     if(fontSizeSelector) {
         fontSizeSelector.addEventListener('change', (e) => {
             const size = e.target.value;
             if (size) {
-                 // Use font tag for broader compatibility as formatBlock is inconsistent
                 document.execCommand('styleWithCSS', false, false);
                 document.execCommand('fontSize', false, size);
                 document.execCommand('styleWithCSS', false, true);
             }
-            e.target.value = ""; // Reset selector
+            e.target.value = "";
             moduleContentEditor.focus();
         });
     }
@@ -305,6 +315,73 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsDataURL(file);
         event.target.value = null;
     });
+
+    // --- ADDED: Module Link Modal ---
+    function openModuleLinkModal() {
+        const modalOverlay = document.createElement('div');
+        modalOverlay.className = 'modal-overlay';
+        
+        const modalContent = document.createElement('div');
+        modalContent.className = 'modal-content';
+        
+        modalContent.innerHTML = '<h3>Link to a Module</h3><ul class="module-link-list"></ul>';
+        
+        const listContainer = modalContent.querySelector('.module-link-list');
+        
+        const buildLinkList = (list, container) => {
+            list.forEach(module => {
+                const li = document.createElement('li');
+                li.textContent = module.title;
+                li.dataset.id = module.id;
+                li.dataset.title = module.title;
+                container.appendChild(li);
+                if (module.submodules && module.submodules.length > 0) {
+                    const subUl = document.createElement('ul');
+                    container.appendChild(subUl);
+                    buildLinkList(module.submodules, subUl);
+                }
+            });
+        };
+        
+        buildLinkList(modules, listContainer);
+        
+        listContainer.addEventListener('click', (e) => {
+            const targetLi = e.target.closest('li');
+            if(targetLi) {
+                insertModuleLink(targetLi.dataset.id, targetLi.dataset.title);
+                document.body.removeChild(modalOverlay);
+            }
+        });
+        
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) {
+                document.body.removeChild(modalOverlay);
+            }
+        });
+        
+        modalOverlay.appendChild(modalContent);
+        document.body.appendChild(modalOverlay);
+    }
+
+    function insertModuleLink(id, title) {
+        moduleContentEditor.focus();
+        if (savedSelection) {
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(savedSelection);
+        }
+
+        const selection = window.getSelection();
+        let linkText = selection.toString();
+        if (!linkText) {
+            linkText = title;
+        }
+        
+        const linkHtml = `<a href="#${id}" data-module-link="true">${linkText}</a>`;
+        document.execCommand('insertHTML', false, linkHtml);
+        setDirty();
+    }
+
 
     // --- DATA & VIEWER EXPORT ---
     saveDataFileBtn.addEventListener('click', () => {
@@ -427,6 +504,17 @@ function generateViewerJs() {
             }
             if (toggle) {
                 toggle.parentElement.classList.toggle('collapsed');
+            }
+        });
+        
+        // ADDED: Listener for internal module links
+        mainContent.addEventListener('click', (e) => {
+            const link = e.target.closest('a[data-module-link="true"]');
+            if (link) {
+                e.preventDefault();
+                const moduleId = link.getAttribute('href').substring(1);
+                window.location.hash = moduleId;
+                displayModule(moduleId);
             }
         });
 

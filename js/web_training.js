@@ -27,8 +27,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const deleteModuleBtn = document.getElementById('delete-module-btn');
     const imageUpload = document.getElementById('image-upload');
     const wysiwygToolbar = document.getElementById('wysiwyg-toolbar');
-    const highlighterColorInput = document.getElementById('highlighter-color');
-
 
     // --- HELPER FUNCTIONS ---
     const findModuleById = (id, list = modules) => {
@@ -251,11 +249,6 @@ document.addEventListener('DOMContentLoaded', () => {
     wysiwygToolbar.addEventListener('click', (e) => {
         const button = e.target.closest('.toolbar-btn');
         if (!button) return;
-        
-        if (button.htmlFor === 'highlighter-color') {
-            return;
-        }
-
         e.preventDefault();
         const command = button.dataset.command;
         if (command === 'createLink') {
@@ -263,6 +256,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (url) document.execCommand(command, false, url);
         } else if (command === 'insertModuleLink') {
             openModuleLinkModal();
+        } else if (command === 'highlightColor') { // Re-added logic for custom palette
+            toggleColorPalette(button);
         } else if (command === 'insertImage') {
             imageUpload.click();
         } else if (command === 'insertTable') {
@@ -297,23 +292,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Event listener for highlighter color input
-    if (highlighterColorInput) {
-        // FIXED: Switched from 'input' to 'change' for a more stable and predictable user experience.
-        // The color is now applied only after the user finalizes their choice in the color picker.
-        highlighterColorInput.addEventListener('change', (e) => {
-            const color = e.target.value;
-            // Restore selection before applying color
-            if (savedSelection) {
-                const selection = window.getSelection();
-                selection.removeAllRanges();
-                selection.addRange(savedSelection);
-            }
-            document.execCommand('backColor', false, color);
-            moduleContentEditor.focus(); // Re-focus the editor to continue editing
-        });
-    }
-
     function insertTable(rows, cols) {
         let tableHtml = '<table style="width:100%; border-collapse: collapse;"><thead><tr>';
         for(let i = 0; i < cols; i++) tableHtml += `<th style="border: 1px solid #ccc; padding: 8px;">Header ${i+1}</th>`;
@@ -340,7 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
         event.target.value = null;
     });
 
-    // ADDED: Functionality for Module Link Modal
+    // --- Module Link Modal ---
     function openModuleLinkModal() {
         const modalOverlay = document.createElement('div');
         modalOverlay.className = 'modal-overlay';
@@ -361,7 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 container.appendChild(li);
                 if (module.submodules && module.submodules.length > 0) {
                     const subUl = document.createElement('ul');
-                    container.appendChild(subUl);
+                    li.appendChild(subUl);
                     buildLinkList(module.submodules, subUl);
                 }
             });
@@ -404,6 +382,50 @@ document.addEventListener('DOMContentLoaded', () => {
         const linkHtml = `<a href="#${id}" data-module-link="true">${linkText}</a>`;
         document.execCommand('insertHTML', false, linkHtml);
         setDirty();
+    }
+    
+    // Re-added functions for custom color palette
+    function toggleColorPalette(button) {
+        const existingPalette = document.querySelector('.color-palette-popup');
+        if (existingPalette) {
+            existingPalette.remove();
+            return;
+        }
+
+        const palette = document.createElement('div');
+        palette.className = 'color-palette-popup';
+        const colors = ['#FFFF00', '#FFD700', '#ADFF2F', '#00FF00', '#00FFFF', '#87CEEB', '#FFB6C1', '#FFA07A'];
+        
+        colors.forEach(color => {
+            const swatch = document.createElement('div');
+            swatch.className = 'color-swatch';
+            swatch.style.backgroundColor = color;
+            swatch.addEventListener('click', () => {
+                applyHighlight(color);
+                palette.remove();
+            });
+            palette.appendChild(swatch);
+        });
+
+        button.appendChild(palette);
+        
+        setTimeout(() => {
+            document.addEventListener('click', (e) => {
+                if (!palette.contains(e.target) && !button.contains(e.target)) {
+                    palette.remove();
+                }
+            }, { once: true });
+        }, 0);
+    }
+
+    function applyHighlight(color) {
+        if (savedSelection) {
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(savedSelection);
+        }
+        document.execCommand('backColor', false, color);
+        moduleContentEditor.focus();
     }
 
 
@@ -531,7 +553,7 @@ function generateViewerJs() {
             }
         });
         
-        // ADDED: Listener for internal module links in the viewer
+        // ADDED: Listener for internal module links
         mainContent.addEventListener('click', (e) => {
             const link = e.target.closest('a[data-module-link="true"]');
             if (link) {
@@ -620,44 +642,93 @@ function generateViewerJs() {
         
         const createZoomModal = (imgElement) => {
             if (document.querySelector('.zoom-modal')) return;
+
             const modal = document.createElement('div');
             modal.className = 'zoom-modal';
+            
             const img = document.createElement('img');
             img.src = imgElement.src;
+            
             modal.appendChild(img);
             document.body.appendChild(modal);
+
             requestAnimationFrame(() => modal.classList.add('visible'));
+
             let scale = 1, panning = false, pointX = 0, pointY = 0, start = { x: 0, y: 0 };
-            const setTransform = () => { img.style.transform = \`translate(\${pointX}px, \${pointY}px) scale(\${scale})\`; }
+
+            const setTransform = () => {
+                img.style.transform = \`translate(\${pointX}px, \${pointY}px) scale(\${scale})\`;
+            }
+
             const zoom = (e, zoomIn) => {
                 e.preventDefault();
                 const rect = img.getBoundingClientRect();
                 const xs = (e.clientX - rect.left) / rect.width;
                 const ys = (e.clientY - rect.top) / rect.height;
                 const newScale = scale * (zoomIn ? 1.2 : 1 / 1.2);
+                
                 if (newScale >= 1) {
                     pointX = (1 - newScale / scale) * (xs * rect.width) + pointX;
                     pointY = (1 - newScale / scale) * (ys * rect.height) + pointY;
                     scale = newScale;
-                } else { scale = 1; pointX = 0; pointY = 0; }
+                } else {
+                    scale = 1;
+                    pointX = 0;
+                    pointY = 0;
+                }
                 setTransform();
             };
-            const onKeyDown = (e) => { if (e.key === 'Escape') closeModal(); if (e.key === 'Alt') { img.style.cursor = 'zoom-out'; } };
-            const onKeyUp = (e) => { if (e.key === 'Alt') { img.style.cursor = 'zoom-in'; } };
+
+            const onKeyDown = (e) => {
+                if (e.key === 'Escape') closeModal();
+                if (e.key === 'Alt') {
+                    img.style.cursor = 'zoom-out';
+                }
+            };
+            
+            const onKeyUp = (e) => {
+                 if (e.key === 'Alt') {
+                    img.style.cursor = 'zoom-in';
+                }
+            };
+
             img.addEventListener('mousedown', (e) => {
-                if (e.button === 0) { zoom(e, !e.altKey); } 
-                else if (e.button === 1) { e.preventDefault(); start = { x: e.clientX - pointX, y: e.clientY - pointY }; panning = true; img.style.cursor = 'grabbing'; }
+                if (e.button === 0) { // Left click
+                    zoom(e, !e.altKey);
+                } else if (e.button === 1) { // Middle click
+                    e.preventDefault();
+                    start = { x: e.clientX - pointX, y: e.clientY - pointY };
+                    panning = true;
+                    img.style.cursor = 'grabbing';
+                }
             });
-            img.addEventListener('mouseup', (e) => { if(e.button === 1) { panning = false; img.style.cursor = e.altKey ? 'zoom-out' : 'zoom-in'; } });
-            modal.addEventListener('mousemove', (e) => { if (!panning) return; pointX = (e.clientX - start.x); pointY = (e.clientY - start.y); setTransform(); });
+
+            img.addEventListener('mouseup', (e) => {
+                if(e.button === 1) {
+                    panning = false;
+                    img.style.cursor = e.altKey ? 'zoom-out' : 'zoom-in';
+                }
+            });
+
+            modal.addEventListener('mousemove', (e) => {
+                if (!panning) return;
+                pointX = (e.clientX - start.x);
+                pointY = (e.clientY - start.y);
+                setTransform();
+            });
+            
             const closeModal = () => {
                 modal.classList.remove('visible');
                 document.removeEventListener('keydown', onKeyDown);
                 document.removeEventListener('keyup', onKeyUp);
                 setTimeout(() => modal.remove(), 300);
             };
+            
             modal.addEventListener('contextmenu', e => e.preventDefault());
-            modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeModal();
+            });
+            
             document.addEventListener('keydown', onKeyDown);
             document.addEventListener('keyup', onKeyUp);
         };

@@ -96,12 +96,10 @@ if (!isset($_SESSION['employee_id'])) {
                             <option value="6">Largest</option>
                         </select>
 
-                        <!-- Added Highlighter Button -->
-                        <label for="highlighter-color" class="toolbar-btn" title="Highlight Color">
-                            🎨
-                            <input type="color" id="highlighter-color" value="#ffff00" class="hidden">
-                        </label>
+                        <!-- FIXED: Highlighter is now a button -->
+                        <button class="toolbar-btn" data-command="highlightColor" title="Highlight Color">🎨</button>
                         
+                        <input type="color" id="highlighter-color" value="#ffff00" class="hidden">
                         <input type="file" id="image-upload" accept="image/*" class="hidden">
                     </div>
                     <div id="module-content-editor" contenteditable="true"></div>

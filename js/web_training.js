@@ -27,6 +27,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const deleteModuleBtn = document.getElementById('delete-module-btn');
     const imageUpload = document.getElementById('image-upload');
     const wysiwygToolbar = document.getElementById('wysiwyg-toolbar');
+    const highlighterColorInput = document.getElementById('highlighter-color');
+
 
     // --- HELPER FUNCTIONS ---
     const findModuleById = (id, list = modules) => {
@@ -249,6 +251,11 @@ document.addEventListener('DOMContentLoaded', () => {
     wysiwygToolbar.addEventListener('click', (e) => {
         const button = e.target.closest('.toolbar-btn');
         if (!button) return;
+        
+        if (button.htmlFor === 'highlighter-color') {
+            return;
+        }
+
         e.preventDefault();
         const command = button.dataset.command;
         if (command === 'createLink') {
@@ -290,6 +297,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Event listener for highlighter color input
+    if (highlighterColorInput) {
+        // FIXED: Switched from 'input' to 'change' for a more stable and predictable user experience.
+        // The color is now applied only after the user finalizes their choice in the color picker.
+        highlighterColorInput.addEventListener('change', (e) => {
+            const color = e.target.value;
+            // Restore selection before applying color
+            if (savedSelection) {
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(savedSelection);
+            }
+            document.execCommand('backColor', false, color);
+            moduleContentEditor.focus(); // Re-focus the editor to continue editing
+        });
+    }
+
     function insertTable(rows, cols) {
         let tableHtml = '<table style="width:100%; border-collapse: collapse;"><thead><tr>';
         for(let i = 0; i < cols; i++) tableHtml += `<th style="border: 1px solid #ccc; padding: 8px;">Header ${i+1}</th>`;
@@ -316,7 +340,7 @@ document.addEventListener('DOMContentLoaded', () => {
         event.target.value = null;
     });
 
-    // --- ADDED: Module Link Modal ---
+    // ADDED: Functionality for Module Link Modal
     function openModuleLinkModal() {
         const modalOverlay = document.createElement('div');
         modalOverlay.className = 'modal-overlay';
@@ -507,7 +531,7 @@ function generateViewerJs() {
             }
         });
         
-        // ADDED: Listener for internal module links
+        // ADDED: Listener for internal module links in the viewer
         mainContent.addEventListener('click', (e) => {
             const link = e.target.closest('a[data-module-link="true"]');
             if (link) {
@@ -596,93 +620,44 @@ function generateViewerJs() {
         
         const createZoomModal = (imgElement) => {
             if (document.querySelector('.zoom-modal')) return;
-
             const modal = document.createElement('div');
             modal.className = 'zoom-modal';
-            
             const img = document.createElement('img');
             img.src = imgElement.src;
-            
             modal.appendChild(img);
             document.body.appendChild(modal);
-
             requestAnimationFrame(() => modal.classList.add('visible'));
-
             let scale = 1, panning = false, pointX = 0, pointY = 0, start = { x: 0, y: 0 };
-
-            const setTransform = () => {
-                img.style.transform = \`translate(\${pointX}px, \${pointY}px) scale(\${scale})\`;
-            }
-
+            const setTransform = () => { img.style.transform = \`translate(\${pointX}px, \${pointY}px) scale(\${scale})\`; }
             const zoom = (e, zoomIn) => {
                 e.preventDefault();
                 const rect = img.getBoundingClientRect();
                 const xs = (e.clientX - rect.left) / rect.width;
                 const ys = (e.clientY - rect.top) / rect.height;
                 const newScale = scale * (zoomIn ? 1.2 : 1 / 1.2);
-                
                 if (newScale >= 1) {
                     pointX = (1 - newScale / scale) * (xs * rect.width) + pointX;
                     pointY = (1 - newScale / scale) * (ys * rect.height) + pointY;
                     scale = newScale;
-                } else {
-                    scale = 1;
-                    pointX = 0;
-                    pointY = 0;
-                }
+                } else { scale = 1; pointX = 0; pointY = 0; }
                 setTransform();
             };
-
-            const onKeyDown = (e) => {
-                if (e.key === 'Escape') closeModal();
-                if (e.key === 'Alt') {
-                    img.style.cursor = 'zoom-out';
-                }
-            };
-            
-            const onKeyUp = (e) => {
-                 if (e.key === 'Alt') {
-                    img.style.cursor = 'zoom-in';
-                }
-            };
-
+            const onKeyDown = (e) => { if (e.key === 'Escape') closeModal(); if (e.key === 'Alt') { img.style.cursor = 'zoom-out'; } };
+            const onKeyUp = (e) => { if (e.key === 'Alt') { img.style.cursor = 'zoom-in'; } };
             img.addEventListener('mousedown', (e) => {
-                if (e.button === 0) { // Left click
-                    zoom(e, !e.altKey);
-                } else if (e.button === 1) { // Middle click
-                    e.preventDefault();
-                    start = { x: e.clientX - pointX, y: e.clientY - pointY };
-                    panning = true;
-                    img.style.cursor = 'grabbing';
-                }
+                if (e.button === 0) { zoom(e, !e.altKey); } 
+                else if (e.button === 1) { e.preventDefault(); start = { x: e.clientX - pointX, y: e.clientY - pointY }; panning = true; img.style.cursor = 'grabbing'; }
             });
-
-            img.addEventListener('mouseup', (e) => {
-                if(e.button === 1) {
-                    panning = false;
-                    img.style.cursor = e.altKey ? 'zoom-out' : 'zoom-in';
-                }
-            });
-
-            modal.addEventListener('mousemove', (e) => {
-                if (!panning) return;
-                pointX = (e.clientX - start.x);
-                pointY = (e.clientY - start.y);
-                setTransform();
-            });
-            
+            img.addEventListener('mouseup', (e) => { if(e.button === 1) { panning = false; img.style.cursor = e.altKey ? 'zoom-out' : 'zoom-in'; } });
+            modal.addEventListener('mousemove', (e) => { if (!panning) return; pointX = (e.clientX - start.x); pointY = (e.clientY - start.y); setTransform(); });
             const closeModal = () => {
                 modal.classList.remove('visible');
                 document.removeEventListener('keydown', onKeyDown);
                 document.removeEventListener('keyup', onKeyUp);
                 setTimeout(() => modal.remove(), 300);
             };
-            
             modal.addEventListener('contextmenu', e => e.preventDefault());
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) closeModal();
-            });
-            
+            modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
             document.addEventListener('keydown', onKeyDown);
             document.addEventListener('keyup', onKeyUp);
         };
@@ -713,8 +688,8 @@ function generateViewerCss() {
     #suggestions-box div{padding:0.75rem;cursor:pointer;}
     #suggestions-box div:hover{background-color:#e9f2fa;}
     #suggestions-box mark{background: #fff3cd; padding: 0; font-weight: bold; color: inherit;}
-    .container{display:flex;max-width:1600px;margin:0 auto;height:calc(100vh - 70px)}
-    .sidebar{width:320px;flex-shrink:0;background-color:white;padding:1rem;border-right:1px solid var(--border-color);overflow-y:auto}
+    .container{display:flex;max-width:100%;margin:0 auto;height:calc(100vh - 70px)}
+    .sidebar{width:280px;flex-shrink:0;background-color:white;padding: 1rem 0.5rem;border-right:1px solid var(--border-color);overflow-y:auto}
     .sidebar h2{margin-top:0;font-size:1.2rem;border-bottom:1px solid #eee;padding-bottom:.5rem}
     .sidebar ul{list-style-type:none;padding-left: 1.2rem; margin:0; border-left: 1px solid #e9ecef;}
     .sidebar .toc-container > ul {padding-left: 0; border-left: none;}
@@ -727,7 +702,7 @@ function generateViewerCss() {
     .sidebar li.collapsed > .toggle::before { content: '+'; }
     .sidebar li.no-children > .toggle { visibility: hidden; }
     .sidebar li.collapsed > ul { display: none; }
-    .content{flex-grow:1;padding:2rem 3rem;overflow-y:auto;}
+    .content{flex-grow:1;padding:2rem 1.5rem;overflow-y:auto;}
     .content h1,.content h2{color:#005a9e;border-bottom:1px solid var(--border-color);padding-bottom:.5rem}
     .result-item{border:1px solid var(--border-color);background-color:white;padding:1rem;margin-bottom:1rem;border-radius:5px}
     .result-item h3{margin-top:0}.result-item a{text-decoration:none;color:var(--primary-color)}
@@ -739,4 +714,3 @@ function generateViewerCss() {
     .zoom-modal::after{content:'×';position:fixed;top:15px;right:25px;font-size:3rem;color:white;cursor:pointer;font-weight:200;}
     `;
 }
-

@@ -81,11 +81,7 @@ if (!isset($_SESSION['employee_id'])) {
                         <button class="toolbar-btn" data-command="insertUnorderedList" title="Bulleted List">●</button>
                         <button class="toolbar-btn" data-command="insertOrderedList" title="Numbered List">1.</button>
                         <button class="toolbar-btn" data-command="createLink" title="Create Link">🔗</button>
-                        
-                        <!-- START: Added Module Link Button -->
                         <button class="toolbar-btn" data-command="insertModuleLink" title="Link to Module">📄🔗</button>
-                        <!-- END: Added Module Link Button -->
-                        
                         <button class="toolbar-btn" data-command="insertTable" title="Insert Table">▦</button>
                         <button class="toolbar-btn" data-command="insertImage" title="Insert Image">🖼️</button>
                         
@@ -99,6 +95,12 @@ if (!isset($_SESSION['employee_id'])) {
                             <option value="5">Huge</option>
                             <option value="6">Largest</option>
                         </select>
+
+                        <!-- Added Highlighter Button -->
+                        <label for="highlighter-color" class="toolbar-btn" title="Highlight Color">
+                            🎨
+                            <input type="color" id="highlighter-color" value="#ffff00" class="hidden">
+                        </label>
                         
                         <input type="file" id="image-upload" accept="image/*" class="hidden">
                     </div>

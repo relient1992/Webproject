@@ -1,5 +1,5 @@
 <?php
-session_start(); // Start the session at the very top
+session_start();
 
 // Prevent browser caching
 header("Cache-Control: no-cache, no-store, must-revalidate"); // HTTP 1.1

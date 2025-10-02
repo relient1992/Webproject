@@ -387,7 +387,7 @@ footer {
 .modal-content h3 {
     margin-top: 0;
     border-bottom: 1px solid var(--border-color);
-    padding-bottom: 0.75rem;
+    padding-bottom: 0.70rem;
 }
 .module-link-list {
     list-style: none;

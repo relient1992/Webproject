@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XBP Global Application Form</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px #3b82f6; /* A blue ring on focus */
+            border-color: #3b82f6;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans अंतर् ">
+
+    <!-- Main Container -->
+    <div class="container mx-auto max-w-4xl p-6 md:p-8">
+
+        <!-- Form Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800">XBP Global Application Form</h1>
+            <p class="text-gray-600 mt-2">We're excited to learn more about you. Please fill out the details below.</p>
+        </div>
+
+        <!-- Form Card -->
+        <div class="bg-white rounded-2xl shadow-lg p-6 md:p-10">
+            <form id="recruitmentForm" novalidate>
+                <!-- Personal Information Section -->
+                <div class="mb-8">
+                    <h2 class="text-xl font-semibold text-gray-700 border-b pb-2 mb-6">Personal Information</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- Surname -->
+                        <div>
+                            <label for="surname" class="block text-sm font-medium text-gray-700 mb-1">Surname <span class="text-red-500">*</span></label>
+                            <input type="text" id="surname" name="surname" required class="form-input w-full p-2 border border-gray-300 rounded-md transition duration-200" placeholder="e.g., Smith">
+                        </div>
+                        <!-- First Name -->
+                        <div>
+                            <label for="firstname" class="block text-sm font-medium text-gray-700 mb-1">First Name <span class="text-red-500">*</span></label>
+                            <input type="text" id="firstname" name="firstname" required class="form-input w-full p-2 border border-gray-300 rounded-md transition duration-200" placeholder="e.g., John">
+                        </div>
+                        <!-- Middle Name -->
+                        <div>
+                            <label for="middlename" class="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
+                            <input type="text" id="middlename" name="middlename" class="form-input w-full p-2 border border-gray-300 rounded-md transition duration-200" placeholder="Optional">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                        <!-- Birthday -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Birthday <span class="text-red-500">*</span></label>
+                            <div class="grid grid-cols-3 gap-2">
+                                <select id="birthMonth" name="birthMonth" required class="form-select w-full p-2 border border-gray-300 rounded-md transition duration-200"></select>
+                                <select id="birthDay" name="birthDay" required class="form-select w-full p-2 border border-gray-300 rounded-md transition duration-200"></select>
+                                <select id="birthYear" name="birthYear" required class="form-select w-full p-2 border border-gray-300 rounded-md transition duration-200"></select>
+                            </div>
+                        </div>
+                        <!-- Gender -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Gender <span class="text-red-500">*</span></label>
+                            <div class="flex items-center space-x-6 h-full mt-1">
+                                <label class="flex items-center">
+                                    <input type="radio" name="gender" value="Male" required class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                    <span class="ml-2 text-sm text-gray-700">Male</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="gender" value="Female" required class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                    <span class="ml-2 text-sm text-gray-700">Female</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contact Information Section -->
+                <div class="mb-8">
+                    <h2 class="text-xl font-semibold text-gray-700 border-b pb-2 mb-6">Contact Information</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                         <!-- Mobile Number -->
+                        <div>
+                            <label for="mobile" class="block text-sm font-medium text-gray-700 mb-1">Mobile Number <span class="text-red-500">*</span></label>
+                            <input type="tel" id="mobile" name="mobile" required pattern="[0-9]+" title="Please enter numbers only." class="form-input w-full p-2 border border-gray-300 rounded-md transition duration-200" placeholder="e.g., 09171234567">
+                        </div>
+                        <!-- Email Address -->
+                        <div>
+                            <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email Address <span class="text-red-500">*</span></label>
+                            <input type="email" id="email" name="email" required pattern="^[^@\s]+@[^@\s]+\.[^@\s]+$" title="Please enter a valid email address." class="form-input w-full p-2 border border-gray-300 rounded-md transition duration-200" placeholder="you@example.com">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Address Section -->
+                <div class="mb-8">
+                     <h2 class="text-xl font-semibold text-gray-700 border-b pb-2 mb-6">Address</h2>
+                      <!-- Street Address -->
+                     <div class="mb-6">
+                        <label for="street" class="block text-sm font-medium text-gray-700 mb-1">Street Address <span class="text-red-500">*</span></label>
+                        <input type="text" id="street" name="street" required class="form-input w-full p-2 border border-gray-300 rounded-md transition duration-200" placeholder="123 Main St, Brgy. Central">
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- City -->
+                        <div>
+                            <label for="city" class="block text-sm font-medium text-gray-700 mb-1">City <span class="text-red-500">*</span></label>
+                            <input type="text" id="city" name="city" required class="form-input w-full p-2 border border-gray-300 rounded-md transition duration-200" placeholder="e.g., Quezon City">
+                        </div>
+                        <!-- Province -->
+                        <div>
+                            <label for="province" class="block text-sm font-medium text-gray-700 mb-1">Province <span class="text-red-500">*</span></label>
+                            <input type="text" id="province" name="province" required class="form-input w-full p-2 border border-gray-300 rounded-md transition duration-200" placeholder="e.g., Metro Manila">
+                        </div>
+                         <!-- Zip Code -->
+                        <div>
+                            <label for="zipcode" class="block text-sm font-medium text-gray-700 mb-1">Zip Code <span class="text-red-500">*</span></label>
+                            <input type="text" id="zipcode" name="zipcode" required pattern="\d{4,}" class="form-input w-full p-2 border border-gray-300 rounded-md transition duration-200" placeholder="e.g., 1100">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recruitment Details Section -->
+                <div class="mb-8">
+                    <h2 class="text-xl font-semibold text-gray-700 border-b pb-2 mb-6">Application Details</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Position Applied -->
+                        <div>
+                            <label for="position_applied" class="block text-sm font-medium text-gray-700 mb-1">Position Applying For <span class="text-red-500">*</span></label>
+                            <select id="position_applied" name="position_applied" required class="form-select w-full p-2 border border-gray-300 rounded-md transition duration-200">
+                                <option value="" disabled selected>Select a position...</option>
+                                <option value="Data Entry Operator">Data Entry Operator</option>
+                                <option value="Call Center Agent">Call Center Agent</option>
+                                <option value="Medcoder">Medcoder</option>
+                            </select>
+                        </div>
+                        <!-- Source of Application -->
+                        <div>
+                             <label for="application_source" class="block text-sm font-medium text-gray-700 mb-1">How did you hear about us? <span class="text-red-500">*</span></label>
+                            <select id="application_source" name="application_source" required class="form-select w-full p-2 border border-gray-300 rounded-md transition duration-200">
+                                <option value="" disabled selected>Select a source...</option>
+                                <option value="Job Portal">Job Portal (e.g., LinkedIn, JobStreet)</option>
+                                <option value="Employee Referral">Employee Referral</option>
+                                <option value="Career Page">Career Page (Our Website)</option>
+                                <option value="Recruitment Agency">Recruitment Agency</option>
+                                <option value="Walk-in">Walk-in</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="mt-10 pt-6 border-t">
+                     <p class="text-xs text-gray-500 mb-4">Fields marked with <span class="text-red-500">*</span> are required. Please review your information before submitting.</p>
+                    <button type="submit" id="submitBtn" class="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-transform transform hover:scale-102">
+                        Submit Application
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+    <!-- Success/Error Message Modal -->
+    <div id="responseModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center hidden">
+        <div class="bg-white p-8 rounded-lg shadow-xl text-center max-w-sm">
+            <h2 id="modalTitle" class="text-2xl font-bold mb-4"></h2>
+            <p id="modalMessage" class="text-gray-700"></p>
+        </div>
+    </div>
+
+    <!-- UPDATED SCRIPT BLOCK -->
+
+    <script src="../js/recruitment_applicants.js"></script>
+    
+</body>
+</html>
+

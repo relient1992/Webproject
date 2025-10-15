@@ -90,6 +90,76 @@
                         </div>
                     </div>
                 </div>
+                
+                <!-- Social Media Section -->
+                <div class="mb-8">
+                    <h2 class="text-xl font-semibold text-gray-700 border-b pb-2 mb-6">Social Media Accounts</h2>
+                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Facebook -->
+                        <div>
+                            <label for="facebook" class="block text-sm font-medium text-gray-700 mb-1">Facebook Profile URL</label>
+                            <input type="url" id="facebook" name="facebook_account" class="form-input w-full p-2 border border-gray-300 rounded-md transition duration-200" placeholder="https://facebook.com/your.profile">
+                        </div>
+                        <!-- Instagram -->
+                        <div>
+                            <label for="instagram" class="block text-sm font-medium text-gray-700 mb-1">Instagram Handle</label>
+                            <input type="text" id="instagram" name="instagram_account" class="form-input w-full p-2 border border-gray-300 rounded-md transition duration-200" placeholder="@yourhandle">
+                        </div>
+                         <!-- Twitter -->
+                        <div>
+                            <label for="twitter" class="block text-sm font-medium text-gray-700 mb-1">Twitter (X) Handle</label>
+                            <input type="text" id="twitter" name="twitter_account" class="form-input w-full p-2 border border-gray-300 rounded-md transition duration-200" placeholder="@yourhandle">
+                        </div>
+                         <!-- Viber -->
+                        <div>
+                            <label for="viber" class="block text-sm font-medium text-gray-700 mb-1">Viber Number</label>
+                            <input type="tel" id="viber" name="viber_account" pattern="[0-9+]+" title="Please enter numbers only." class="form-input w-full p-2 border border-gray-300 rounded-md transition duration-200" placeholder="e.g., 09171234567">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Educational Background Section -->
+                <div class="mb-8">
+                    <h2 class="text-xl font-semibold text-gray-700 border-b pb-2 mb-6">Educational Background</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Educational Level -->
+                        <div>
+                             <label for="education_level" class="block text-sm font-medium text-gray-700 mb-1">Highest Educational Attainment <span class="text-red-500">*</span></label>
+                            <select id="education_level" name="education_level" required class="form-select w-full p-2 border border-gray-300 rounded-md transition duration-200">
+                                <option value="" disabled selected>Select level...</option>
+                                <option value="High School Graduate">High School Graduate</option>
+                                <option value="Vocational Graduate">Vocational Graduate</option>
+                                <option value="Some College">Some College</option>
+                                <option value="College Graduate">College Graduate</option>
+                                <option value="Post Graduate">Post Graduate (Master's/Doctorate)</option>
+                            </select>
+                        </div>
+                         <!-- College Degree (Conditional) -->
+                        <div id="collegeDegreeContainer" class="hidden">
+                             <label for="college_degree" class="block text-sm font-medium text-gray-700 mb-1">College Degree <span class="text-red-500">*</span></label>
+                            <select id="college_degree" name="college_degree" class="form-select w-full p-2 border border-gray-300 rounded-md transition duration-200">
+                                <option value="" disabled selected>Select your degree...</option>
+                                <option value="Bachelor of Science in Information Technology">Bachelor of Science in Information Technology</option>
+                                <option value="Bachelor of Science in Computer Science">Bachelor of Science in Computer Science</option>
+                                <option value="Bachelor of Science in Business Administration">Bachelor of Science in Business Administration</option>
+                                <option value="Bachelor of Arts in Communication">Bachelor of Arts in Communication</option>
+                                <option value="Bachelor of Science in Psychology">Bachelor of Science in Psychology</option>
+                                <option value="Bachelor of Science in Nursing">Bachelor of Science in Nursing</option>
+                                <option value="Bachelor of Science in Accountancy">Bachelor of Science in Accountancy</option>
+                                <option value="Bachelor of Science in Engineering">Bachelor of Science in Engineering</option>
+                                <option value="Bachelor of Arts in English">Bachelor of Arts in English</option>
+                                <option value="Bachelor of Science in Biology">Bachelor of Science in Biology</option>
+                                <option value="Bachelor of Elementary/Secondary Education">Bachelor of Elementary/Secondary Education</option>
+                                <option value="Other">Other (Please specify below)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Other College Degree (Conditional) -->
+                    <div id="otherDegreeContainer" class="hidden mt-6">
+                        <label for="other_degree" class="block text-sm font-medium text-gray-700 mb-1">If "Other", please specify your degree</label>
+                        <input type="text" id="other_degree" name="college_degree_other" class="form-input w-full p-2 border border-gray-300 rounded-md transition duration-200">
+                    </div>
+                </div>
 
                 <!-- Address Section -->
                 <div class="mb-8">
@@ -166,8 +236,6 @@
             <p id="modalMessage" class="text-gray-700"></p>
         </div>
     </div>
-
-    <!-- UPDATED SCRIPT BLOCK -->
 
     <script src="../js/recruitment_applicants.js"></script>
     

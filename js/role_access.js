@@ -53,6 +53,20 @@ document.addEventListener("DOMContentLoaded", () => {
             "team_member.html",
 
         ],
+        
+        hr_staff: [
+            "active_attrition.html",
+            "team_member.html",
+            "hr_dashboard.php"
+
+        ],
+
+        hr_manager: [
+            "active_attrition.html",
+            "team_member.html",
+            "hr_dashboard.php"
+        ],
+
         lhi_admin: [
             "active_attrition.html",
             "team_member.html",
@@ -170,7 +184,8 @@ document.addEventListener("DOMContentLoaded", () => {
             "bps_overall_dashboard.php",
             "fedex_aus_hourly_count.html",
             "web_training.php",
-            "database_update.php"
+            "database_update.php",
+            "hr_dashboard.php"
         ]   
         
     };

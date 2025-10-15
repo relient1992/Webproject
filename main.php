@@ -67,6 +67,17 @@ if (!isset($_SESSION['employee_id'])) {
                     <h3>Team Member</h3>
                 </a>
 
+                <a href="./views/hr_dashboard.php" 
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-view="hr_dashboard.php"
+                    data-external="true"
+                    onclick="event.stopPropagation(); window.open(this.href, '_blank'); return false;">
+                        <span class="material-icons-sharp">build</span>
+                        <h3>HR Dashboard</h3>
+                </a>
+                
+
                 <a href="http://10.200.168.112:3001/" target="_blank"
                         rel="noopener noreferrer"
                         onclick="event.stopPropagation(); window.open(this.href, '_blank'); return false;">

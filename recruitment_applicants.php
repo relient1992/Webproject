@@ -23,24 +23,22 @@ $conn = new mysqli($servername, $username, $password, $database);
 
 // Check connection
 if ($conn->connect_error) {
-    // Send a detailed error response and stop the script.
     echo json_encode(['status' => 'error', 'message' => 'Database connection failed: ' . $conn->connect_error]);
     exit();
 }
 
 // --- DATA PROCESSING ---
 
-// Check if the form was submitted using the POST method.
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['status' => 'error', 'message' => 'Invalid request method.']);
     exit();
 }
 
 try {
-    // 1. Retrieve all the data from the form submission.
+    // 1. Retrieve all data from the form submission, including new fields.
     $surname = $_POST['surname'] ?? '';
     $firstname = $_POST['firstname'] ?? '';
-    $middlename = $_POST['middlename'] ?? null; // Allow null for optional field
+    $middlename = $_POST['middlename'] ?? null;
     $gender = $_POST['gender'] ?? '';
     $mobile_number = $_POST['mobile'] ?? '';
     $email = $_POST['email'] ?? '';
@@ -51,58 +49,52 @@ try {
     $position_applied = $_POST['position_applied'] ?? '';
     $application_source = $_POST['application_source'] ?? '';
     
+    // NEW: Retrieve Social Media and Education fields. Use null for empty optional fields.
+    $facebook_account = !empty($_POST['facebook_account']) ? $_POST['facebook_account'] : null;
+    $instagram_account = !empty($_POST['instagram_account']) ? $_POST['instagram_account'] : null;
+    $twitter_account = !empty($_POST['twitter_account']) ? $_POST['twitter_account'] : null;
+    $viber_account = !empty($_POST['viber_account']) ? $_POST['viber_account'] : null;
+    $education_level = $_POST['education_level'] ?? '';
+    $college_degree = !empty($_POST['college_degree']) ? $_POST['college_degree'] : null;
+
     // 2. Combine the birthday fields into a single YYYY-MM-DD format.
     $birthYear = $_POST['birthYear'] ?? 0;
-    $birthMonth = str_pad($_POST['birthMonth'] ?? 0, 2, '0', STR_PAD_LEFT); // Pad with leading zero
-    $birthDay = str_pad($_POST['birthDay'] ?? 0, 2, '0', STR_PAD_LEFT); // Pad with leading zero
+    $birthMonth = str_pad($_POST['birthMonth'] ?? 0, 2, '0', STR_PAD_LEFT);
+    $birthDay = str_pad($_POST['birthDay'] ?? 0, 2, '0', STR_PAD_LEFT);
     $birthday = "{$birthYear}-{$birthMonth}-{$birthDay}";
 
-    // 3. Prepare the SQL INSERT statement to prevent SQL injection.
-    // The columns listed here MUST match your 'applicants' table structure.
+    // 3. UPDATED: Prepare the SQL INSERT statement with all new columns.
     $stmt = $conn->prepare(
         "INSERT INTO applicants (
             surname, firstname, middlename, birthday, gender, mobile_number, email, 
-            street_address, city, province, postcode, position_applied, application_source
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            street_address, city, province, postcode, position_applied, application_source,
+            facebook_account, instagram_account, twitter_account, viber_account,
+            education_level, college_degree
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     );
 
-    // 4. Bind the variables to the prepared statement.
-    // The 's' characters represent the data type (s = string).
+    // 4. UPDATED: Bind all 19 variables to the prepared statement.
     $stmt->bind_param(
-        "sssssssssssss",
-        $surname,
-        $firstname,
-        $middlename,
-        $birthday,
-        $gender,
-        $mobile_number,
-        $email,
-        $street_address,
-        $city,
-        $province,
-        $postcode,
-        $position_applied,
-        $application_source
+        "sssssssssssssssssss", // 19 's' for 19 string variables
+        $surname, $firstname, $middlename, $birthday, $gender, $mobile_number, $email, 
+        $street_address, $city, $province, $postcode, $position_applied, $application_source,
+        $facebook_account, $instagram_account, $twitter_account, $viber_account,
+        $education_level, $college_degree
     );
 
     // 5. Execute the statement and check for success.
     if ($stmt->execute()) {
-        // If successful, send a success response.
         echo json_encode(['status' => 'success', 'message' => 'Application submitted successfully!']);
     } else {
-        // If it fails, throw an exception with the error.
         throw new Exception($stmt->error);
     }
 
-    // Close the statement
     $stmt->close();
 
 } catch (Exception $e) {
-    // If any error occurs during the process, send a generic error response.
     echo json_encode(['status' => 'error', 'message' => 'An error occurred while submitting the application: ' . $e->getMessage()]);
 }
 
-// Close the database connection
 $conn->close();
 
 ?>

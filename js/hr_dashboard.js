@@ -44,74 +44,168 @@ document.addEventListener('DOMContentLoaded', function () {
         { key: 'offer_date', label: 'Offer Date', editable: true, type: 'date' },
         { key: 'joining_date', label: 'Joining Date', editable: true, type: 'date' },
         { key: 'employee_id', label: 'Employee ID', editable: true, type: 'text' },
+        { key: 'Project', label: 'Project', editable: true, type: 'text' },
         { key: 'actions', label: 'Actions', editable: false },
     ];
     const DEFAULT_VISIBLE_COLUMNS = ['surname', 'firstname', 'position_applied', 'recruiter_name', 'recruitment_status_text', 'application_date'];
     
-    let allApplicants = [], visibleColumns = [...DEFAULT_VISIBLE_COLUMNS, 'actions'], sortConfig = { key: 'application_date', direction: 'desc' }, currentStatusFilter = 'all', dropdownData = { recruiters: [], statuses: {} };
-    let currentView = 'active';
+    let allApplicants = [], allRecruiterData = [], visibleColumns = [...DEFAULT_VISIBLE_COLUMNS, 'actions'], sortConfig = { key: 'application_date', direction: 'desc' }, currentStatusFilter = 'all', dropdownData = { recruiters: [], statuses: {} };
+    let currentView = 'active', currentPage = 1, rowsPerPage = 10;
+    let mainChartInstance, sidebarChartInstance;
+    let dateRangePicker, logDateRangePicker;
 
-    const tableHead = document.getElementById('tableHead'), tableBody = document.getElementById('tableBody'), searchInput = document.getElementById('searchInput'), columnToggleBtn = document.getElementById('columnToggleBtn'), columnSelector = document.getElementById('columnSelector'), columnCheckboxes = document.getElementById('columnCheckboxes'), closeColumnSelector = document.getElementById('closeColumnSelector'), statusFiltersContainer = document.getElementById('statusFilters'), editModal = document.getElementById('editModal'), editFormContent = document.getElementById('editFormContent'), editForm = document.getElementById('editForm'), deleteBtn = document.getElementById('deleteBtn'), cancelEditBtn = document.getElementById('cancelEditBtn'), editApplicationIdInput = document.getElementById('edit_application_id');
-    const startDateInput = document.getElementById('startDate'), endDateInput = document.getElementById('endDate'), newApplicantBtn = document.getElementById('newApplicantBtn'), addApplicantModal = document.getElementById('addApplicantModal'), addApplicantForm = document.getElementById('addApplicantForm'), addFormContent = document.getElementById('addFormContent'), cancelAddBtn = document.getElementById('cancelAddBtn');
-    const viewActiveBtn = document.getElementById('viewActiveBtn'), viewArchivedBtn = document.getElementById('viewArchivedBtn'), viewLogsBtn = document.getElementById('viewLogsBtn'), logsModal = document.getElementById('logsModal'), logsTableBody = document.getElementById('logsTableBody'), closeLogsModal = document.getElementById('closeLogsModal');
-
+    const getEl = (id) => document.getElementById(id);
+    const tableHead = getEl('tableHead'), tableBody = getEl('tableBody'), searchInput = getEl('searchInput'), columnToggleBtn = getEl('columnToggleBtn'), columnSelector = getEl('columnSelector'), columnCheckboxes = getEl('columnCheckboxes'), closeColumnSelector = getEl('closeColumnSelector'), statusFiltersContainer = getEl('statusFilters'), editModal = getEl('editModal'), editFormContent = getEl('editFormContent'), editForm = getEl('editForm'), deleteBtn = getEl('deleteBtn'), cancelEditBtn = getEl('cancelEditBtn'), editApplicationIdInput = getEl('edit_application_id');
+    const newApplicantBtn = getEl('newApplicantBtn'), addApplicantModal = getEl('addApplicantModal'), addApplicantForm = getEl('addApplicantForm'), addFormContent = getEl('addFormContent'), cancelAddBtn = getEl('cancelAddBtn');
+    const viewActiveBtn = getEl('viewActiveBtn'), viewArchivedBtn = getEl('viewArchivedBtn'), viewRecruiterBtn = getEl('viewRecruiterBtn'), viewLogsBtn = getEl('viewLogsBtn'), logsModal = getEl('logsModal'), logsTableBody = getEl('logsTableBody'), closeLogsModal = getEl('closeLogsModal');
+    const paginationControls = getEl('paginationControls'), prevPageBtn = getEl('prevPageBtn'), nextPageBtn = getEl('nextPageBtn'), pageInfo = getEl('pageInfo'), rowsPerPageSelect = getEl('rowsPerPageSelect'), exportDataBtn = getEl('exportDataBtn');
+    const chartContainer = getEl('chartContainer'), mainChartCanvas = getEl('mainChart'), chartMetricSelect = getEl('chartMetricSelect'), toggleChartBtn = getEl('toggleChartBtn'), sidebarChartCanvas = getEl('sidebarChart');
+    const mainDisplayArea = getEl('mainDisplayArea'), recruiterPerformanceArea = getEl('recruiterPerformanceArea');
+    const logDateRangePickerEl = getEl('logDateRangePicker'), exportLogsBtn = getEl('exportLogsBtn');
+    
     function getStatusColorClass(statusText) { if (!statusText) return 'bg-gray-100 text-gray-800'; statusText = statusText.toLowerCase(); if (statusText.includes('failed') || statusText.includes('withdrawn') || statusText.includes('declined')) return 'bg-red-100 text-red-800'; if (statusText.includes('deployed')) return 'bg-green-100 text-green-800'; if (statusText.includes('job offer') || statusText.includes('onboarding') || statusText.includes('bgv')) return 'bg-blue-100 text-blue-800'; if (statusText.includes('interview')) return 'bg-yellow-100 text-yellow-800'; return 'bg-gray-100 text-gray-800'; }
-
+    function formatDate(dateString) { if (!dateString) return 'N/A'; const date = new Date(dateString); return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); }
+    
     async function initializeDashboard() {
         try {
             const userRes = await fetch(`${API_URL}?action=getUserInfo`);
-            if (!userRes.ok) throw new Error('Could not authenticate user.');
+            if (!userRes.ok) { const errText = await userRes.text(); throw new Error(`Could not authenticate user. Server says: ${errText}`); }
             const userInfo = await userRes.json();
             USER_ROLE = userInfo.role || 'hr_staff'; 
-            await refreshFiltersAndTable();
+            
+            initializeDatePickers();
+            await refreshAllData();
             setupColumnSelector();
+            addEventListeners();
         } catch (error) {
-            document.body.innerHTML = `<div class="p-8 text-center text-red-600 font-semibold">Error: ${error.message} Dashboard cannot be loaded.</div>`;
+            document.body.innerHTML = `<div class="p-8 text-center text-red-600 font-semibold">Initialization Error: ${error.message}. Please log in again.</div>`;
         }
     }
+
+    function initializeDatePickers() {
+        const today = new Date();
+        const last7 = new Date(); last7.setDate(today.getDate() - 6);
+        const last30 = new Date(); last30.setDate(today.getDate() - 29);
+
+        dateRangePicker = new Litepicker({
+            element: document.getElementById('dateRangePicker'),
+            singleMode: false,
+            allowRepick: true,
+            plugins: ['ranges'],
+            ranges: {
+                'Last 7 Days': [last7, today],
+                'Last 30 Days': [last30, today],
+            },
+            setup: (picker) => {
+                picker.on('selected', (date1, date2) => {
+                    refreshAllData();
+                });
+            }
+        });
+
+        if (logDateRangePickerEl) {
+             logDateRangePicker = new Litepicker({
+                element: logDateRangePickerEl,
+                singleMode: false,
+                allowRepick: true,
+             });
+        }
+    }
+
+    async function refreshAllData() { await Promise.all([fetchDropdownAndStatusData(), fetchData(), fetchChartData(), fetchRecruiterPerformance()]); }
     
     async function fetchDropdownAndStatusData() { 
         try { 
-            const startDate = startDateInput.value, endDate = endDateInput.value;
+            const startDate = dateRangePicker.getStartDate()?.toJSDate().toISOString().slice(0, 10); 
+            const endDate = dateRangePicker.getEndDate()?.toJSDate().toISOString().slice(0, 10);
             let statusUrl = `${API_URL}?action=getStatusCounts&view=${currentView}`;
             if (startDate && endDate) { statusUrl += `&start_date=${startDate}&end_date=${endDate}`; }
             const [statusRes, dropdownRes] = await Promise.all([fetch(statusUrl), fetch(`${API_URL}?action=getDropdownData`)]); 
-            if (!statusRes.ok || !dropdownRes.ok) throw new Error('Failed to fetch initial data.'); 
+            if (!statusRes.ok || !dropdownRes.ok) throw new Error('Failed to fetch filter/dropdown data.'); 
             const statusCounts = await statusRes.json(); 
             dropdownData = await dropdownRes.json(); 
             renderSidebar(statusCounts); 
         } catch (error) { 
-            statusFiltersContainer.innerHTML = `<p class="p-4 text-red-500">Could not load filters.</p>`; 
+            console.error(error); statusFiltersContainer.innerHTML = `<p class="p-4 text-red-500">Could not load filters.</p>`; 
         } 
     }
-
     async function fetchData() { 
-        tableBody.innerHTML = ''; 
+        tableBody.innerHTML = '<tr><td colspan="99" class="text-center p-8">Loading...</td></tr>'; 
         try { 
             const response = await fetch(`${API_URL}?action=readAll&status=${currentStatusFilter}&view=${currentView}`); 
             if (!response.ok) throw new Error('Network response was not ok.'); 
             allApplicants = await response.json(); 
+            currentPage = 1; 
             renderAll(); 
         } catch (error) { 
             tableBody.innerHTML = `<tr><td colspan="${visibleColumns.length}" class="text-center p-8 text-red-500">Failed to load data: ${error.message}</td></tr>`; 
         } 
     }
+    async function fetchChartData() { 
+        try { 
+            const metric = chartMetricSelect.value;
+            const startDate = dateRangePicker.getStartDate()?.toJSDate().toISOString().slice(0, 10);
+            const endDate = dateRangePicker.getEndDate()?.toJSDate().toISOString().slice(0, 10);
+            let chartUrl = `${API_URL}?action=getChartData&metric=${metric}`;
+            if (startDate && endDate) { chartUrl += `&start_date=${startDate}&end_date=${endDate}`; }
+            const response = await fetch(chartUrl);
+            const chartData = await response.json();
+            renderMainChart(chartData, metric);
+            
+            const sidebarResponse = await fetch(`${API_URL}?action=getChartData&metric=deploymentTrend&days=7`);
+            const sidebarData = await sidebarResponse.json();
+            renderSidebarChart(sidebarData);
 
-    function renderAll() { const filteredAndSorted = getFilteredAndSortedData(); renderTable(filteredAndSorted); updateAnalytics(allApplicants); }
+        } catch (error) { console.error('Failed to load chart data:', error); } 
+    }
+    async function fetchRecruiterPerformance() { 
+        try { 
+            const startDate = dateRangePicker.getStartDate()?.toJSDate().toISOString().slice(0, 10);
+            const endDate = dateRangePicker.getEndDate()?.toJSDate().toISOString().slice(0, 10);
+            let perfUrl = `${API_URL}?action=getRecruiterPerformance`;
+            if (startDate && endDate) { perfUrl += `&start_date=${startDate}&end_date=${endDate}`; }
+            const response = await fetch(perfUrl);
+            allRecruiterData = await response.json();
+            renderRecruiterPerformance();
+        } catch (error) { console.error('Failed to load recruiter performance:', error); } 
+    }
 
+    function renderAll() {
+        const dataToDisplay = getFilteredAndSortedData();
+        if (currentView === 'recruiters') {
+            mainDisplayArea.firstElementChild.classList.add('hidden');
+            recruiterPerformanceArea.classList.remove('hidden');
+            paginationControls.classList.add('hidden');
+        } else {
+            mainDisplayArea.firstElementChild.classList.remove('hidden');
+            recruiterPerformanceArea.classList.add('hidden');
+            if (dataToDisplay.length > 0) paginationControls.classList.remove('hidden'); else paginationControls.classList.add('hidden');
+            renderTable(paginateData(dataToDisplay));
+            renderPagination(dataToDisplay.length);
+        }
+        updateAnalytics(allApplicants);
+    }
+    
     function getFilteredAndSortedData() {
-        const searchTerm = searchInput.value.toLowerCase(), startDate = startDateInput.value, endDate = endDateInput.value;
+        const searchTerm = searchInput.value.toLowerCase();
+        const startDate = dateRangePicker.getStartDate()?.toJSDate();
+        const endDate = dateRangePicker.getEndDate()?.toJSDate();
+        if (startDate) startDate.setHours(0, 0, 0, 0);
+        if (endDate) endDate.setHours(23, 59, 59, 999);
+
         let filteredData = allApplicants.filter(applicant => {
             const matchesSearch = Object.values(applicant).some(value => String(value).toLowerCase().includes(searchTerm));
             if (!startDate && !endDate) return matchesSearch;
-            const applicationDate = new Date(applicant.application_date.split(' ')[0]);
-            const matchesStartDate = !startDate || applicationDate >= new Date(startDate);
-            const matchesEndDate = !endDate || applicationDate <= new Date(endDate);
-            return matchesSearch && matchesStartDate && matchesEndDate;
+            const applicationDate = new Date(applicant.application_date);
+            const matchesDate = (!startDate || applicationDate >= startDate) && (!endDate || applicationDate <= endDate);
+            return matchesSearch && matchesDate;
         });
         filteredData.sort((a, b) => { const valA = a[sortConfig.key] || '', valB = b[sortConfig.key] || ''; if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1; if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1; return 0; });
         return filteredData;
     }
+
+    function paginateData(data) { const start = (currentPage - 1) * rowsPerPage; const end = start + rowsPerPage; return data.slice(start, end); }
+    function renderPagination(totalItems) { const totalPages = Math.ceil(totalItems / rowsPerPage); pageInfo.textContent = `Page ${currentPage} of ${totalPages || 1}`; prevPageBtn.disabled = currentPage === 1; nextPageBtn.disabled = currentPage >= totalPages; }
 
     function renderTable(applicants) {
         let headerHTML = '<tr>';
@@ -127,15 +221,13 @@ document.addEventListener('DOMContentLoaded', function () {
                         if (col.key === 'recruiter_name' && currentView === 'active') { let options = `<option value="">- Assign -</option>` + dropdownData.recruiters.map(r => `<option value="${r}" ${r === content ? 'selected' : ''}>${r}</option>`).join(''); content = `<select class="table-select" data-id="${applicant.application_id}" data-field="recruiter_name">${options}</select>`; } 
                         else if (col.key === 'recruitment_status_text' && currentView === 'active') { 
                             const fullColorClass = getStatusColorClass(content);
-                            // This line extracts just the background color (e.g., "bg-red-100")
                             const bgColor = fullColorClass.split(' ').find(c => c.startsWith('bg-')) || 'bg-gray-100';
                             let options = Object.entries(dropdownData.statuses).map(([id, name]) => `<option value="${id}" ${id == applicant.recruitment_status_id ? 'selected' : ''}>${name}</option>`).join('');
-                            // The wrapper div provides the background color ONLY.
-                            // The <select> element will now inherit the default text color of the page.
                             content = `<div class="${bgColor} rounded-full px-1">
                                            <select class="table-select bg-transparent border-none w-full focus:ring-0 p-1 font-semibold" data-id="${applicant.application_id}" data-field="recruitment_status">${options}</select>
                                        </div>`;
                         } else if (col.key === 'actions') { content = currentView === 'active' ? `<button class="text-blue-600 hover:underline edit-btn" data-id="${applicant.application_id}">Edit</button>` : `<button class="text-green-600 hover:underline restore-btn" data-id="${applicant.application_id}">Restore</button>`; }
+                        else if (col.key.includes('date')) { content = formatDate(content); }
                         bodyHTML += `<td class="px-6 py-4">${content || 'N/A'}</td>`;
                     }
                 });
@@ -144,9 +236,136 @@ document.addEventListener('DOMContentLoaded', function () {
         } else { bodyHTML = `<tr><td colspan="${visibleColumns.length}" class="text-center p-8 text-gray-500">No applicants found for this filter.</td></tr>`; }
         tableBody.innerHTML = bodyHTML;
     }
+    
+    function renderRecruiterPerformance() {
+        recruiterPerformanceArea.innerHTML = '';
+        if (allRecruiterData.length > 0) {
+            allRecruiterData.sort((a, b) => b.total_deployed - a.total_deployed);
+            allRecruiterData.forEach(recruiter => {
+                const cardHTML = `
+                    <div class="bg-gray-50 p-4 rounded-lg shadow border">
+                        <h3 class="font-bold text-lg text-gray-800">${recruiter.recruiter_name}</h3>
+                        <div class="mt-2 space-y-1 text-sm text-gray-600">
+                            <p><span class="font-semibold">Total Handled:</span> ${recruiter.total_handled}</p>
+                            <p><span class="font-semibold">Total Deployed:</span> ${recruiter.total_deployed}</p>
+                            <p><span class="font-semibold">Acceptance Rate:</span> ${recruiter.acceptance_rate}%</p>
+                            <p><span class="font-semibold">Withdrawal Rate:</span> ${recruiter.withdrawal_rate}%</p>
+                            <p><span class="font-semibold">Avg. Time to Hire:</span> ${recruiter.avg_time_to_hire ? recruiter.avg_time_to_hire + ' days' : 'N/A'}</p>
+                        </div>
+                    </div>
+                `;
+                recruiterPerformanceArea.innerHTML += cardHTML;
+            });
+        } else {
+            recruiterPerformanceArea.innerHTML = `<p class="text-center col-span-full text-gray-500">No recruiter performance data available for the selected period.</p>`;
+        }
+    }
+    
+    function renderMainChart(data, metric) {
+        if (mainChartInstance) mainChartInstance.destroy();
+        let chartConfig;
+        const labels = data.map(d => d.date || d.label);
+        const counts = data.map(d => d.count);
+        const backgroundColors = ['#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#ec4899', '#64748b', '#f59e0b', '#14b8a6'];
+        
+        switch(metric) {
+            case 'topSources':
+                chartConfig = { type: 'pie', data: { labels: labels, datasets: [{ label: 'Top Sources', data: counts, backgroundColor: backgroundColors.slice(0, labels.length) }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } } };
+                break;
+            default: // applicantTrend, deploymentTrend
+                chartConfig = { type: 'line', data: { labels: labels, datasets: [{ label: metric === 'applicantTrend' ? 'New Applicants' : 'Deployments', data: counts, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.1 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } } };
+                break;
+        }
+        mainChartInstance = new Chart(mainChartCanvas, chartConfig);
+    }
+
+    function renderSidebarChart(data) {
+        // Ensure sidebar chart container height remains constant
+        const chartContainer = sidebarChartCanvas.parentElement;
+        chartContainer.style.height = '200px'; // fixed height for consistent layout
+        sidebarChartCanvas.style.height = '100%';
+        sidebarChartCanvas.style.width = '100%';
+    
+        // 🗓 Always use the current date for the label
+        const currentDate = new Date();
+        const formattedDate = currentDate.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric'
+        });
+    
+        // Use current date for all labels
+        const labels = data.map(() => formattedDate);
+        const counts = data.map(d => d.count);
+    
+        if (sidebarChartInstance) {
+            // Update existing chart data safely
+            sidebarChartInstance.data.labels = labels;
+            sidebarChartInstance.data.datasets[0].data = counts;
+            sidebarChartInstance.update();
+        } else {
+            // Clean up inline styles to avoid stacking heights
+            sidebarChartCanvas.removeAttribute('height');
+            sidebarChartCanvas.removeAttribute('width');
+    
+            // Create a new chart
+            sidebarChartInstance = new Chart(sidebarChartCanvas, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: `Deployed (${formattedDate})`, // 🏷 Add date in the legend too
+                        data: counts,
+                        backgroundColor: '#10b981',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { display: false } 
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { precision: 0 },
+                            grid: { drawBorder: false }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+    }
 
     function renderSidebar(statusCounts) { let sidebarHTML = `<a href="#" class="filter-link flex justify-between items-center px-4 py-2 text-gray-700 rounded-md hover:bg-gray-100" data-status="all"><span>All Applicants</span><span class="bg-gray-200 text-xs font-semibold px-2 py-1 rounded-full">${statusCounts.all || 0}</span></a>`; Object.entries(statusCounts).forEach(([statusId, data]) => { if (statusId !== 'all') { sidebarHTML += `<a href="#" class="filter-link flex justify-between items-center px-4 py-2 text-gray-700 rounded-md hover:bg-gray-100" data-status="${statusId}"><span>${data.name}</span><span class="bg-gray-200 text-xs font-semibold px-2 py-1 rounded-full">${data.count}</span></a>`; } }); statusFiltersContainer.innerHTML = sidebarHTML; const activeLink = document.querySelector(`.filter-link[data-status="${currentStatusFilter}"]`); if (activeLink) activeLink.classList.add('active');}
-    function updateAnalytics(applicants) { document.getElementById('totalApplicants').textContent = applicants.length; const interviewing = applicants.filter(a => ['3', '5'].includes(String(a.recruitment_status_id))).length; document.getElementById('interviewingCount').textContent = interviewing; const deployedCount = applicants.filter(a => a.recruitment_status_id == '13').length; document.getElementById('hiredThisMonth').textContent = deployedCount; const hiredApplicants = applicants.filter(a => a.joining_date && a.application_date && a.recruitment_status_id == '13'); if(hiredApplicants.length > 0) { const totalDays = hiredApplicants.reduce((sum, a) => sum + (new Date(a.joining_date) - new Date(a.application_date)), 0); const avgDays = Math.round((totalDays / hiredApplicants.length) / (1000 * 60 * 60 * 24)); document.getElementById('avgTimeToHire').textContent = `${avgDays} days`; } else { document.getElementById('avgTimeToHire').textContent = 'N/A'; } }
+    function updateAnalytics(applicants) {
+        document.getElementById('totalApplicants').textContent = applicants.length;
+        const interviewing = applicants.filter(a => ['3', '5'].includes(String(a.recruitment_status_id))).length;
+        document.getElementById('interviewingCount').textContent = interviewing;
+        
+        const currentMonth = new Date().getMonth();
+        const currentYear = new Date().getFullYear();
+        const deployedThisMonth = applicants.filter(a => {
+            if (a.recruitment_status_id != '13' || !a.joining_date) return false;
+            const joiningDate = new Date(a.joining_date);
+            return joiningDate.getMonth() === currentMonth && joiningDate.getFullYear() === currentYear;
+        }).length;
+        document.getElementById('deployedThisMonth').textContent = deployedThisMonth;
+
+        const hiredApplicants = applicants.filter(a => a.joining_date && a.application_date && a.recruitment_status_id == '13');
+        if(hiredApplicants.length > 0) {
+            const totalDays = hiredApplicants.reduce((sum, a) => sum + (new Date(a.joining_date) - new Date(a.application_date)), 0);
+            const avgDays = Math.round((totalDays / hiredApplicants.length) / (1000 * 60 * 60 * 24));
+            document.getElementById('avgTimeToHire').textContent = `${avgDays} days`;
+        } else {
+            document.getElementById('avgTimeToHire').textContent = 'N/A';
+        }
+    }
+
     function setupColumnSelector() { columnCheckboxes.innerHTML = ''; ALL_COLUMNS.filter(c => c.key !== 'actions').forEach(col => { const isChecked = visibleColumns.includes(col.key); columnCheckboxes.innerHTML += `<label class="flex items-center space-x-2"><input type="checkbox" class="h-4 w-4" data-key="${col.key}" ${isChecked ? 'checked' : ''}><span>${col.label}</span></label>`; }); }
     async function handleQuickUpdate(applicantId, field, value) { try { const response = await fetch(`${API_URL}?action=updateApplicant`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ application_id: applicantId, [field]: value, status_date: new Date().toISOString().slice(0, 10) }) }); const result = await response.json(); if (result.status !== 'success') throw new Error(result.message); const applicantToUpdate = allApplicants.find(a => a.application_id == applicantId); if (applicantToUpdate) { applicantToUpdate[field] = value; if (field === 'recruitment_status') { applicantToUpdate.recruitment_status_id = value; applicantToUpdate.recruitment_status_text = dropdownData.statuses[value]; } } await fetchDropdownAndStatusData(); renderAll(); } catch (error) { alert('Update failed: ' + error.message); fetchData(); } }
     
@@ -203,114 +422,142 @@ document.addEventListener('DOMContentLoaded', function () {
     function openEditModal(applicant) { editApplicationIdInput.value = applicant.application_id; buildFormFields(editFormContent, applicant, 'edit'); deleteBtn.style.display = USER_ROLE === 'hr_manager' || USER_ROLE === 'super_user' ? 'inline-block' : 'none'; editModal.classList.remove('hidden'); }
     function openAddApplicantModal() { addApplicantForm.reset(); buildFormFields(addFormContent, {}, 'add'); addApplicantModal.classList.remove('hidden'); }
     
-    async function refreshFiltersAndTable() { await fetchDropdownAndStatusData(); await fetchData(); }
-
     async function openLogsModal() {
         logsTableBody.innerHTML = `<tr><td colspan="4" class="text-center p-4">Loading logs...</td></tr>`;
         logsModal.classList.remove('hidden');
         try {
             const response = await fetch(`${API_URL}?action=getSystemLogs`);
+            if (!response.ok) throw new Error('Failed to fetch logs.');
             const logs = await response.json();
             let logsHTML = '';
             if (logs.length > 0) { logs.forEach(log => { logsHTML += `<tr class="border-b"><td class="px-6 py-4">${log.timestamp}</td><td class="px-6 py-4">${log.username}</td><td class="px-6 py-4 font-semibold">${log.action_type}</td><td class="px-6 py-4">${log.action_description}</td></tr>`; }); } 
             else { logsHTML = `<tr><td colspan="4" class="text-center p-4">No system logs found.</td></tr>`; }
             logsTableBody.innerHTML = logsHTML;
-        } catch (error) { logsTableBody.innerHTML = `<tr><td colspan="4" class="text-center p-4 text-red-500">Failed to load logs.</td></tr>`; }
+        } catch (error) { logsTableBody.innerHTML = `<tr><td colspan="4" class="text-center p-4 text-red-500">${error.message}</td></tr>`; }
+    }
+
+    function exportVisibleData() {
+        const dataToExport = getFilteredAndSortedData();
+        if (dataToExport.length === 0) { alert('No data to export.'); return; }
+        const headers = visibleColumns.map(key => ALL_COLUMNS.find(c => c.key === key).label).filter(label => label !== 'Actions');
+        let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n";
+        dataToExport.forEach(row => { const rowData = visibleColumns.map(key => { if (key === 'actions') return null; let cellData = row[key] === null || row[key] === undefined ? '' : String(row[key]); cellData = cellData.includes(',') ? `"${cellData.replace(/"/g, '""')}"` : cellData; return cellData; }).filter(data => data !== null); csvContent += rowData.join(",") + "\n"; });
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `applicant_data_${currentView}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
     
-    // --- EVENT LISTENERS ---
-    searchInput.addEventListener('input', renderAll);
-    startDateInput.addEventListener('change', refreshFiltersAndTable);
-    endDateInput.addEventListener('change', refreshFiltersAndTable);
-    viewActiveBtn.addEventListener('click', () => { currentView = 'active'; viewActiveBtn.classList.add('bg-white', 'text-blue-600', 'shadow'); viewArchivedBtn.classList.remove('bg-white', 'text-blue-600', 'shadow'); refreshFiltersAndTable(); });
-    viewArchivedBtn.addEventListener('click', () => { currentView = 'archived'; viewArchivedBtn.classList.add('bg-white', 'text-blue-600', 'shadow'); viewActiveBtn.classList.remove('bg-white', 'text-blue-600', 'shadow'); refreshFiltersAndTable(); });
-    viewLogsBtn.addEventListener('click', openLogsModal);
-    closeLogsModal.addEventListener('click', () => logsModal.classList.add('hidden'));
-
-    columnToggleBtn.addEventListener('click', () => columnSelector.classList.remove('hidden'));
-    closeColumnSelector.addEventListener('click', () => columnSelector.classList.add('hidden'));
-    cancelEditBtn.addEventListener('click', () => editModal.classList.add('hidden'));
-    newApplicantBtn.addEventListener('click', openAddApplicantModal);
-    cancelAddBtn.addEventListener('click', () => addApplicantModal.classList.add('hidden'));
-
-    columnCheckboxes.addEventListener('change', e => { if(e.target.type === 'checkbox') { const key = e.target.dataset.key; if (e.target.checked) { if (!visibleColumns.includes(key)) visibleColumns.push(key); } else { visibleColumns = visibleColumns.filter(col => col !== key); } renderAll(); } });
-    statusFiltersContainer.addEventListener('click', e => { e.preventDefault(); const target = e.target.closest('.filter-link'); if (target) { const activeLink = document.querySelector('.filter-link.active'); if(activeLink) activeLink.classList.remove('active'); target.classList.add('active'); currentStatusFilter = target.dataset.status; fetchData(); } });
-    tableHead.addEventListener('click', e => { const target = e.target.closest('.sortable'); if (target) { const key = target.dataset.key; if (sortConfig.key === key) { sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc'; } else { sortConfig.key = key; sortConfig.direction = 'asc'; } renderAll(); } });
-    tableBody.addEventListener('change', e => { if (e.target.classList.contains('table-select')) { const applicantId = e.target.dataset.id, field = e.target.dataset.field, value = e.target.value; handleQuickUpdate(applicantId, field, value); } });
-    tableBody.addEventListener('click', e => { const target = e.target; if(target.classList.contains('edit-btn')) { const applicant = allApplicants.find(a => a.application_id == target.dataset.id); if(applicant) openEditModal(applicant); } if(target.classList.contains('restore-btn')) { const id = target.dataset.id; if (confirm(`Are you sure you want to restore this applicant?`)) { fetch(`${API_URL}?action=restoreApplicant`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ application_id: id }) }).then(res => res.json()).then(result => { if(result.status !== 'success') throw new Error(result.message); alert('Applicant restored!'); fetchData(); }).catch(err => alert('Restore failed: ' + err.message)); } } });
-    
-    editForm.addEventListener('submit', async e => {
-        e.preventDefault();
-        if (!editForm.checkValidity()) { editForm.reportValidity(); return; }
-        const formData = new FormData(editForm);
-        const dataFromForm = Object.fromEntries(formData.entries());
-        try {
-            const response = await fetch(`${API_URL}?action=updateApplicant`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dataFromForm) });
-            const result = await response.json();
-            if(result.status !== 'success') throw new Error(result.message);
-            
-            alert('Applicant saved successfully!'); 
-            
-            const updatedApplicantIndex = allApplicants.findIndex(a => a.application_id == dataFromForm.application_id);
-            if(updatedApplicantIndex !== -1) { allApplicants[updatedApplicantIndex] = {...allApplicants[updatedApplicantIndex], ...dataFromForm}; if (dataFromForm.recruitment_status) { allApplicants[updatedApplicantIndex].recruitment_status_text = dropdownData.statuses[dataFromForm.recruitment_status]; } }
-            editModal.classList.add('hidden');
-            renderAll();
-            await fetchDropdownAndStatusData();
-        } catch (error) { alert('Save failed: ' + error.message); }
-    });
-
-    addApplicantForm.addEventListener('submit', async e => {
-        e.preventDefault();
-        if (!addApplicantForm.checkValidity()) { addApplicantForm.reportValidity(); return; }
-        const formData = new FormData(addApplicantForm);
-        const submitUrl = '../recruitment_applicants.php'; 
-        try {
-            const response = await fetch(submitUrl, { method: 'POST', body: formData });
-            const result = await response.json();
-            if (result.status !== 'success') throw new Error(result.message);
-            alert('Applicant added successfully!');
-            addApplicantModal.classList.add('hidden');
-            initializeDashboard();
-        } catch (error) { alert('Failed to add applicant: ' + error.message); }
-    });
-
-    deleteBtn.addEventListener('click', async () => {
-        const id = editApplicationIdInput.value;
-        const applicantToDelete = allApplicants.find(a => a.application_id == id);
-        const applicantName = applicantToDelete ? `${applicantToDelete.surname}, ${applicantToDelete.firstname}` : `applicant #${id}`;
-        if(confirm(`Are you sure you want to archive ${applicantName}?`)) {
+    function addEventListeners() {
+        searchInput.addEventListener('input', () => { currentPage = 1; renderAll(); });
+        rowsPerPageSelect.addEventListener('change', (e) => { currentPage = 1; rowsPerPage = parseInt(e.target.value, 10); renderAll(); });
+        prevPageBtn.addEventListener('click', () => { if(currentPage > 1) { currentPage--; renderAll(); } });
+        nextPageBtn.addEventListener('click', () => { const totalPages = Math.ceil(getFilteredAndSortedData().length / rowsPerPage); if(currentPage < totalPages) { currentPage++; renderAll(); } });
+        
+        const viewButtons = { active: viewActiveBtn, archived: viewArchivedBtn, recruiters: viewRecruiterBtn };
+        Object.entries(viewButtons).forEach(([view, btn]) => {
+            btn.addEventListener('click', () => {
+                Object.values(viewButtons).forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentView = view;
+                refreshAllData();
+            });
+        });
+        
+        viewLogsBtn.addEventListener('click', openLogsModal);
+        closeLogsModal.addEventListener('click', () => logsModal.classList.add('hidden'));
+        columnToggleBtn.addEventListener('click', () => columnSelector.classList.remove('hidden'));
+        closeColumnSelector.addEventListener('click', () => columnSelector.classList.add('hidden'));
+        cancelEditBtn.addEventListener('click', () => editModal.classList.add('hidden'));
+        newApplicantBtn.addEventListener('click', openAddApplicantModal);
+        cancelAddBtn.addEventListener('click', () => addApplicantModal.classList.add('hidden'));
+        columnCheckboxes.addEventListener('change', e => { if(e.target.type === 'checkbox') { const key = e.target.dataset.key; if (e.target.checked) { if (!visibleColumns.includes(key)) visibleColumns.push(key); } else { visibleColumns = visibleColumns.filter(col => col !== key); } renderAll(); } });
+        statusFiltersContainer.addEventListener('click', e => { e.preventDefault(); const target = e.target.closest('.filter-link'); if (target) { const activeLink = document.querySelector('.filter-link.active'); if(activeLink) activeLink.classList.remove('active'); target.classList.add('active'); currentStatusFilter = target.dataset.status; fetchData(); } });
+        tableHead.addEventListener('click', e => { const target = e.target.closest('.sortable'); if (target) { const key = target.dataset.key; if (sortConfig.key === key) { sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc'; } else { sortConfig.key = key; sortConfig.direction = 'asc'; } renderAll(); } });
+        tableBody.addEventListener('change', e => { if (e.target.classList.contains('table-select')) { const applicantId = e.target.dataset.id, field = e.target.dataset.field, value = e.target.value; handleQuickUpdate(applicantId, field, value); } });
+        tableBody.addEventListener('click', e => { const target = e.target; if(target.classList.contains('edit-btn')) { const applicant = allApplicants.find(a => a.application_id == target.dataset.id); if(applicant) openEditModal(applicant); } if(target.classList.contains('restore-btn')) { const id = target.dataset.id; if (confirm(`Are you sure you want to restore this applicant?`)) { fetch(`${API_URL}?action=restoreApplicant`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ application_id: id }) }).then(res => res.json()).then(result => { if(result.status !== 'success') throw new Error(result.message); alert('Applicant restored!'); fetchData(); }).catch(err => alert('Restore failed: ' + err.message)); } } });
+        editForm.addEventListener('submit', async e => {
+            e.preventDefault();
+            if (!editForm.checkValidity()) { editForm.reportValidity(); return; }
+            const formData = new FormData(editForm);
+            const dataFromForm = Object.fromEntries(formData.entries());
             try {
-                const response = await fetch(`${API_URL}?action=archiveApplicant`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ application_id: id }) });
+                const response = await fetch(`${API_URL}?action=updateApplicant`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dataFromForm) });
                 const result = await response.json();
                 if(result.status !== 'success') throw new Error(result.message);
-                alert('Applicant archived successfully!'); 
+                
+                alert('Applicant saved successfully!'); 
+                
+                const updatedApplicantIndex = allApplicants.findIndex(a => a.application_id == dataFromForm.application_id);
+                if(updatedApplicantIndex !== -1) { allApplicants[updatedApplicantIndex] = {...allApplicants[updatedApplicantIndex], ...dataFromForm}; if (dataFromForm.recruitment_status) { allApplicants[updatedApplicantIndex].recruitment_status_text = dropdownData.statuses[dataFromForm.recruitment_status]; } }
                 editModal.classList.add('hidden');
-                await initializeDashboard();
-            } catch (error) { alert('Archive failed: ' + error.message); }
-        }
-    });
+                renderAll();
+                await fetchDropdownAndStatusData();
+            } catch (error) { alert('Save failed: ' + error.message); }
+        });
+        addApplicantForm.addEventListener('submit', async e => {
+            e.preventDefault();
+            if (!addApplicantForm.checkValidity()) { addApplicantForm.reportValidity(); return; }
+            const formData = new FormData(addApplicantForm);
+            const submitUrl = '../recruitment_applicants.php'; 
+            try {
+                const response = await fetch(submitUrl, { method: 'POST', body: formData });
+                const result = await response.json();
+                if (result.status !== 'success') throw new Error(result.message);
+                alert('Applicant added successfully!');
+                addApplicantModal.classList.add('hidden');
+                initializeDashboard();
+            } catch (error) { alert('Failed to add applicant: ' + error.message); }
+        });
+        deleteBtn.addEventListener('click', async () => {
+            const id = editApplicationIdInput.value;
+            const applicantToDelete = allApplicants.find(a => a.application_id == id);
+            const applicantName = applicantToDelete ? `${applicantToDelete.surname}, ${applicantToDelete.firstname}` : `applicant #${id}`;
+            if(confirm(`Are you sure you want to archive ${applicantName}?`)) {
+                try {
+                    const response = await fetch(`${API_URL}?action=archiveApplicant`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ application_id: id }) });
+                    const result = await response.json();
+                    if(result.status !== 'success') throw new Error(result.message);
+                    alert('Applicant archived successfully!'); 
+                    editModal.classList.add('hidden');
+                    await initializeDashboard();
+                } catch (error) { alert('Archive failed: ' + error.message); }
+            }
+        });
+        
+        document.addEventListener('change', e => {
+            const targetId = e.target.id;
+            const formType = targetId.startsWith('add_') ? 'add' : (targetId.startsWith('edit_') ? 'edit' : null);
+            
+            if (!formType) return;
+
+            if (targetId.endsWith('_education_level')) {
+                const degreeContainer = document.getElementById(`${formType}_collegeDegreeContainer`);
+                if (degreeContainer) {
+                    degreeContainer.classList.toggle('hidden', e.target.value !== 'College Graduate');
+                }
+            }
+            
+            if (targetId.endsWith('_college_degree')) {
+                const otherDegreeContainer = document.getElementById(`${formType}_otherDegreeContainer`);
+                if (otherDegreeContainer) {
+                    otherDegreeContainer.classList.toggle('hidden', e.target.value !== 'Other');
+                }
+            }
+        });
+
+        toggleChartBtn.addEventListener('click', () => {
+            chartContainer.classList.toggle('hidden');
+            toggleChartBtn.querySelector('i').classList.toggle('fa-chevron-up');
+            toggleChartBtn.querySelector('i').classList.toggle('fa-chevron-down');
+        });
+        chartMetricSelect.addEventListener('change', fetchChartData);
+        exportDataBtn.addEventListener('click', exportVisibleData);
+    }
     
-    document.addEventListener('change', e => {
-        const targetId = e.target.id;
-        const formType = targetId.startsWith('add_') ? 'add' : (targetId.startsWith('edit_') ? 'edit' : null);
-        
-        if (!formType) return;
-
-        if (targetId.endsWith('_education_level')) {
-            const degreeContainer = document.getElementById(`${formType}_collegeDegreeContainer`);
-            if (degreeContainer) {
-                degreeContainer.classList.toggle('hidden', e.target.value !== 'College Graduate');
-            }
-        }
-        
-        if (targetId.endsWith('_college_degree')) {
-            const otherDegreeContainer = document.getElementById(`${formType}_otherDegreeContainer`);
-            if (otherDegreeContainer) {
-                otherDegreeContainer.classList.toggle('hidden', e.target.value !== 'Other');
-            }
-        }
-    });
-
     initializeDashboard();
 });
 

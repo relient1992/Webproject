@@ -10,7 +10,6 @@ session_start();
 header('Content-Type: application/json');
 
 // --- DATABASE CONNECTION ---
-// Using the credentials you provided for the recruitment system.
 $servername = "10.200.168.89";
 $username   = "supersu";
 $password   = "H110mds2!";
@@ -84,6 +83,13 @@ switch ($action) {
     case 'getSystemLogs':
         getSystemLogs($conn);
         break;
+    case 'getChartData': 
+        getChartData($conn); 
+        break;
+    case 'getRecruiterPerformance': 
+        getRecruiterPerformance($conn); 
+        break;
+    case 'bulkInsert': bulkInsertApplicants($conn, $loggedInUser); break; 
     default:
         http_response_code(400);
         echo json_encode(['status' => 'error', 'message' => 'Invalid action specified.']);
@@ -106,7 +112,6 @@ function getUserInfo($conn, $employeeId, $role) {
     echo json_encode(['employee_id' => $employeeId, 'role' => $role]);
 }
 
-// CORRECTED: This function now properly builds the query with multiple placeholders
 function getAllApplicants($conn) {
     $view = $_GET['view'] ?? 'active';
     $statusFilter = $_GET['status'] ?? 'all';
@@ -167,7 +172,6 @@ function getAllApplicants($conn) {
     echo json_encode($applicants);
 }
 
-// CORRECTED: Fixed variable name and return structure
 function getStatusCounts($conn) {
     $startDate = $_GET['start_date'] ?? null;
     $endDate = $_GET['end_date'] ?? null;
@@ -237,7 +241,6 @@ function getDropdownData($conn) {
 }
 
 function updateApplicant($conn, $userIdentifier) {
-    // This function remains the same
     $data = json_decode(file_get_contents('php://input'), true);
     $applicationId = $data['application_id'] ?? 0;
     if ($applicationId <= 0) { http_response_code(400); echo json_encode(['status' => 'error', 'message' => 'Invalid Application ID.']); exit(); }
@@ -336,16 +339,201 @@ function restoreApplicant($conn, $userIdentifier, $userRole) {
 }
 
 function getSystemLogs($conn) {
-    $result = $conn->query("SELECT log_id, username, action_type, action_description, timestamp FROM hr_system_logs ORDER BY timestamp DESC LIMIT 200");
+    $startDate = $_GET['start_date'] ?? null;
+    $endDate = $_GET['end_date'] ?? null;
+    // For exports, the limit can be 'none'. For viewing, it defaults to 50.
+    $limit = $_GET['limit'] ?? '50'; 
+
+    $sql = "SELECT log_id, username, action_type, action_description, timestamp FROM hr_system_logs";
+    $params = [];
+    $types = '';
+    
+    if ($startDate && $endDate) {
+        $sql .= " WHERE DATE(timestamp) BETWEEN ? AND ?";
+        $params[] = $startDate;
+        $params[] = $endDate;
+        $types .= 'ss';
+    }
+    
+    $sql .= " ORDER BY timestamp DESC";
+
+    if (is_numeric($limit)) {
+        $sql .= " LIMIT ?";
+        $params[] = (int)$limit;
+        $types .= 'i';
+    }
+
+    $stmt = $conn->prepare($sql);
+    if ($stmt === false) {
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => 'Log query prepare failed: ' . $conn->error]);
+        exit();
+    }
+
+    if (!empty($params)) {
+        $stmt->bind_param($types, ...$params);
+    }
+    
+    $stmt->execute();
+    $result = $stmt->get_result();
+
     if ($result === false) {
         http_response_code(500);
-        echo json_encode(['status' => 'error', 'message' => 'Failed to fetch logs: ' . $conn->error]);
+        echo json_encode(['status' => 'error', 'message' => 'Failed to fetch logs: ' . $stmt->error]);
         exit();
     }
     $logs = [];
     while($row = $result->fetch_assoc()) {
         $logs[] = $row;
     }
+    $stmt->close();
     echo json_encode($logs);
 }
+ // --- Charts and recruiter performance
+function getChartData($conn) {
+    $metric = $_GET['metric'] ?? 'applicantTrend';
+    $startDate = $_GET['start_date'] ?? null;
+    $endDate = $_GET['end_date'] ?? null;
+    $whereClause = 'WHERE is_archived = 0';
+    $params = [];
+    $types = '';
+    if($startDate && $endDate) {
+        $whereClause .= ' AND DATE(application_date) BETWEEN ? AND ?';
+        $params[] = $startDate;
+        $params[] = $endDate;
+        $types .= 'ss';
+    }
+
+    $data = [];
+    switch ($metric) {
+        case 'deploymentTrend':
+            $sql = "SELECT DATE(joining_date) as date, COUNT(*) as count FROM applicants $whereClause AND recruitment_status = 13 GROUP BY DATE(joining_date) ORDER BY date ASC";
+            break;
+        case 'topSources':
+            $sql = "SELECT application_source as label, COUNT(*) as count FROM applicants $whereClause GROUP BY application_source ORDER BY count DESC";
+            break;
+        case 'applicantTrend':
+        default:
+            $sql = "SELECT DATE(application_date) as date, COUNT(*) as count FROM applicants $whereClause GROUP BY DATE(application_date) ORDER BY date ASC";
+            break;
+    }
+    $stmt = $conn->prepare($sql);
+    if ($stmt && !empty($params)) { $stmt->bind_param($types, ...$params); }
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while($row = $result->fetch_assoc()){ $data[] = $row; }
+    $stmt->close();
+    echo json_encode($data);
+}
+
+function getRecruiterPerformance($conn) {
+    $startDate = $_GET['start_date'] ?? null;
+    $endDate = $_GET['end_date'] ?? null;
+    $whereClause = 'WHERE recruiter_name IS NOT NULL AND recruiter_name != ""';
+    $params = [];
+    $types = '';
+    if($startDate && $endDate) {
+        $whereClause .= ' AND DATE(application_date) BETWEEN ? AND ?';
+        $params[] = $startDate;
+        $params[] = $endDate;
+        $types .= 'ss';
+    }
+
+    $sql = "
+        SELECT
+            recruiter_name,
+            COUNT(*) as total_handled,
+            SUM(CASE WHEN recruitment_status = 13 THEN 1 ELSE 0 END) as total_deployed,
+            SUM(CASE WHEN offer_status = 'Accepted' THEN 1 ELSE 0 END) as offers_accepted,
+            SUM(CASE WHEN offer_status = 'Declined' THEN 1 ELSE 0 END) as offers_declined,
+            SUM(CASE WHEN recruitment_status = 14 THEN 1 ELSE 0 END) as withdrawn,
+            AVG(CASE WHEN recruitment_status = 13 THEN DATEDIFF(joining_date, application_date) ELSE NULL END) as avg_time_to_hire
+        FROM applicants
+        $whereClause
+        GROUP BY recruiter_name
+    ";
+    $stmt = $conn->prepare($sql);
+    if ($stmt && !empty($params)) { $stmt->bind_param($types, ...$params); }
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $data = [];
+    while($row = $result->fetch_assoc()){
+        $totalOffers = $row['offers_accepted'] + $row['offers_declined'];
+        $row['acceptance_rate'] = $totalOffers > 0 ? round(($row['offers_accepted'] / $totalOffers) * 100, 2) : 0;
+        $row['withdrawal_rate'] = $row['total_handled'] > 0 ? round(($row['withdrawn'] / $row['total_handled']) * 100, 2) : 0;
+        $row['avg_time_to_hire'] = $row['avg_time_to_hire'] ? round($row['avg_time_to_hire']) : null;
+        $data[] = $row;
+    }
+    $stmt->close();
+    echo json_encode($data);
+}
+
+function bulkInsertApplicants($conn, $userIdentifier) {
+    $data = json_decode(file_get_contents('php://input'), true);
+
+    if (empty($data) || !is_array($data)) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Invalid or empty data provided.']);
+        exit();
+    }
+
+    // Define the exact columns your CSV template provides
+    $columns = [
+        "surname", "firstname", "middlename", "birthday", "gender", "mobile_number", "email",
+        "street_address", "city", "province", "postcode", "position_applied", "recruiter_name",
+        "recruitment_status", "status_date", "application_source", "interview_dates", "interviewers",
+        "feedback_comments", "offer_status", "offer_date", "joining_date", "employee_id", "Project",
+        "facebook_account", "instagram_account", "twitter_account", "viber_account",
+        "education_level", "college_degree"
+    ];
+    
+    // Build the prepared statement
+    $placeholders = rtrim(str_repeat('?,', count($columns)), ',');
+    $sql = "INSERT INTO applicants (" . implode(', ', array_map(fn($c) => "`$c`", $columns)) . ") VALUES ({$placeholders})";
+    
+    $stmt = $conn->prepare($sql);
+    if ($stmt === false) {
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => 'Database prepare statement failed: ' . $conn->error]);
+        exit();
+    }
+    
+    // Dynamically create the type string (e.g., 'sssss...')
+    $types = str_repeat('s', count($columns));
+    
+    // Use a transaction for data integrity
+    $conn->begin_transaction();
+    try {
+        $insertedCount = 0;
+        foreach ($data as $row) {
+            $params = [];
+            // Ensure data is in the same order as the $columns array
+            foreach ($columns as $col) {
+                // Use null for empty values
+                $params[] = $row[$col] ?? null;
+            }
+            
+            $stmt->bind_param($types, ...$params);
+            $stmt->execute();
+            $insertedCount++;
+        }
+        
+        // If all rows were inserted without error, commit the changes
+        $conn->commit();
+        
+        logAction($conn, $userIdentifier, 'BULK_INSERT', "Successfully inserted {$insertedCount} new applicants via CSV upload.");
+        echo json_encode(['status' => 'success', 'message' => "Successfully inserted {$insertedCount} records."]);
+
+    } catch (Exception $e) {
+        // If any error occurred, roll back all changes
+        $conn->rollback();
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => 'An error occurred during bulk insert: ' . $e->getMessage()]);
+    }
+    
+    $stmt->close();
+}
+
+
+
 ?>

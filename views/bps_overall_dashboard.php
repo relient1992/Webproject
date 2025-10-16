@@ -223,6 +223,7 @@ if (!isset($_SESSION['employee_id'])) {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <!-- This should point to your actual JS file -->
     <script src="../js/bps_dashboard.js"></script>
+    
 </body>
 </html>
 

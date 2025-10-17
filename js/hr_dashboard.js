@@ -262,68 +262,74 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     function renderMainChart(data, metric) {
-        if (mainChartInstance) mainChartInstance.destroy();
-        let chartConfig;
-        const labels = data.map(d => d.date || d.label);
-        const counts = data.map(d => d.count);
-        const backgroundColors = ['#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#ec4899', '#64748b', '#f59e0b', '#14b8a6'];
-        
-        switch(metric) {
-            case 'topSources':
-                chartConfig = { type: 'pie', data: { labels: labels, datasets: [{ label: 'Top Sources', data: counts, backgroundColor: backgroundColors.slice(0, labels.length) }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } } };
-                break;
-            default: // applicantTrend, deploymentTrend
-                chartConfig = { type: 'line', data: { labels: labels, datasets: [{ label: metric === 'applicantTrend' ? 'New Applicants' : 'Deployments', data: counts, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.1 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } } };
-                break;
+        // --- Helper: Parse YYYY-MM-DD as local date to avoid timezone offset ---
+        function parseLocalDate(dateStr) {
+            if (!dateStr) return null;
+            const [year, month, day] = dateStr.split('-').map(Number);
+            return new Date(year, month - 1, day);
         }
-        mainChartInstance = new Chart(mainChartCanvas, chartConfig);
-    }
-
-    function renderSidebarChart(data) {
-        // Ensure sidebar chart container height remains constant
-        const chartContainer = sidebarChartCanvas.parentElement;
-        chartContainer.style.height = '200px'; // fixed height for consistent layout
-        sidebarChartCanvas.style.height = '100%';
-        sidebarChartCanvas.style.width = '100%';
     
-        // 🗓 Always use the current date for the label
-        const currentDate = new Date();
-        const formattedDate = currentDate.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric'
-        });
+        // --- Chart container setup ---
+        const chartContainer = mainChartCanvas.parentElement;
+        chartContainer.style.height = '300px';
+        mainChartCanvas.style.height = '100%';
+        mainChartCanvas.style.width = '100%';
     
-        // Use current date for all labels
-        const labels = data.map(() => formattedDate);
-        const counts = data.map(d => d.count);
+        let labels = [];
+        let counts = [];
     
-        if (sidebarChartInstance) {
-            // Update existing chart data safely
-            sidebarChartInstance.data.labels = labels;
-            sidebarChartInstance.data.datasets[0].data = counts;
-            sidebarChartInstance.update();
-        } else {
-            // Clean up inline styles to avoid stacking heights
-            sidebarChartCanvas.removeAttribute('height');
-            sidebarChartCanvas.removeAttribute('width');
+        // --- Determine date range (default to current month if not selected) ---
+        let startDate = dateRangePicker?.getStartDate()?.toJSDate();
+        let endDate = dateRangePicker?.getEndDate()?.toJSDate();
+        if (!startDate || !endDate) {
+            const today = new Date();
+            startDate = new Date(today.getFullYear(), today.getMonth(), 1); // first day of month
+            endDate = today; // today
+        }
     
-            // Create a new chart
-            sidebarChartInstance = new Chart(sidebarChartCanvas, {
-                type: 'bar',
+        // --- Applicant & Deployment Trends (Line Chart) ---
+        if (metric === 'applicantTrend' || metric === 'deploymentTrend') {
+            const dataMap = new Map(data.map(d => [d.date, d.count]));
+            const fullLabels = [];
+            const fullCounts = [];
+            let currentDate = new Date(startDate);
+    
+            while (currentDate <= endDate) {
+                const dateString = currentDate.toISOString().slice(0, 10);
+                fullLabels.push(parseLocalDate(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+                fullCounts.push(dataMap.get(dateString) || 0);
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+    
+            labels = fullLabels;
+            counts = fullCounts;
+    
+            const datasetLabel = metric === 'applicantTrend' ? 'New Applicants' : 'Deployments';
+            const borderColor = metric === 'applicantTrend' ? '#3b82f6' : '#10b981';
+            const backgroundColor = metric === 'applicantTrend' ? 'rgba(59,130,246,0.2)' : 'rgba(16,185,129,0.2)';
+    
+            const chartConfig = {
+                type: 'line',
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: `Deployed (${formattedDate})`, // 🏷 Add date in the legend too
+                        label: datasetLabel,
                         data: counts,
-                        backgroundColor: '#10b981',
-                        borderRadius: 4
+                        fill: true,
+                        backgroundColor: backgroundColor,
+                        borderColor: borderColor,
+                        borderWidth: 2,
+                        tension: 0.3,
+                        pointRadius: 4,
+                        pointBackgroundColor: borderColor
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { 
-                        legend: { display: false } 
+                    plugins: {
+                        legend: { display: true },
+                        tooltip: { mode: 'index', intersect: false }
                     },
                     scales: {
                         y: {
@@ -333,13 +339,130 @@ document.addEventListener('DOMContentLoaded', function () {
                         },
                         x: {
                             grid: { display: false },
-                            ticks: { display: false }
+                            ticks: {
+                                autoSkip: true,
+                                maxRotation: 45,
+                                minRotation: 30,
+                                font: { size: 11 },
+                                padding: 6
+                            }
                         }
                     }
                 }
-            });
+            };
+    
+            if (mainChartInstance) mainChartInstance.destroy();
+            mainChartInstance = new Chart(mainChartCanvas, chartConfig);
+        }
+    
+        // --- Top Sources (Pie Chart) ---
+        else if (metric === 'topSources') {
+            labels = data.map(d => d.label || d.source);
+            counts = data.map(d => d.count);
+    
+            const backgroundColors = ['#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#ec4899', '#64748b', '#f59e0b', '#14b8a6'];
+    
+            const chartConfig = {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Top Sources',
+                        data: counts,
+                        backgroundColor: backgroundColors.slice(0, labels.length)
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right' },
+                        tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.raw}` } }
+                    }
+                }
+            };
+    
+            if (mainChartInstance) mainChartInstance.destroy();
+            mainChartInstance = new Chart(mainChartCanvas, chartConfig);
         }
     }
+
+function renderSidebarChart(data) {
+    const chartContainer = sidebarChartCanvas.parentElement;
+    chartContainer.style.height = '200px';
+    sidebarChartCanvas.style.height = '100%';
+    sidebarChartCanvas.style.width = '100%';
+
+    const today = new Date();
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        last7Days.push(date.toISOString().slice(0, 10));
+    }
+
+    const dataMap = {};
+    data.forEach(d => {
+        const dateKey = new Date(d.date).toISOString().slice(0, 10);
+        dataMap[dateKey] = d.count;
+    });
+
+    const chartData = last7Days.map(date => ({
+        date,
+        count: dataMap[date] || 0
+    }));
+
+    const labels = chartData.map(d =>
+        new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    );
+    const counts = chartData.map(d => d.count);
+
+    if (sidebarChartInstance) {
+        sidebarChartInstance.data.labels = labels;
+        sidebarChartInstance.data.datasets[0].data = counts;
+        sidebarChartInstance.update();
+    } else {
+        sidebarChartCanvas.removeAttribute('height');
+        sidebarChartCanvas.removeAttribute('width');
+
+        sidebarChartInstance = new Chart(sidebarChartCanvas, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Deployments (Last 7 Days)',
+                    data: counts,
+                    backgroundColor: '#10b981',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0 },
+                        grid: { drawBorder: false }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            autoSkip: false,
+                            maxRotation: 45,  // ⬅️ maximum angle in degrees
+                            minRotation: 30,  // ⬅️ minimum angle in degrees
+                            font: { size: 10 },
+                            padding: 4        // ⬅️ add spacing so text doesn’t touch bars
+                        }
+                    }
+                }
+            }
+        });
+    }
+}
 
     function renderSidebar(statusCounts) { let sidebarHTML = `<a href="#" class="filter-link flex justify-between items-center px-4 py-2 text-gray-700 rounded-md hover:bg-gray-100" data-status="all"><span>All Applicants</span><span class="bg-gray-200 text-xs font-semibold px-2 py-1 rounded-full">${statusCounts.all || 0}</span></a>`; Object.entries(statusCounts).forEach(([statusId, data]) => { if (statusId !== 'all') { sidebarHTML += `<a href="#" class="filter-link flex justify-between items-center px-4 py-2 text-gray-700 rounded-md hover:bg-gray-100" data-status="${statusId}"><span>${data.name}</span><span class="bg-gray-200 text-xs font-semibold px-2 py-1 rounded-full">${data.count}</span></a>`; } }); statusFiltersContainer.innerHTML = sidebarHTML; const activeLink = document.querySelector(`.filter-link[data-status="${currentStatusFilter}"]`); if (activeLink) activeLink.classList.add('active');}
     function updateAnalytics(applicants) {

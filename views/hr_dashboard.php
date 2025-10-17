@@ -25,11 +25,15 @@ if (!isset($_SESSION['employee_id'])) {
     <title>HR Recruitment Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- UPDATED: Added the date adapter for Chart.js for improved time scales -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    
     <script src="https://cdn.jsdelivr.net/npm/litepicker/dist/bundle.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/litepicker/dist/css/litepicker.css"/>
-    <!-- Papaparse for CSV handling is required for the bulk upload feature -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
+    <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
     <style>
         /* All CSS styles from the previous correct version */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -46,6 +50,21 @@ if (!isset($_SESSION['employee_id'])) {
         .table-select:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px #bfdbfe; }
         .filter-link.active { background-color: #eff6ff; color: #2563eb; font-weight: 600; }
         .view-toggle-btn.active { background-color: white; color: #2563eb; box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1); }
+        .choices__inner {
+            background-color: #fff;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            padding: 0.3rem 0.75rem;
+        }
+        .choices[data-type*="select-multiple"] .choices__button, .choices[data-type*="text"] .choices__button {
+            border-left: 1px solid #d1d5db;
+            margin-left: 6px;
+        }
+        .choices__list--dropdown {
+            border-radius: 0.5rem;
+            border: 1px solid #d1d5db;
+        }
+        
     </style>
 </head>
 <body class="bg-gray-100 font-sans text-gray-800">
@@ -81,7 +100,6 @@ if (!isset($_SESSION['employee_id'])) {
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
                     <div class="bg-white p-6 rounded-2xl shadow-md"><p class="text-gray-500 text-sm">Total Applicants</p><p id="totalApplicants" class="text-3xl font-bold">0</p></div>
                     <div class="bg-white p-6 rounded-2xl shadow-md"><p class="text-gray-500 text-sm">Interviewing</p><p id="interviewingCount" class="text-3xl font-bold">0</p></div>
-                    <!-- UPDATED: ID and label changed for clarity -->
                     <div class="bg-white p-6 rounded-2xl shadow-md"><p class="text-gray-500 text-sm">Deployed (This Month)</p><p id="deployedThisMonth" class="text-3xl font-bold">0</p></div>
                     <div class="bg-white p-6 rounded-2xl shadow-md"><p class="text-gray-500 text-sm">Avg. Time to Hire</p><p id="avgTimeToHire" class="text-3xl font-bold">N/A</p></div>
                 </div>
@@ -106,7 +124,30 @@ if (!isset($_SESSION['employee_id'])) {
                 
                 <!-- Table Controls -->
                 <div class="bg-white p-4 rounded-2xl shadow-md mb-6 flex flex-wrap gap-4 justify-between items-center">
-                    <div class="relative w-full md:w-auto flex-grow"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" id="searchInput" class="w-full p-2 pl-10 border rounded-lg" placeholder="Search..."></div>
+                    <!-- --- UPDATED: Added search field selector + search input --- -->
+                    <div class="flex flex-col w-full md:w-auto flex-grow gap-2">
+                        <!-- Field Selector Dropdown -->
+                        <select id="searchFieldSelector" multiple class="border rounded-lg p-2 w-full">
+                            <option value="street_address">Street Address</option>
+                            <option value="city">City</option>
+                            <option value="province">Province</option>
+                            <option value="position_applied">Position Applied</option>
+                            <option value="recruiter_name">Recruiter Name</option>
+                            <option value="recruitment_status_text">Recruitment Status</option>
+                            <option value="application_source">Application Source</option>
+                            <option value="interviewers">Interviewers</option>
+                            <option value="Project">Project</option>
+                            <option value="education_level">Education Level</option>
+                            <option value="college_degree">College Degree</option>
+                        </select>
+
+                        <!-- Search Input -->
+                        <div class="relative">
+                            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                            <input type="text" id="searchInput" class="w-full p-2 pl-10 border rounded-lg" placeholder="Search...">
+                        </div>
+                    </div>
+
                     <div class="flex items-center gap-4 flex-wrap">
                         <div class="relative">
                             <i class="fas fa-calendar-alt absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>

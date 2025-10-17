@@ -390,23 +390,40 @@ function getSystemLogs($conn) {
     echo json_encode($logs);
 }
  // --- Charts and recruiter performance
-function getChartData($conn) {
+ function getChartData($conn) {
     $metric = $_GET['metric'] ?? 'applicantTrend';
     $startDate = $_GET['start_date'] ?? null;
     $endDate = $_GET['end_date'] ?? null;
+    
+    // Default WHERE clause and date column for filtering
     $whereClause = 'WHERE is_archived = 0';
+    $dateColumnForFilter = 'application_date';
+
+    // If the metric is deploymentTrend, change the date column for filtering to 'status_date'
+    if ($metric === 'deploymentTrend') {
+        $dateColumnForFilter = 'status_date';
+    }
+
     $params = [];
     $types = '';
+
+    // Build the date range part of the WHERE clause dynamically
     if($startDate && $endDate) {
-        $whereClause .= ' AND DATE(application_date) BETWEEN ? AND ?';
+        $whereClause .= " AND DATE({$dateColumnForFilter}) BETWEEN ? AND ?";
         $params[] = $startDate;
         $params[] = $endDate;
         $types .= 'ss';
+    } else if (isset($_GET['days'])) {
+        $days = intval($_GET['days']);
+        $whereClause .= " AND {$dateColumnForFilter} >= CURDATE() - INTERVAL ? DAY";
+        $params[] = $days;
+        $types .= 'i';
     }
 
     $data = [];
     switch ($metric) {
         case 'deploymentTrend':
+            // CORRECTED: The query now groups by the date the status was updated to 'Deployed'
             $sql = "SELECT DATE(joining_date) as date, COUNT(*) as count FROM applicants $whereClause AND recruitment_status = 13 GROUP BY DATE(joining_date) ORDER BY date ASC";
             break;
         case 'topSources':
@@ -417,11 +434,16 @@ function getChartData($conn) {
             $sql = "SELECT DATE(application_date) as date, COUNT(*) as count FROM applicants $whereClause GROUP BY DATE(application_date) ORDER BY date ASC";
             break;
     }
+
     $stmt = $conn->prepare($sql);
-    if ($stmt && !empty($params)) { $stmt->bind_param($types, ...$params); }
+    if ($stmt && !empty($params)) { 
+        $stmt->bind_param($types, ...$params); 
+    }
     $stmt->execute();
     $result = $stmt->get_result();
-    while($row = $result->fetch_assoc()){ $data[] = $row; }
+    while($row = $result->fetch_assoc()){ 
+        $data[] = $row; 
+    }
     $stmt->close();
     echo json_encode($data);
 }

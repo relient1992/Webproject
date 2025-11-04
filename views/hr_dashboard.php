@@ -124,10 +124,12 @@ if (!isset($_SESSION['employee_id'])) {
                 
                 <!-- Table Controls -->
                 <div class="bg-white p-4 rounded-2xl shadow-md mb-6 flex flex-wrap gap-4 justify-between items-center">
-                    <!-- --- UPDATED: Added search field selector + search input --- -->
-                    <div class="flex flex-col w-full md:w-auto flex-grow gap-2">
-                        <!-- Field Selector Dropdown -->
-                        <select id="searchFieldSelector" multiple class="border rounded-lg p-2 w-full">
+                    <div class="relative w-full md:w-auto flex-grow"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" id="searchInput" class="w-full p-2 pl-10 border rounded-lg" placeholder="Search..."></div>
+                    
+                    <!-- UPDATED: This is now a simple, single-select dropdown -->
+                    <select id="searchFieldSelector" class="p-2 border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="firstname">Firstname</option>
+                            <option value="surname">Surname</option>
                             <option value="street_address">Street Address</option>
                             <option value="city">City</option>
                             <option value="province">Province</option>
@@ -139,19 +141,12 @@ if (!isset($_SESSION['employee_id'])) {
                             <option value="Project">Project</option>
                             <option value="education_level">Education Level</option>
                             <option value="college_degree">College Degree</option>
-                        </select>
-
-                        <!-- Search Input -->
-                        <div class="relative">
-                            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                            <input type="text" id="searchInput" class="w-full p-2 pl-10 border rounded-lg" placeholder="Search...">
-                        </div>
-                    </div>
+                    </select>
 
                     <div class="flex items-center gap-4 flex-wrap">
                         <div class="relative">
                             <i class="fas fa-calendar-alt absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                            <input type="text" id="dateRangePicker" class="p-2 pl-10 border rounded-lg w-64" placeholder="Select date range...">
+                            <input type="text" id="dateRangePicker" class="p-2 pl-10 border rounded-lg w-64" placeholder="Applied date range...">
                         </div>
                         <div class="flex items-center bg-gray-200 rounded-lg p-1">
                             <button id="viewActiveBtn" class="view-toggle-btn px-4 py-1 text-sm font-semibold rounded-md active">Active</button>

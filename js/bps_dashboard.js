@@ -34,6 +34,7 @@ $(function() { // Use jQuery's ready function for initialization
     const singleFilterSelects = $('#filter-site, #filter-tl, #filter-projects, #filter-taskname, #filter-fireflyprocess');
     const employeeViewBtn = $('#employee-view-btn');
     const projectViewBtn = $('#project-view-btn');
+    const efficiencyViewBtn = $('#efficiency-view-btn');
     const multiSelectContainer = $('#taskprojects-multiselect-container');
     const multiSelectButton = multiSelectContainer.find('.multiselect-button');
     const multiSelectDropdown = multiSelectContainer.find('.multiselect-dropdown');
@@ -339,7 +340,7 @@ $(function() { // Use jQuery's ready function for initialization
                     <th data-sort-by="prod_ks_tputs">PROD_KS_TPUTS<i class="fas fa-sort"></i></th>
                     <th data-sort-by="payroll_ks_tputs">PAYROLL_KS_TPUTS<i class="fas fa-sort"></i></th>
                 </tr>`;
-        } else { // Project View
+        } else if (currentView === 'project') {
             sortState.column = 'taskprojects';
             headersHtml = `
                 <tr>
@@ -353,7 +354,21 @@ $(function() { // Use jQuery's ready function for initialization
                     <th data-sort-by="vph">VPH <i class="fas fa-sort"></i></th>
                     <th data-sort-by="utilization">UTILIZATION<i class="fas fa-sort"></i></th>
                 </tr>`;
-        }
+        } else if (currentView === 'efficiency') {
+            sortState.column = 'eds';
+            headersHtml = `
+                <tr>
+                    <th data-sort-by="eds">EDS <i class="fas fa-sort"></i></th>
+                    <th data-sort-by="employee">EMPLOYEE <i class="fas fa-sort"></i></th>
+                    <th data-sort-by="tl_name">TL NAME <i class="fas fa-sort"></i></th>
+                    <th data-sort-by="project">PRIMARY PROJECT <i class="fas fa-sort"></i></th>
+                    <th data-sort-by="earned_pay">Earned Pay<i class="fas fa-sort"></i></th>
+                    <th data-sort-by="net_pay_statutory">Net Pay & Statutory<i class="fas fa-sort"></i></th>
+                    <th data-sort-by="net_pay">Net Pay<i class="fas fa-sort"></i></th>
+                    <th data-sort-by="efficiency_new">Efficiency New<i class="fas fa-sort"></i></th>
+                    <th data-sort-by="efficiency_old">Efficiency Old<i class="fas fa-sort"></i></th>
+                </tr>`;
+            }
         tableHead.html(headersHtml);
         $(`.data-table th[data-sort-by="${sortState.column}"]`).addClass('sorted').find('i').removeClass('fa-sort').addClass('fa-sort-down');
     }
@@ -541,6 +556,7 @@ $(function() { // Use jQuery's ready function for initialization
             currentView = 'employee';
             employeeViewBtn.addClass('active');
             projectViewBtn.removeClass('active');
+            efficiencyViewBtn.removeClass('active');
             initializePage();
         }
     });
@@ -548,6 +564,16 @@ $(function() { // Use jQuery's ready function for initialization
         if(currentView !== 'project') {
             currentView = 'project';
             projectViewBtn.addClass('active');
+            employeeViewBtn.removeClass('active');
+            efficiencyViewBtn.removeClass('active');
+            initializePage();
+        }
+    });
+    efficiencyViewBtn.on('click', () => {
+        if(currentView !== 'efficiency') {
+            currentView = 'efficiency';
+            efficiencyViewBtn.addClass('active');
+            projectViewBtn.removeClass('active');
             employeeViewBtn.removeClass('active');
             initializePage();
         }

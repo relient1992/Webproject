@@ -112,8 +112,15 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    async function refreshAllData() { await Promise.all([fetchDropdownAndStatusData(), fetchData(), fetchChartData(), fetchRecruiterPerformance()]); }
-    
+    async function refreshAllData() { 
+        await fetchDropdownAndStatusData();
+        await Promise.all([
+            fetchData(), 
+            fetchChartData(), 
+            fetchRecruiterPerformance()
+        ]); 
+    }
+
     async function fetchDropdownAndStatusData() { 
         try { 
             const startDate = dateRangePicker.getStartDate()?.toJSDate().toISOString().slice(0, 10); 
@@ -188,18 +195,33 @@ document.addEventListener('DOMContentLoaded', function () {
     
     function getFilteredAndSortedData() {
         const searchTerm = searchInput.value.toLowerCase();
+        const searchField = searchFieldSelector.value; // Get the *single* selected field
+
         const startDate = dateRangePicker.getStartDate()?.toJSDate();
         const endDate = dateRangePicker.getEndDate()?.toJSDate();
         if (startDate) startDate.setHours(0, 0, 0, 0);
         if (endDate) endDate.setHours(23, 59, 59, 999);
 
         let filteredData = allApplicants.filter(applicant => {
-            const matchesSearch = Object.values(applicant).some(value => String(value).toLowerCase().includes(searchTerm));
+            let matchesSearch = false;
+            if (!searchTerm) {
+                matchesSearch = true; // No search term, show all
+            } else if (searchField === 'all') {
+                // Search all fields (original behavior)
+                matchesSearch = Object.values(applicant).some(value => 
+                    String(value).toLowerCase().includes(searchTerm)
+                );
+            } else {
+                // Search only the one selected field
+                matchesSearch = applicant[searchField] && String(applicant[searchField]).toLowerCase().includes(searchTerm);
+            }
+
             if (!startDate && !endDate) return matchesSearch;
             const applicationDate = new Date(applicant.application_date);
             const matchesDate = (!startDate || applicationDate >= startDate) && (!endDate || applicationDate <= endDate);
             return matchesSearch && matchesDate;
         });
+
         filteredData.sort((a, b) => { const valA = a[sortConfig.key] || '', valB = b[sortConfig.key] || ''; if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1; if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1; return 0; });
         return filteredData;
     }

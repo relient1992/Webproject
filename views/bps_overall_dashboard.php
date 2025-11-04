@@ -88,6 +88,7 @@ if (!isset($_SESSION['employee_id'])) {
                     <div class="view-switcher">
                         <button id="employee-view-btn" class="view-btn active">Employee View</button>
                         <button id="project-view-btn" class="view-btn">Project View</button>
+                        <button id="efficiency-view-btn" class="view-btn">Efficiency View</button>
                     </div>
                     <div class="pillbox-container">
                         <!-- Pills will be populated by JS -->
@@ -223,6 +224,7 @@ if (!isset($_SESSION['employee_id'])) {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <!-- This should point to your actual JS file -->
     <script src="../js/bps_dashboard.js"></script>
+    <script src="../js/bps_efficiency.js"></script>
     
 </body>
 </html>

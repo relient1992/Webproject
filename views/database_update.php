@@ -27,29 +27,25 @@ if (!isset($_SESSION['employee_id'])) {
 </head>
 <body>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/paparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 </head>
 <body>
 
 <div class="container">
         <h1>BPS Dashboard Manager</h1>
         <div class="main-actions">
-            <!-- <button class="btn-add" id="addNewBtn">Add New Record</button> -->
             <button class="btn-import" id="importBtn">Advanced Import</button>
         </div>
         <div id="table-container">
-            <!-- <p>Loading data...</p> -->
-        </div>
+            </div>
     </div>
 
-    <!-- Add/Edit Modal -->
     <div id="dataModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="modalTitle">Add Record</h2>
             </div>
             <form id="dataForm">
-                <!-- UPDATED: The name attribute is now 'record_id' -->
                 <input type="hidden" id="recordId" name="record_id">
                 
                 <div class="form-group">
@@ -71,7 +67,6 @@ if (!isset($_SESSION['employee_id'])) {
     </div>
 
 
-    <!-- Advanced Import Modal -->
     <div id="importModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -83,12 +78,12 @@ if (!isset($_SESSION['employee_id'])) {
                     <label for="importType">Import For:</label>
                     <select id="importType" name="importType">
                         <option value="bps_dashboard" selected>BPS Dashboard</option>
-
+                        <option value="efficiency_update">Efficiency Update</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label for="csvFile">Select CSV File</label>
-                    <input type="file" id="csvFile" name="csvFile" accept=".csv">
+                    <input type="file" id="csvFile" name="csvFile" accept=".csv" multiple>
                 </div>
                 <button type="button" class="btn-analyze" id="analyzeBtn">Analyze CSV</button>
             </div>

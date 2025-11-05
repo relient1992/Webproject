@@ -24,7 +24,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const importFeedback = document.getElementById('import-feedback');
     const feedbackText = document.getElementById('feedbackText');
     
-    const API_URL = '../database_update_api.php';
+    // Use the API path from your script
+    const API_URL = '../database_update_api.php'; 
 
     let parsedCsvData = null;
 
@@ -72,9 +73,6 @@ document.addEventListener('DOMContentLoaded', function() {
             tableHTML += '</tbody></table>';
             tableContainer.innerHTML = tableHTML;
         } catch (error) {
-            // UPDATED: Instead of showing the error on the page, we log it to the console.
-            // This prevents the UI from showing an error after a successful import,
-            // while still providing the necessary info for debugging.
             console.error("FetchData failed. This is likely a PHP error in the 'read' action. Full details below:");
             console.error(error.message);
         }
@@ -102,6 +100,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (dataForm) {
         dataForm.addEventListener('submit', async function(e) {
+            // ... (your existing code, no changes needed)
             e.preventDefault();
             const formData = new FormData(dataForm);
             const action = recordIdInput.value ? 'update' : 'create';
@@ -123,6 +122,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (tableContainer) {
         tableContainer.addEventListener('click', async function(e) {
+            // ... (your existing code, no changes needed)
             const target = e.target;
             const id = target.dataset.id;
             if (target.classList.contains('btn-edit')) {
@@ -168,6 +168,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (addNewBtn) {
         addNewBtn.addEventListener('click', () => {
+             // ... (your existing code, no changes needed)
              if(dataForm) {
                 dataForm.reset();
                 recordIdInput.value = '';
@@ -186,89 +187,172 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // --- UPDATED: 'Analyze' button handles both import types ---
     if(analyzeBtn) {
         analyzeBtn.addEventListener('click', function() {
-            const file = csvFile.files[0];
-            if (!file) {
-                alert('Please select a CSV file first.');
-                return;
+            const importType = document.getElementById('importType').value;
+            const fileInput = document.getElementById('csvFile');
+            
+            if (fileInput.files.length === 0) {
+                 alert('Please select a file (or files) first.');
+                 return;
             }
+
             feedbackText.textContent = "Analyzing... this may take a moment.";
             importFeedback.style.display = 'block';
             importStage1.style.display = 'none';
 
-            Papa.parse(file, {
-                header: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    parsedCsvData = results.data;
-                    let minDate = null, maxDate = null;
-                    for (const row of parsedCsvData) {
-                        if (row.proddate) {
-                            const currentDate = new Date(row.proddate);
-                            if (!isNaN(currentDate.getTime())) {
-                                if (!minDate || currentDate < minDate) minDate = currentDate;
-                                if (!maxDate || currentDate > maxDate) maxDate = currentDate;
-                            }
-                        }
-                    }
-                    importFeedback.style.display = 'none';
-                    if (minDate && maxDate) {
-                        const toISODate = (date) => date.toISOString().split('T')[0];
-                        analysisResult.textContent = `Date range found in file: ${toISODate(minDate)} to ${toISODate(maxDate)}.`;
-                        startDateInput.value = toISODate(minDate);
-                        endDateInput.value = toISODate(maxDate);
-                        importStage2.style.display = 'block';
-                    } else {
-                        alert("Analysis failed. Could not find a valid 'proddate' column with recognizable dates.");
-                        importStage1.style.display = 'block';
-                    }
-                },
-                error: function(err) {
+            if (importType === 'efficiency_update') {
+                // --- Efficiency Update: Multi-file, skip parsing ---
+                analysisResult.textContent = `${fileInput.files.length} file(s) selected for import.`;
+                
+                // Clear any old parsed data
+                parsedCsvData = null; 
+                
+                // Set default dates if empty, user must verify
+                const today = new Date().toISOString().split('T')[0];
+                if (!startDateInput.value) startDateInput.value = today;
+                if (!endDateInput.value) endDateInput.value = today;
+                
+                importFeedback.style.display = 'none';
+                importStage2.style.display = 'block';
+
+            } else {
+                // --- BPS Dashboard: Single-file, parse it ---
+                if (fileInput.files.length > 1) {
+                    alert('BPS Dashboard import only supports a single file. Please select only one.');
                     importFeedback.style.display = 'none';
                     importStage1.style.display = 'block';
-                    alert("Error parsing CSV: " + err.message);
+                    return;
                 }
-            });
+                
+                const file = fileInput.files[0];
+                Papa.parse(file, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        parsedCsvData = results.data;
+                        let minDate = null, maxDate = null;
+                        for (const row of parsedCsvData) {
+                            if (row.proddate) {
+                                const currentDate = new Date(row.proddate);
+                                if (!isNaN(currentDate.getTime())) {
+                                    if (!minDate || currentDate < minDate) minDate = currentDate;
+                                    if (!maxDate || currentDate > maxDate) maxDate = currentDate;
+                                }
+                            }
+                        }
+                        importFeedback.style.display = 'none';
+                        if (minDate && maxDate) {
+                            const toISODate = (date) => date.toISOString().split('T')[0];
+                            analysisResult.textContent = `Date range found in file: ${toISODate(minDate)} to ${toISODate(maxDate)}.`;
+                            startDateInput.value = toISODate(minDate);
+                            endDateInput.value = toISODate(maxDate);
+                            importStage2.style.display = 'block';
+                        } else {
+                            alert("Analysis failed. Could not find a valid 'proddate' column with recognizable dates.");
+                            importStage1.style.display = 'block';
+                        }
+                    },
+                    error: function(err) {
+                        importFeedback.style.display = 'none';
+                        importStage1.style.display = 'block';
+                        alert("Error parsing CSV: " + err.message);
+                    }
+                });
+            }
         });
     }
     
+    // --- UPDATED: 'Process Import' button handles both import types ---
     if(processImportBtn) {
         processImportBtn.addEventListener('click', async function() {
-            if (!parsedCsvData) return alert("No data to import.");
             
-            const selectedMode = document.querySelector('input[name="importMode"]:checked').value;
+            const importType = document.getElementById('importType').value;
+            const fileInput = document.getElementById('csvFile');
+            const startDate = startDateInput.value;
+            const endDate = endDateInput.value;
+            const importMode = document.querySelector('input[name="importMode"]:checked').value;
 
-            const payload = {
-                importType: document.getElementById('importType').value,
-                startDate: startDateInput.value,
-                endDate: endDateInput.value,
-                importMode: selectedMode,
-                data: parsedCsvData
-            };
+            if (!startDate || !endDate) {
+                alert('Start and End date are required.');
+                return;
+            }
             
             importStage2.style.display = 'none';
-            feedbackText.textContent = `Importing data for '${payload.importType}'...`;
+            feedbackText.textContent = `Importing data for '${importType}'...`;
             importFeedback.style.display = 'block';
 
             try {
-                const response = await fetch(`${API_URL}?action=bulk_import`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const result = await response.json();
-                if (result.status === 'success') {
-                    feedbackText.textContent = result.message;
-                    setTimeout(() => {
-                        hideModal('importModal');
-                        fetchData();
-                    }, 2000);
+                let response;
+                let result;
+
+                if (importType === 'efficiency_update') {
+                    // --- NEW: Efficiency Update (Multi-file FormData) ---
+                    if (fileInput.files.length === 0) {
+                        throw new Error('No files selected for import.');
+                    }
+                    
+                    const formData = new FormData();
+                    formData.append('importMode', importMode);
+                    formData.append('startDate', startDate);
+                    formData.append('endDate', endDate);
+
+                    // Append all files
+                    for (let i = 0; i < fileInput.files.length; i++) {
+                        // The '[]' is critical for PHP to receive an array
+                        formData.append('csvFiles[]', fileInput.files[i], fileInput.files[i].name);
+                    }
+
+                    // Fetch to the new action
+                    response = await fetch(`${API_URL}?action=bulk_import_multi_csv`, {
+                        method: 'POST',
+                        body: formData
+                        // No Content-Type header needed; browser sets it for FormData
+                    });
+                    
+                    result = await response.json();
+                    if (result.status !== 'success') throw new Error(result.message);
+                    
+                    console.log(result.details); // Log details for debugging
+
                 } else {
-                    throw new Error(result.message);
+                    // --- OLD: BPS Dashboard (Single-file JSON) ---
+                    if (!parsedCsvData) {
+                        throw new Error("No data to import. Please analyze a file first.");
+                    }
+                    
+                    const payload = {
+                        importType: importType,
+                        startDate: startDate,
+                        endDate: endDate,
+                        importMode: importMode,
+                        data: parsedCsvData,
+                        dateColumn: 'proddate' // Hard-code for BPS Dashboard
+                    };
+                    
+                    // Fetch to the original CSV action
+                    // This MUST match the action in your PHP 'switch' statement
+                    response = await fetch(`${API_URL}?action=bulk_import_csv`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    result = await response.json();
+                    if (result.status !== 'success') throw new Error(result.message);
                 }
+
+                // --- Common Success Handling ---
+                feedbackText.textContent = result.message; // Show success message
+                setTimeout(() => {
+                    hideModal('importModal');
+                    fetchData(); // Refresh the main table
+                }, 2000);
+
             } catch (error) {
-                importStage2.style.display = 'block';
+                // --- Common Error Handling ---
+                importStage2.style.display = 'block'; // Show controls again
                 importFeedback.style.display = 'none';
                 alert("Import failed: " + error.message);
             }
@@ -278,7 +362,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Universal Cancel Buttons
     document.querySelectorAll('.btn-cancel').forEach(btn => {
         btn.addEventListener('click', function() {
-            // Find the closest parent modal and hide it
+            // ... (your existing code, no changes needed)
             const modalToClose = this.closest('.modal');
             if (modalToClose) {
                 modalToClose.style.display = 'none';
@@ -288,4 +372,3 @@ document.addEventListener('DOMContentLoaded', function() {
     
     fetchData(); // Initial data load
 });
-

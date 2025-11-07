@@ -1,3 +1,11 @@
+window.dashboardGlobals = {
+    getApiUrl: () => API_URL,
+    getDropdownData: () => dropdownData,
+    refreshAllData: async () => {}, // Placeholder, will be assigned the real function
+    getCurrentView: () => currentView,
+    getFilteredIds: () => [] // Placeholder, will be assigned the real function
+};
+
 document.addEventListener('DOMContentLoaded', function () {
     // --- CONFIG & STATE ---
     let USER_ROLE = 'hr_staff'; 
@@ -12,6 +20,7 @@ document.addEventListener('DOMContentLoaded', function () {
     ];
 
     const ALL_COLUMNS = [
+        { key: 'select', label: '<input type="checkbox" id="selectAllCheckbox" />', editable: false },
         { key: 'application_id', label: 'ID', editable: false },
         { key: 'surname', label: 'Surname', editable: true, type: 'text', required: true },
         { key: 'firstname', label: 'First Name', editable: true, type: 'text', required: true },
@@ -47,12 +56,12 @@ document.addEventListener('DOMContentLoaded', function () {
         { key: 'Project', label: 'Project', editable: true, type: 'text' },
         { key: 'actions', label: 'Actions', editable: false },
     ];
-    const DEFAULT_VISIBLE_COLUMNS = ['surname', 'firstname', 'position_applied', 'recruiter_name', 'recruitment_status_text', 'application_date'];
+    const DEFAULT_VISIBLE_COLUMNS = ['select', 'surname', 'firstname', 'position_applied', 'recruiter_name', 'recruitment_status_text', 'application_date'];
     
     let allApplicants = [], allRecruiterData = [], visibleColumns = [...DEFAULT_VISIBLE_COLUMNS, 'actions'], sortConfig = { key: 'application_date', direction: 'desc' }, currentStatusFilter = 'all', dropdownData = { recruiters: [], statuses: {} };
-    let currentView = 'active', currentPage = 1, rowsPerPage = 10;
+    let currentView = 'active', currentPage = 1, rowsPerPage = 10, selectedApplicants = [];
     let mainChartInstance, sidebarChartInstance;
-    let dateRangePicker, logDateRangePicker;
+    let dateRangePicker; 
 
     const getEl = (id) => document.getElementById(id);
     const tableHead = getEl('tableHead'), tableBody = getEl('tableBody'), searchInput = getEl('searchInput'), columnToggleBtn = getEl('columnToggleBtn'), columnSelector = getEl('columnSelector'), columnCheckboxes = getEl('columnCheckboxes'), closeColumnSelector = getEl('closeColumnSelector'), statusFiltersContainer = getEl('statusFilters'), editModal = getEl('editModal'), editFormContent = getEl('editFormContent'), editForm = getEl('editForm'), deleteBtn = getEl('deleteBtn'), cancelEditBtn = getEl('cancelEditBtn'), editApplicationIdInput = getEl('edit_application_id');
@@ -73,7 +82,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const userInfo = await userRes.json();
             USER_ROLE = userInfo.role || 'hr_staff'; 
             
-            initializeDatePickers();
+            initializePlugins(); // Renamed function
             await refreshAllData();
             setupColumnSelector();
             addEventListeners();
@@ -82,35 +91,29 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function initializeDatePickers() {
+    function initializePlugins() {
         const today = new Date();
         const last7 = new Date(); last7.setDate(today.getDate() - 6);
         const last30 = new Date(); last30.setDate(today.getDate() - 29);
-
+    
         dateRangePicker = new Litepicker({
             element: document.getElementById('dateRangePicker'),
             singleMode: false,
             allowRepick: true,
+            autoApply: false,
+            resetButton: true, // ✅ shows Clear button
             plugins: ['ranges'],
             ranges: {
                 'Last 7 Days': [last7, today],
                 'Last 30 Days': [last30, today],
             },
             setup: (picker) => {
-                picker.on('selected', (date1, date2) => {
-                    refreshAllData();
-                });
+                picker.on('selected', () => refreshAllData());
+                picker.on('clear:selection', () => refreshAllData());
             }
         });
-
-        if (logDateRangePickerEl) {
-             logDateRangePicker = new Litepicker({
-                element: logDateRangePickerEl,
-                singleMode: false,
-                allowRepick: true,
-             });
-        }
     }
+
 
     async function refreshAllData() { 
         await fetchDropdownAndStatusData();
@@ -143,6 +146,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!response.ok) throw new Error('Network response was not ok.'); 
             allApplicants = await response.json(); 
             currentPage = 1; 
+            selectedApplicants = [];
             renderAll(); 
         } catch (error) { 
             tableBody.innerHTML = `<tr><td colspan="${visibleColumns.length}" class="text-center p-8 text-red-500">Failed to load data: ${error.message}</td></tr>`; 
@@ -231,23 +235,43 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderTable(applicants) {
         let headerHTML = '<tr>';
-        ALL_COLUMNS.forEach(col => { if (visibleColumns.includes(col.key)) { let sortClass = sortConfig.key === col.key ? sortConfig.direction : ''; headerHTML += `<th scope="col" class="px-6 py-3 sortable ${sortClass}" data-key="${col.key}">${col.label}</th>`; } });
+        ALL_COLUMNS.forEach(col => { 
+            if (visibleColumns.includes(col.key)) { 
+                let sortClass = sortConfig.key === col.key ? sortConfig.direction : ''; 
+                if (col.key === 'select') {
+                    headerHTML += `<th scope="col" class="px-6 py-3 w-10">${col.label}</th>`;
+                } else {
+                    headerHTML += `<th scope="col" class="px-6 py-3 sortable ${sortClass}" data-key="${col.key}">${col.label}</th>`; 
+                }
+            } 
+        });
         headerHTML += '</tr>'; tableHead.innerHTML = headerHTML;
+        
         let bodyHTML = '';
         if (applicants.length > 0) {
             applicants.forEach(applicant => {
+                const isSelected = selectedApplicants.includes(applicant.application_id);
                 bodyHTML += `<tr class="bg-white border-b hover:bg-gray-50">`;
                 ALL_COLUMNS.forEach(col => {
                     if (visibleColumns.includes(col.key)) {
                         let content = applicant[col.key] === null || applicant[col.key] === undefined ? '' : applicant[col.key];
-                        if (col.key === 'recruiter_name' && currentView === 'active') { let options = `<option value="">- Assign -</option>` + dropdownData.recruiters.map(r => `<option value="${r}" ${r === content ? 'selected' : ''}>${r}</option>`).join(''); content = `<select class="table-select" data-id="${applicant.application_id}" data-field="recruiter_name">${options}</select>`; } 
-                        else if (col.key === 'recruitment_status_text' && currentView === 'active') { 
-                            const fullColorClass = getStatusColorClass(content);
-                            const bgColor = fullColorClass.split(' ').find(c => c.startsWith('bg-')) || 'bg-gray-100';
-                            let options = Object.entries(dropdownData.statuses).map(([id, name]) => `<option value="${id}" ${id == applicant.recruitment_status_id ? 'selected' : ''}>${name}</option>`).join('');
-                            content = `<div class="${bgColor} rounded-full px-1">
-                                           <select class="table-select bg-transparent border-none w-full focus:ring-0 p-1 font-semibold" data-id="${applicant.application_id}" data-field="recruitment_status">${options}</select>
-                                       </div>`;
+                        
+                        if (col.key === 'select') {
+                            content = (currentView === 'active') ? `<input type="checkbox" class="applicant-checkbox" data-id="${applicant.application_id}" ${isSelected ? 'checked' : ''}>` : '';
+                        }
+                        else if (col.key === 'recruiter_name' && currentView === 'active') { let options = `<option value="">- Assign -</option>` + dropdownData.recruiters.map(r => `<option value="${r}" ${r === content ? 'selected' : ''}>${r}</option>`).join(''); content = `<select class="table-select" data-id="${applicant.application_id}" data-field="recruiter_name">${options}</select>`; } 
+                        else if (col.key === 'recruitment_status_text') { 
+                             if (currentView === 'active') {
+                                const fullColorClass = getStatusColorClass(content);
+                                const bgColor = fullColorClass.split(' ').find(c => c.startsWith('bg-')) || 'bg-gray-100';
+                                let options = Object.entries(dropdownData.statuses).map(([id, name]) => `<option value="${id}" ${id == applicant.recruitment_status_id ? 'selected' : ''}>${name}</option>`).join('');
+                                content = `<div class="${bgColor} rounded-full px-1">
+                                            <select class="table-select bg-transparent border-none w-full focus:ring-0 p-1 font-semibold" data-id="${applicant.application_id}" data-field="recruitment_status">${options}</select>
+                                        </div>`;
+                             } else {
+                                const fullColorClass = getStatusColorClass(content);
+                                content = `<span class="px-2 py-1 font-semibold leading-tight ${fullColorClass} rounded-full">${content}</span>`;
+                             }
                         } else if (col.key === 'actions') { content = currentView === 'active' ? `<button class="text-blue-600 hover:underline edit-btn" data-id="${applicant.application_id}">Edit</button>` : `<button class="text-green-600 hover:underline restore-btn" data-id="${applicant.application_id}">Restore</button>`; }
                         else if (col.key.includes('date')) { content = formatDate(content); }
                         bodyHTML += `<td class="px-6 py-4">${content || 'N/A'}</td>`;
@@ -255,7 +279,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
                 bodyHTML += '</tr>';
             });
-        } else { bodyHTML = `<tr><td colspan="${visibleColumns.length}" class="text-center p-8 text-gray-500">No applicants found for this filter.</td></tr>`; }
+        } else { bodyHTML = `<tr><td colspan="${visibleColumns.length + 1}" class="text-center p-8 text-gray-500">No applicants found for this filter.</td></tr>`; }
         tableBody.innerHTML = bodyHTML;
     }
     
@@ -677,22 +701,125 @@ function renderSidebarChart(data) {
             const targetId = e.target.id;
             const formType = targetId.startsWith('add_') ? 'add' : (targetId.startsWith('edit_') ? 'edit' : null);
             
-            if (!formType) return;
-
-            if (targetId.endsWith('_education_level')) {
-                const degreeContainer = document.getElementById(`${formType}_collegeDegreeContainer`);
-                if (degreeContainer) {
-                    degreeContainer.classList.toggle('hidden', e.target.value !== 'College Graduate');
+            // --- EXISTING EDUCATION / DEGREE LOGIC ---
+            if (formType) {
+                if (targetId.endsWith('_education_level')) {
+                    const degreeContainer = document.getElementById(`${formType}_collegeDegreeContainer`);
+                    if (degreeContainer) {
+                        degreeContainer.classList.toggle('hidden', e.target.value !== 'College Graduate');
+                    }
+                }
+                
+                if (targetId.endsWith('_college_degree')) {
+                    const otherDegreeContainer = document.getElementById(`${formType}_otherDegreeContainer`);
+                    if (otherDegreeContainer) {
+                        otherDegreeContainer.classList.toggle('hidden', e.target.value !== 'Other');
+                    }
                 }
             }
-            
-            if (targetId.endsWith('_college_degree')) {
-                const otherDegreeContainer = document.getElementById(`${formType}_otherDegreeContainer`);
-                if (otherDegreeContainer) {
-                    otherDegreeContainer.classList.toggle('hidden', e.target.value !== 'Other');
+        
+            // --- ✅ NEW SECTION: CHECKBOX & BULK ACTION LOGIC ---
+            // Make sure global helpers exist
+            if (typeof window.dashboardGlobals !== 'undefined') {
+                const { getFilteredIds } = window.dashboardGlobals;
+                let selectedApplicants = window.selectedApplicants || [];
+        
+                // Handle individual applicant checkbox
+                if (e.target.classList.contains('applicant-checkbox')) {
+                    const id = parseInt(e.target.dataset.id);
+                    if (e.target.checked) {
+                        if (!selectedApplicants.includes(id)) selectedApplicants.push(id);
+                    } else {
+                        selectedApplicants = selectedApplicants.filter(appId => appId !== id);
+                    }
+                    window.selectedApplicants = selectedApplicants; // persist globally
+                    if (typeof window.renderBulkActionContainer === 'function') {
+                        window.renderBulkActionContainer();
+                    }
+                }
+        
+                // Handle "Select All" checkbox
+                if (e.target.id === 'selectAllCheckbox') {
+                    const isChecked = e.target.checked;
+                    const visibleApplicantIds = getFilteredIds ? getFilteredIds() : [];
+        
+                    selectedApplicants = isChecked ? [...visibleApplicantIds] : [];
+        
+                    document.querySelectorAll('.applicant-checkbox').forEach(checkbox => {
+                        const id = parseInt(checkbox.dataset.id);
+                        checkbox.checked = isChecked && visibleApplicantIds.includes(id);
+                    });
+        
+                    window.selectedApplicants = selectedApplicants; // persist globally
+                    if (typeof window.renderBulkActionContainer === 'function') {
+                        window.renderBulkActionContainer();
+                    }
                 }
             }
         });
+
+        document.addEventListener('change', function(e) {
+            if (e.target.id === 'selectAllCheckbox') {
+                const isChecked = e.target.checked;
+                document.querySelectorAll('.applicant-checkbox').forEach(cb => cb.checked = isChecked);
+                // Update selectedApplicants array accordingly
+                if (isChecked) {
+                    selectedApplicants = allApplicants.map(a => a.application_id);
+                } else {
+                    selectedApplicants = [];
+                }
+            }
+        });
+
+        document.addEventListener('change', function(e) {
+            if (e.target.classList.contains('applicant-checkbox')) {
+                const id = e.target.dataset.id;
+                if (e.target.checked) {
+                    if (!selectedApplicants.includes(id)) selectedApplicants.push(id);
+                } else {
+                    selectedApplicants = selectedApplicants.filter(aid => aid !== id);
+                    // Uncheck "Select All" if any is unchecked
+                    const selectAll = document.getElementById('selectAllCheckbox');
+                    if (selectAll) selectAll.checked = false;
+                }
+            }
+        });
+
+        document.getElementById('applyBulkStatus').addEventListener('click', () => {
+            const selectedIds = Array.from(document.querySelectorAll('.applicant-checkbox:checked'))
+                .map(cb => cb.dataset.id);
+        
+            if (!selectedIds.length) return alert("Please select applicants.");
+        
+            const statusDropdown = document.getElementById('bulkStatusDropdown');
+            const newStatus = statusDropdown.value;
+            const newStatusText = statusDropdown.options[statusDropdown.selectedIndex].text;
+        
+            if (!newStatus) return alert("Please select a status.");
+        
+            // Send update request to backend
+            fetch('../hr_dashboard_api.php?action=bulkUpdateStatus', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ application_ids: selectedIds, new_status: parseInt(newStatus) })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Update the status cell in the table immediately
+                    selectedIds.forEach(id => {
+                        const statusCell = document.querySelector(`.status-cell[data-id='${id}']`);
+                        if (statusCell) statusCell.textContent = newStatusText;
+                    });
+                    alert(data.message);
+                } else {
+                    alert("Error: " + data.message);
+                }
+            })
+            .catch(err => alert("Request failed: " + err));
+        });
+
+
 
         toggleChartBtn.addEventListener('click', () => {
             chartContainer.classList.toggle('hidden');

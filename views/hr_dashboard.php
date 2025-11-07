@@ -25,17 +25,16 @@ if (!isset($_SESSION['employee_id'])) {
     <title>HR Recruitment Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-    <!-- UPDATED: Added the date adapter for Chart.js for improved time scales -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/litepicker/dist/css/litepicker.css" />
     <script src="https://cdn.jsdelivr.net/npm/litepicker/dist/bundle.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/litepicker/dist/css/litepicker.css"/>
+    <script src="https://cdn.jsdelivr.net/npm/litepicker/dist/plugins/ranges.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
     <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
     <style>
-        /* All CSS styles from the previous correct version */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
@@ -45,26 +44,11 @@ if (!isset($_SESSION['employee_id'])) {
         .sortable.asc:after { content: "\f0de"; color: #3b82f6; }
         .sortable.desc:after { content: "\f0dd"; color: #3b82f6; }
         #tableBody:empty:after { content: "Loading applicant data..."; display: block; text-align: center; padding: 2rem; color: #6b7280; }
-        .table-select { background-color: transparent; border: 1px solid transparent; border-radius: 0.375rem; padding: 0.25rem 0.5rem; width: 100%;-webkit-appearance: none; -moz-appearance: none; appearance: none; }
+        .table-select { background-color: transparent; border: 1px solid transparent; border-radius: 0.375rem; padding: 0.25rem 0.5rem; width: 100%; -webkit-appearance: none; -moz-appearance: none; appearance: none; }
         .table-select:hover { border-color: #d1d5db; }
         .table-select:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px #bfdbfe; }
         .filter-link.active { background-color: #eff6ff; color: #2563eb; font-weight: 600; }
         .view-toggle-btn.active { background-color: white; color: #2563eb; box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1); }
-        .choices__inner {
-            background-color: #fff;
-            border: 1px solid #d1d5db;
-            border-radius: 0.5rem;
-            padding: 0.3rem 0.75rem;
-        }
-        .choices[data-type*="select-multiple"] .choices__button, .choices[data-type*="text"] .choices__button {
-            border-left: 1px solid #d1d5db;
-            margin-left: 6px;
-        }
-        .choices__list--dropdown {
-            border-radius: 0.5rem;
-            border: 1px solid #d1d5db;
-        }
-        
     </style>
 </head>
 <body class="bg-gray-100 font-sans text-gray-800">
@@ -121,32 +105,62 @@ if (!isset($_SESSION['employee_id'])) {
                         <canvas id="mainChart"></canvas>
                     </div>
                 </div>
+
+
                 
                 <!-- Table Controls -->
                 <div class="bg-white p-4 rounded-2xl shadow-md mb-6 flex flex-wrap gap-4 justify-between items-center">
-                    <div class="relative w-full md:w-auto flex-grow"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" id="searchInput" class="w-full p-2 pl-10 border rounded-lg" placeholder="Search..."></div>
-                    
-                    <!-- UPDATED: This is now a simple, single-select dropdown -->
-                    <select id="searchFieldSelector" class="p-2 border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="firstname">Firstname</option>
-                            <option value="surname">Surname</option>
-                            <option value="street_address">Street Address</option>
-                            <option value="city">City</option>
-                            <option value="province">Province</option>
-                            <option value="position_applied">Position Applied</option>
-                            <option value="recruiter_name">Recruiter Name</option>
-                            <option value="recruitment_status_text">Recruitment Status</option>
-                            <option value="application_source">Application Source</option>
-                            <option value="interviewers">Interviewers</option>
-                            <option value="Project">Project</option>
-                            <option value="education_level">Education Level</option>
-                            <option value="college_degree">College Degree</option>
+                    <!-- Bulk Status Dropdown -->
+                    <select id="bulkStatusDropdown" class="p-2 border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Select Status</option>
+                        <option value="1">Applied</option>
+                        <option value="2">Failed Speedtest</option>
+                        <option value="3">Initial Interview</option>
+                        <option value="4">Failed L1 Interview</option>
+                        <option value="5">Final Interview</option>
+                        <option value="6">Failed L2 Interview</option>
+                        <option value="7">For BGV</option>
+                        <option value="8">Job Offer</option>
+                        <option value="9">Processing Requirements</option>
+                        <option value="10">Complete Requirements</option>
+                        <option value="11">Onboarding</option>
+                        <option value="12">Pooling</option>
+                        <option value="13">Deployed</option>
+                        <option value="14">Withdrawn</option>
+                        <option value="15">Declined Offer</option>
                     </select>
 
+                    <!-- Apply Button -->
+                    <button id="applyBulkStatus" class="btn">Apply Selected Status to All Checked</button>
+
+                    <!-- Search Input -->
+                    <div class="relative w-full md:w-auto flex-grow">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="text" id="searchInput" class="w-full p-2 pl-10 border rounded-lg" placeholder="Search...">
+                    </div>
+
+                    <!-- Search Field Selector -->
+                    <select id="searchFieldSelector" class="p-2 border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="firstname">Firstname</option>
+                        <option value="surname">Surname</option>
+                        <option value="street_address">Street Address</option>
+                        <option value="city">City</option>
+                        <option value="province">Province</option>
+                        <option value="position_applied">Position Applied</option>
+                        <option value="recruiter_name">Recruiter Name</option>
+                        <option value="recruitment_status_text">Recruitment Status</option>
+                        <option value="application_source">Application Source</option>
+                        <option value="interviewers">Interviewers</option>
+                        <option value="Project">Project</option>
+                        <option value="education_level">Education Level</option>
+                        <option value="college_degree">College Degree</option>
+                    </select>
+
+                    <!-- Date Picker and View Toggle -->
                     <div class="flex items-center gap-4 flex-wrap">
                         <div class="relative">
                             <i class="fas fa-calendar-alt absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                            <input type="text" id="dateRangePicker" class="p-2 pl-10 border rounded-lg w-64" placeholder="Applied date range...">
+                            <input type="text" id="dateRangePicker" class="p-2 pl-10 border rounded-lg w-64" placeholder="Select date range...">
                         </div>
                         <div class="flex items-center bg-gray-200 rounded-lg p-1">
                             <button id="viewActiveBtn" class="view-toggle-btn px-4 py-1 text-sm font-semibold rounded-md active">Active</button>
@@ -154,6 +168,8 @@ if (!isset($_SESSION['employee_id'])) {
                             <button id="viewRecruiterBtn" class="view-toggle-btn px-4 py-1 text-sm font-semibold rounded-md text-gray-600">Recruiters</button>
                         </div>
                     </div>
+
+                    <!-- Export and Column Toggle -->
                     <div class="flex items-center gap-4">
                         <button id="exportDataBtn" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700"><i class="fas fa-file-csv mr-2"></i>Export</button>
                         <button id="columnToggleBtn" class="bg-gray-700 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-800"><i class="fas fa-columns mr-2"></i>Columns</button>
@@ -162,7 +178,24 @@ if (!isset($_SESSION['employee_id'])) {
 
                 <!-- Main Data Display Area -->
                 <div id="mainDisplayArea" class="bg-white rounded-2xl shadow-md overflow-x-auto">
-                    <table class="w-full text-sm text-left"><thead id="tableHead"></thead><tbody id="tableBody"></tbody></table>
+                    <table class="w-full text-sm text-left">
+                        <thead id="tableHead">
+                            <tr>
+                                <th class="px-4 py-2 sortable" data-key="id">ID</th>
+                                <th class="px-4 py-2 sortable" data-key="firstname">Firstname</th>
+                                <th class="px-4 py-2 sortable" data-key="surname">Surname</th>
+                                <th class="px-4 py-2 sortable" data-key="position_applied">Position Applied</th>
+                                <th class="px-4 py-2 sortable" data-key="recruiter_name">Recruiter</th>
+                                <th class="px-4 py-2 sortable" data-key="recruitment_status_text">Status</th>
+                                <th class="px-4 py-2 sortable" data-key="application_source">Source</th>
+                                <th class="px-4 py-2 sortable" data-key="interviewers">Interviewers</th>
+                                <th class="px-4 py-2 sortable" data-key="Project">Project</th>
+                                <th class="px-4 py-2 sortable" data-key="education_level">Education Level</th>
+                                <th class="px-4 py-2 sortable" data-key="college_degree">College Degree</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
                     <div id="recruiterPerformanceArea" class="hidden p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
                 </div>
 
@@ -187,6 +220,7 @@ if (!isset($_SESSION['employee_id'])) {
     </div>
 
     <!-- All Modals -->
+    <!-- Column Selector Modal -->
     <div id="columnSelector" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center">
         <div class="bg-white p-8 rounded-lg shadow-xl max-w-lg w-full">
             <h2 class="text-2xl font-bold mb-4">Select Columns to Display</h2>
@@ -196,6 +230,8 @@ if (!isset($_SESSION['employee_id'])) {
             </div>
         </div>
     </div>
+
+    <!-- Edit Modal -->
     <div id="editModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center">
         <div class="bg-white p-8 rounded-lg shadow-xl max-w-4xl w-full max-h-screen overflow-y-auto">
             <h2 class="text-2xl font-bold mb-6">Edit Applicant Details</h2>
@@ -214,11 +250,13 @@ if (!isset($_SESSION['employee_id'])) {
             </form>
         </div>
     </div>
+
+    <!-- Add Applicant Modal -->
     <div id="addApplicantModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center">
         <div class="bg-white p-8 rounded-lg shadow-xl max-w-4xl w-full max-h-screen overflow-y-auto">
             <h2 class="text-2xl font-bold mb-6">Add New Applicant</h2>
             <form id="addApplicantForm" novalidate>
-                 <div id="addFormContent" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+                <div id="addFormContent" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
                 <div class="mt-8 pt-4 border-t flex justify-end items-center gap-4">
                     <button id="cancelAddBtn" type="button" class="bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600">Cancel</button>
                     <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700">Submit Application</button>
@@ -226,6 +264,8 @@ if (!isset($_SESSION['employee_id'])) {
             </form>
         </div>
     </div>
+
+    <!-- Logs Modal -->
     <div id="logsModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center">
         <div class="bg-white p-8 rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] flex flex-col">
             <div class="flex justify-between items-center mb-4">
@@ -235,49 +275,49 @@ if (!isset($_SESSION['employee_id'])) {
                         <i class="fas fa-calendar-alt absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
                         <input type="text" id="logDateRangePicker" class="p-2 pl-10 border rounded-lg w-64" placeholder="Filter logs by date...">
                     </div>
-                    <button id="exportLogsBtn" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700"><i class="fas fa-file-csv mr-2"></i>Export</button>
+                    <button id="exportLogsBtn" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700"><i class="fas fa-file-csv mr-2"></i>Export Logs</button>
+                    <button id="closeLogsModal" class="bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600"><i class="fas fa-times"></i></button>
                 </div>
             </div>
-            <div class="flex-1 overflow-y-auto border rounded-lg">
+            <div id="logsTableContainer" class="overflow-y-auto flex-1">
                 <table class="w-full text-sm text-left">
-                    <thead class="bg-gray-50 text-xs uppercase sticky top-0">
+                    <thead>
                         <tr>
-                            <th class="px-6 py-3">Timestamp</th>
-                            <th class="px-6 py-3">User (ID)</th>
-                            <th class="px-6 py-3">Action</th>
-                            <th class="px-6 py-3">Description</th>
+                            <th class="px-4 py-2">Date/Time</th>
+                            <th class="px-4 py-2">User</th>
+                            <th class="px-4 py-2">Action</th>
+                            <th class="px-4 py-2">Details</th>
                         </tr>
                     </thead>
                     <tbody id="logsTableBody"></tbody>
                 </table>
             </div>
-            <div class="mt-6 text-right">
-                <button id="closeLogsModal" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700">Close</button>
-            </div>
         </div>
     </div>
-    <!-- This is the crucial missing part for bulk upload -->
+
+    <!-- Bulk Upload Modal -->
     <div id="bulkUploadModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center">
-        <div class="bg-white p-8 rounded-lg shadow-xl max-w-lg w-full">
-            <h2 class="text-2xl font-bold mb-4">Bulk Upload Applicants</h2>
-            <p class="text-gray-600 mb-4">Upload a CSV file with applicant data. Please use the provided template to ensure correct formatting.</p>
-            <div class="form-group">
-                <label for="csvFile" class="block text-sm font-medium text-gray-700 mb-1">Select CSV File</label>
-                <input type="file" id="csvFile" name="csvFile" accept=".csv" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-            </div>
-            <div id="uploadFeedback" class="hidden mt-4 text-sm"></div>
-            <div class="mt-6 flex justify-end gap-4">
-                <button id="cancelUploadBtn" type="button" class="bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600">Cancel</button>
-                <button id="processUploadBtn" type="button" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50" disabled>Upload & Process</button>
-            </div>
+        <div class="bg-white p-8 rounded-lg shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto">
+            <h2 class="text-2xl font-bold mb-6">Bulk Upload Applicants</h2>
+            <form id="bulkUploadForm">
+                <input type="file" id="bulkFileInput" accept=".csv,.xlsx" class="mb-4">
+                <div class="flex justify-end gap-4">
+                    <button id="cancelBulkBtn" type="button" class="bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600">Cancel</button>
+                    <button type="submit" class="bg-purple-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-700">Upload</button>
+                </div>
+            </form>
         </div>
     </div>
-    
+
+    <!-- Scripts -->
     <script src="../js/hr_dashboard.js"></script>
     <script src="../js/hr_bulk_upload.js"></script>
     <script src="../js/hr_logs.js"></script>
+    <script src="../js/hr_dashboard_bulk_actions.js"></script>
 </body>
 </html>
+
+
 
 
 

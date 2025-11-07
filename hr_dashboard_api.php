@@ -89,7 +89,8 @@ switch ($action) {
     case 'getRecruiterPerformance': 
         getRecruiterPerformance($conn); 
         break;
-    case 'bulkInsert': bulkInsertApplicants($conn, $loggedInUser); break; 
+    case 'bulkInsert': bulkInsertApplicants($conn, $loggedInUser); break;    
+    case 'bulkUpdateStatus': bulkUpdateStatus($conn, $loggedInUser); break; 
     default:
         http_response_code(400);
         echo json_encode(['status' => 'error', 'message' => 'Invalid action specified.']);
@@ -556,6 +557,48 @@ function bulkInsertApplicants($conn, $userIdentifier) {
     $stmt->close();
 }
 
+function bulkUpdateStatus($conn, $userIdentifier) {
+    $data = json_decode(file_get_contents('php://input'), true);
+    $applicationIds = $data['application_ids'] ?? [];
+    $newStatus = intval($data['new_status'] ?? 0);
+
+    if (empty($applicationIds) || $newStatus <= 0) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Invalid data. Please select applicants and a status.']);
+        exit();
+    }
+
+    $ids = implode(',', array_map('intval', $applicationIds)); // safely convert to integer
+    $sql = "UPDATE applicants SET recruitment_status = ?, status_date = CURDATE() WHERE application_id IN ($ids)";
+
+    $stmt = $conn->prepare($sql);
+    if ($stmt === false) {
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => 'Prepare statement failed: ' . $conn->error]);
+        exit();
+    }
+
+    $stmt->bind_param('i', $newStatus);
+
+    if ($stmt->execute()) {
+        $affectedRows = $stmt->affected_rows;
+        $stmt->close();
+
+        $statusMap = [
+            1 => 'Applied', 2 => 'Failed Speedtest', 3 => 'Initial Interview', 4 => 'Failed L1 Interview', 5 => 'Final Interview',
+            6 => 'Failed L2 Interview', 7 => 'For BGV', 8 => 'Job Offer', 9 => 'Processing Requirements',
+            10 => 'Complete Requirements', 11 => 'Onboarding', 12 => 'Pooling', 13 => 'Deployed', 14 => 'Withdrawn', 15 => 'Declined Offer'
+        ];
+        $statusName = $statusMap[$newStatus] ?? "ID {$newStatus}";
+
+        logAction($conn, $userIdentifier, 'BULK_UPDATE', "Set status to '{$statusName}' for {$affectedRows} applicants (IDs: $ids).");
+
+        echo json_encode(['status' => 'success', 'message' => "Successfully updated {$affectedRows} applicants."]);
+    } else {
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => 'Bulk update failed: ' . $stmt->error]);
+    }
+}
 
 
 ?>

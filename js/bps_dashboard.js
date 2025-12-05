@@ -362,9 +362,9 @@ $(function() { // Use jQuery's ready function for initialization
                     <th data-sort-by="employee">EMPLOYEE <i class="fas fa-sort"></i></th>
                     <th data-sort-by="tl_name">TL NAME <i class="fas fa-sort"></i></th>
                     <th data-sort-by="project">PRIMARY PROJECT <i class="fas fa-sort"></i></th>
-                    <th data-sort-by="earned_pay">Earned Pay<i class="fas fa-sort"></i></th>
+                    <th data-sort-by="earned_pay">Net Pay<i class="fas fa-sort"></i></th>
                     <th data-sort-by="net_pay_statutory">Net Pay & Statutory<i class="fas fa-sort"></i></th>
-                    <th data-sort-by="net_pay">Net Pay<i class="fas fa-sort"></i></th>
+                    <th data-sort-by="net_pay">Earned Pay<i class="fas fa-sort"></i></th>
                     <th data-sort-by="efficiency_new">Efficiency New<i class="fas fa-sort"></i></th>
                     <th data-sort-by="efficiency_old">Efficiency Old<i class="fas fa-sort"></i></th>
                 </tr>`;
@@ -375,7 +375,11 @@ $(function() { // Use jQuery's ready function for initialization
 
     function renderTable(dataToRender) {
         tableBody.empty();
-        const noDataColspan = (currentView === 'employee') ? 12 : 9;
+        const noDataColspan = 
+            (currentView === 'employee') ? 12 : 
+            (currentView === 'project') ? 9 : 
+            (currentView === 'efficiency') ? 9 : 
+            9;
 
         if (dataToRender.length === 0) {
             tableBody.append(`<tr><td colspan="${noDataColspan}" style="text-align:center; padding: 16px;">No data matches the current criteria.</td></tr>`);
@@ -403,7 +407,7 @@ $(function() { // Use jQuery's ready function for initialization
                         <td>${row.prod_ks_tputs ? parseFloat(row.prod_ks_tputs).toFixed(2) : ''}</td>
                         <td>${row.payroll_ks_tputs ? parseFloat(row.payroll_ks_tputs).toFixed(2) : ''}</td>
                     </tr>`;
-            } else { // Project View
+            } else if (currentView === 'project') { // Project View
                 rowHtml = `
                     <tr>
                         <td>${row.taskprojects ?? ''}</td>
@@ -416,6 +420,16 @@ $(function() { // Use jQuery's ready function for initialization
                         <td>${row.vph ? parseFloat(row.vph).toFixed(2) : ''}</td>
                         <td>${row.utilization ? (parseFloat(row.utilization) * 100).toFixed(2) + '%' : ''}</td>
                     </tr>`;
+            } else if (currentView === 'efficiency') {
+                rowHtml = `
+                <tr>
+                    <td>${row.eds ?? ''}</td>
+                    <td>${row.employee ?? ''}</td>
+                    <td>${row.tl_name ?? ''}</td>
+                    <td>${row.primary_project ?? ''}</td>
+                    <td>${row.net_pay ?? ''}</td>
+                    <td>${row.netpay_plus_statutory ?? ''}</td>
+                </tr>`;
             }
             tableBody.append(rowHtml);
         });

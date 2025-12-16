@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clean Applicant Dashboard Wireframe</title>
+<style>
+    :root {
+        --border-color: #000;
+        --border-width: 2px;
+        --radius: 8px;
+        --bg-white: #fff;
+    }
+
+    body {
+        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        color: #000;
+        background-color: #fff;
+        margin: 0;
+        padding: 20px;
+        display: flex;
+    }
+
+    /* --- Utilities --- */
+    .box {
+        border: var(--border-width) solid var(--border-color);
+        border-radius: var(--radius);
+        padding: 15px;
+        background: #fff;
+    }
+    
+    .flex { display: flex; align-items: center; }
+    .flex-between { justify-content: space-between; }
+    .gap-10 { gap: 10px; }
+    .gap-20 { gap: 20px; }
+    .bold { font-weight: bold; }
+    
+    .btn {
+        border: var(--border-width) solid var(--border-color);
+        background: #fff;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-weight: bold;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        text-transform: capitalize;
+    }
+    .btn:hover { background: #f0f0f0; }
+
+    /* --- Sidebar --- */
+    .sidebar {
+        width: 220px;
+        padding-right: 20px;
+        flex-shrink: 0;
+        border-right: 2px solid #000; /* Vertical divider */
+    }
+    .sidebar h2 { font-size: 18px; margin-bottom: 20px; }
+    .menu-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        font-size: 14px;
+        font-weight: 500;
+    }
+    .badge {
+        border: 2px solid #000;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+    .small-chart {
+        margin-top: 50px;
+        border-top: 2px solid #000;
+        padding-top: 10px;
+    }
+
+    /* --- Main Content --- */
+    .main { flex-grow: 1; padding-left: 20px; }
+
+    /* Header */
+    .header { margin-bottom: 20px; }
+    .header h1 { font-size: 24px; margin: 0; }
+    
+    /* KPI Cards */
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 15px;
+        margin-bottom: 15px;
+    }
+    .kpi-card { height: 80px; display: flex; flex-direction: column; justify-content: center; }
+    .kpi-label { font-size: 12px; font-weight: bold; margin-bottom: 5px; }
+    .kpi-value { font-size: 28px; font-weight: 800; }
+
+    /* Analytics Bar */
+    .analytics-bar {
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        padding: 10px;
+    }
+
+    /* Filter Toolbar */
+    .toolbar {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+    }
+    .input-box {
+        border: 2px solid #000;
+        border-radius: 6px;
+        padding: 8px;
+        font-family: inherit;
+        background: #fff;
+    }
+    
+    /* Dropdown Popover simulation */
+    .dropdown-container { position: relative; }
+    .dropdown-menu {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 180px;
+        background: white;
+        border: 2px solid black;
+        border-radius: 6px;
+        box-shadow: 4px 4px 0px rgba(0,0,0,0.2);
+        z-index: 10;
+        padding: 0;
+        list-style: none;
+        margin-top: 5px;
+    }
+    .dropdown-menu li {
+        padding: 8px 12px;
+        border-bottom: 1px solid #eee;
+        font-size: 13px;
+    }
+    .dropdown-menu li:last-child { border-bottom: none; }
+    .dropdown-menu li:hover { background-color: #eee; }
+
+    /* Table */
+    table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        border: 2px solid #000;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    th {
+        background: #fff;
+        border-bottom: 2px solid #000;
+        text-align: left;
+        padding: 12px;
+        font-size: 14px;
+        border-right: 1px solid #ccc;
+    }
+    td {
+        padding: 10px;
+        border-bottom: 1px solid #000;
+        font-size: 13px;
+        border-right: 1px solid #ccc;
+    }
+    tr:last-child td { border-bottom: none; }
+    
+    .status-pill {
+        border: 2px solid #000;
+        border-radius: 12px;
+        padding: 4px 12px;
+        font-size: 12px;
+        font-weight: bold;
+        display: inline-block;
+    }
+
+    /* Icons (using text for simplicity) */
+    .icon { font-style: normal; }
+
+</style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2>Recruitment Filters</h2>
+        <div class="menu-item"><span>All Applicants</span> <span class="badge">25</span></div>
+        <div class="menu-item"><span>Failed Speedtest</span> <span class="badge">1</span></div>
+        <div class="menu-item"><span>Initial Interview</span> <span class="badge">1</span></div>
+        <div class="menu-item"><span>Final Interview</span> <span class="badge">1</span></div>
+        <div class="menu-item"><span>Pooling</span> <span class="badge">3</span></div>
+        <div class="menu-item"><span>Deployed</span> <span class="badge">19</span></div>
+
+        <div class="small-chart">
+            <div style="font-size:12px; font-weight:bold; margin-bottom:5px;">Daily Deployed (Last 7 Days)</div>
+            <svg width="180" height="80" style="overflow:visible">
+                <line x1="0" y1="80" x2="180" y2="80" stroke="black" stroke-width="2"/>
+                <line x1="0" y1="0" x2="0" y2="80" stroke="black" stroke-width="2"/>
+                <polyline points="10,70 40,50 70,60 100,20 130,40 160,10" fill="none" stroke="black" stroke-width="2" />
+            </svg>
+        </div>
+    </div>
+
+    <div class="main">
+        
+        <div class="header flex flex-between">
+            <h1>Applicant Dashboard</h1>
+            <div class="flex gap-10">
+                <button class="btn"><i class="icon">⬇</i> Template</button>
+                <button class="btn"><i class="icon">⬆</i> Bulk Upload</button>
+                <button class="btn">Logs</button>
+                <button class="btn">+ New</button>
+            </div>
+        </div>
+
+        <div class="kpi-grid">
+            <div class="box kpi-card">
+                <div class="kpi-label">Total Applicants</div>
+                <div class="kpi-value">25</div>
+            </div>
+            <div class="box kpi-card">
+                <div class="kpi-label">Interviewing</div>
+                <div class="kpi-value">2</div>
+            </div>
+            <div class="box kpi-card">
+                <div class="kpi-label">Deployed (This Month)</div>
+                <div class="kpi-value">0</div>
+            </div>
+            <div class="box kpi-card">
+                <div class="kpi-label">Avg. Time to Hire</div>
+                <div class="kpi-value">8 days</div>
+            </div>
+        </div>
+
+        <div class="box analytics-bar">
+            <span class="bold" style="margin-right:10px;">Analytics</span>
+            <select class="input-box"><option>Applicant Trend</option></select>
+        </div>
+
+        <div class="box" style="border-bottom: none; border-bottom-left-radius: 0; border-bottom-right-radius: 0; padding-bottom: 20px;">
+            <div class="toolbar">
+                <select class="input-box" style="width:140px"><option>Select Status</option></select>
+                <span style="font-size:12px; align-self:center;">Apply Selected Status to All Checked</span>
+                
+                <input type="text" class="input-box" placeholder="Search..." style="width: 200px;">
+                
+                <div class="dropdown-container">
+                    <div class="input-box" style="width: 120px; cursor:pointer; background:#eee;">Firstname ▼</div>
+                    <ul class="dropdown-menu">
+                        <li>Firstname</li>
+                        <li>Surname</li>
+                        <li>Street Address</li>
+                        <li>City</li>
+                        <li>Province</li>
+                        <li>Position Applied</li>
+                        <li>Recruiter Name</li>
+                    </ul>
+                </div>
+
+                <div class="input-box" style="width:140px; color:#999;">Select date range...</div>
+                
+                <div style="margin-left:auto; display:flex; gap:5px;">
+                    <button class="btn" style="background:#000; color:#fff;">Active</button>
+                    <button class="btn">Archived</button>
+                    <button class="btn">Recruiters</button>
+                    <button class="btn">⬇ Export</button>
+                    <button class="btn">Columns</button>
+                </div>
+            </div>
+        </div>
+
+        <table style="border-top-left-radius: 0; border-top-right-radius: 0; border-top:none;">
+            <thead>
+                <tr>
+                    <th style="width:30px;"><input type="checkbox"></th>
+                    <th>Surname ↕</th>
+                    <th>First Name ↕</th>
+                    <th>Position ↕</th>
+                    <th>Recruiter</th>
+                    <th>Status ↕</th>
+                    <th>Applied On ↕</th>
+                    <th>Actions ↕</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><input type="checkbox"></td>
+                    <td class="bold">admin</td>
+                    <td>test</td>
+                    <td>Call Center Agent</td>
+                    <td>ECLEO, HIEDI</td>
+                    <td><span class="status-pill">Deployed</span></td>
+                    <td>Oct 30, 2025</td>
+                    <td><a href="#" style="color:black; font-weight:bold;">Edit</a></td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox"></td>
+                    <td class="bold">MALLARI</td>
+                    <td>CHRISTOPHER</td>
+                    <td>Data Entry Op</td>
+                    <td>SALAZAR, ANA</td>
+                    <td><span class="status-pill">Deployed</span></td>
+                    <td>Oct 16, 2025</td>
+                    <td><a href="#" style="color:black; font-weight:bold;">Edit</a></td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox"></td>
+                    <td class="bold">BONAOBRA</td>
+                    <td>MAGILYN</td>
+                    <td>Data Entry Op</td>
+                    <td>SALAZAR, ANA</td>
+                    <td><span class="status-pill">Deployed</span></td>
+                    <td>Oct 16, 2025</td>
+                    <td><a href="#" style="color:black; font-weight:bold;">Edit</a></td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox"></td>
+                    <td class="bold">A OVER</td>
+                    <td>CHRISANTA</td>
+                    <td>Data Entry Op</td>
+                    <td>ECLEO, HIEDI</td>
+                    <td><span class="status-pill">Deployed</span></td>
+                    <td>Oct 16, 2025</td>
+                    <td><a href="#" style="color:black; font-weight:bold;">Edit</a></td>
+                </tr>
+            </tbody>
+        </table>
+
+    </div>
+
+</body>
+</html>

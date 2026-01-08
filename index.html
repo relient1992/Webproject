@@ -7,9 +7,48 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="login.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        .form-links {
+            margin-top: 15px;
+            font-size: 0.9em;
+        }
+        .form-links a {
+            color: #007bff;
+            text-decoration: none;
+            margin: 0 5px;
+            cursor: pointer;
+        }
+        .security-section {
+            text-align: left;
+            margin: 10px 0;
+            border-top: 1px solid #ddd;
+            padding-top: 10px;
+        }
+        .security-section label {
+            font-size: 0.8em;
+            font-weight: 600;
+            display: block;
+            margin-top: 10px;
+        }
+        select, .security-section input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .security-section input[type="text"] {
+            background-color: #f9f9f9;
+        }
+        .security-section input[type="text"]:focus {
+            background-color: #fff;
+            border-color: #007bff;
+            outline: none;
+        }
+    </style>
 </head>
 <body>
-    <!-- Main content wrapper -->
     <div class="main-content">
         <div class="container">
             <img src="images/xbp-global.png" alt="Logo" class="logo">
@@ -22,7 +61,12 @@
                     <input type="number" name="employee_id" placeholder="Employee ID" required>
                     <input type="password" name="password" placeholder="Password" required>
                     <button type="submit">Login</button>
-                    <p>Don't have an aaccount? <a href="#" onclick="openForm()">Register</a></p>
+                    
+                    <div class="form-links">
+                        <span>No account yet? <a onclick="openForm()">Register</a></span>
+                        <span>|</span>
+                        <a onclick="openResetForm()">Reset Password</a>
+                    </div>
                 </form>
             </div>
         </div>
@@ -33,119 +77,251 @@
         </div>
     </div>
 
-    <div class="overlay" id="formOverlay" onclick="closeForm()"></div>
+    <div class="overlay" id="formOverlay" onclick="closeAllForms()"></div>
+
     <div class="form-popup" id="registerForm">
-        <form class="form-container" id="registerFormElement" action="register.php" method="POST">
+        <form class="form-container" id="registerFormElement">
             <h2>Register</h2>
             <input type="number" name="employee_id" placeholder="Employee ID" required>
             <input type="password" name="password" id="password" placeholder="Password" required>
             <input type="password" name="confirm_password" id="confirm_password" placeholder="Confirm Password" required>
-            <button type="submit" class="btn">Register</button>
+
+            <div class="security-section">
+                <label>Security Question 1</label>
+                <select name="question1" required>
+                    <option value="" disabled selected>Select a question</option>
+                    <option>What was the name of your first pet?</option>
+                    <option>What is your mother's maiden name?</option>
+                    <option>What was the name of your elementary school?</option>
+                    <option>In what city were you born?</option>
+                    <option>What is your favorite food?</option>
+                    <option>What was your first car?</option>
+                    <option>What is the name of your favorite childhood friend?</option>
+                    <option>What is your favorite movie?</option>
+                    <option>What was the make of your first mobile phone?</option>
+                    <option>What is your favorite color?</option>
+                </select>
+                <input type="text" name="answer1" placeholder="Your Answer" required>
+
+                <label>Security Question 2</label>
+                <select name="question2" required>
+                    <option value="" disabled selected>Select a second question</option>
+                    <option>What is your father's middle name?</option>
+                    <option>What was the name of your first boss?</option>
+                    <option>What is the name of the street you grew up on?</option>
+                    <option>What is your favorite book?</option>
+                    <option>What was your childhood nickname?</option>
+                    <option>Where did you go for your first vacation?</option>
+                    <option>What is the name of your favorite sports team?</option>
+                    <option>What was the name of your first stuffed animal?</option>
+                    <option>What is your dream job?</option>
+                    <option>What is your favorite hobby?</option>
+                </select>
+                <input type="text" name="answer2" placeholder="Your Answer" required>
+            </div>
+
+            <button type="submit" class="btn">Register Account</button>
+            <button type="button" class="btn cancel" onclick="closeAllForms()" style="background-color:#dc3545; margin-top:5px;">Cancel</button>
         </form>
-    </div>        
+    </div>
+
+    <div class="form-popup" id="resetPasswordForm">
+        <form class="form-container" id="resetPasswordElement">
+            <h2>Reset Password</h2>
+            <p style="font-size: 0.8em; color: #666; margin-bottom: 15px;">Enter your Employee ID to verify your identity.</p>
+            
+            <input type="number" name="employee_id" id="reset_employee_id" placeholder="Employee ID" required>
+            
+            <div id="securityQuestionsSection" style="display:none; text-align: left; border-top: 1px solid #ddd; padding-top: 10px; margin-top: 10px;">
+                <p id="display_q1" style="font-weight: 600; font-size: 0.85em; margin-bottom: 5px; color: #333;"></p>
+                <input type="text" name="ans1" placeholder="Answer to Question 1" required>
+                
+                <p id="display_q2" style="font-weight: 600; font-size: 0.85em; margin-bottom: 5px; margin-top: 10px; color: #333;"></p>
+                <input type="text" name="ans2" placeholder="Answer to Question 2" required>
+                
+                <input type="password" name="new_password" id="reset_new_password" placeholder="New Password" required style="margin-top:15px;">
+                <input type="password" name="confirm_new_password" id="confirm_new_password" placeholder="Confirm New Password" required style="margin-top:10px;">
+            </div>
+    
+            <button type="button" id="verifyUserBtn" class="btn" style="background-color: #6c757d;">Verify ID</button>
+            <button type="submit" id="resetSubmitBtn" class="btn" style="display:none;">Update Password</button>
+            <button type="button" class="btn cancel" onclick="closeAllForms()" style="background-color: #dc3545; margin-top: 5px;">Close</button>
+        </form>
+    </div>
 
     <footer class="footer">
+
         <div class="footer-container">
+
             <div class="footer-content">
+
                 <div class="footer-section">
+
                     <h3>XBP Global</h3>
+
                     <p>Transforming business processes through innovative technology solutions and automation.</p>
+
                 </div>
+
             </div>
+
             <div class="footer-bottom">
+
                 <p>Designed & Powered by PH Data/Reports analyst • &copy; 2025 Daryl T. Roallos. All rights reserved.</p>
+
             </div>
+
         </div>
+
     </footer>
 
     <script src="js/time.js"></script>
 
     <script>
+        // --- FORM CONTROL ---
         function openForm() {
+            closeAllForms();
             document.getElementById("registerForm").style.display = "block";
             document.getElementById("formOverlay").style.display = "block";
         }
 
-        function closeForm() {
-          document.getElementById("registerForm").style.display = "none";
-             document.getElementById("formOverlay").style.display = "none";
-    }
-    </script>
-
-    <script>
-        function isStrongPassword(password) {
-            // Must be at least 8 characters, include uppercase, lowercase, number, and special character
-            const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+{}\[\]:;<>,.?~\\/-]).{8,}$/;
-            return regex.test(password);
+        function openResetForm() {
+            closeAllForms();
+            document.getElementById("resetPasswordForm").style.display = "block";
+            document.getElementById("formOverlay").style.display = "block";
         }
 
+        function closeAllForms() {
+            document.getElementById("registerForm").style.display = "none";
+            document.getElementById("resetPasswordForm").style.display = "none";
+            document.getElementById("formOverlay").style.display = "none";
+            // Reset reset form state
+            document.getElementById("securityQuestionsSection").style.display = "none";
+            document.getElementById("resetSubmitBtn").style.display = "none";
+            document.getElementById("verifyUserBtn").style.display = "block";
+        }
+
+        function isStrongPassword(password) {
+            return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+{}\[\]:;<>,.?~\\/-]).{8,}$/.test(password);
+        }
+
+        // --- REGISTRATION LOGIC ---
         document.getElementById('registerFormElement').addEventListener('submit', function(e) {
             e.preventDefault();
-
-            const form = e.target;
+            
+            const form = this;
+            const empId = form.querySelector('[name="employee_id"]').value;
             const password = document.getElementById('password').value;
-            const confirmPassword = document.getElementById('confirm_password').value;
+            const confirm = document.getElementById('confirm_password').value;
 
+            // 1. Basic Validations
             if (!isStrongPassword(password)) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Weak Password',
-                    html: `<p>Your password must be at least 8 characters long and include:</p>
-                        <ul style="text-align: left;">
-                            <li>1 uppercase letter</li>
-                            <li>1 lowercase letter</li>
-                            <li>1 number</li>
-                            <li>1 special character (!@#$%^&*)</li>
-                        </ul>`
-                });
+                Swal.fire('Weak Password', '8+ chars, uppercase, lowercase, number, & special char required.', 'warning');
+                return;
+            }
+            if (password !== confirm) {
+                Swal.fire('Error', 'Passwords do not match.', 'error');
                 return;
             }
 
-            if (password !== confirmPassword) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Password Mismatch',
-                    text: 'Passwords do not match. Please try again.'
-                });
-                return;
-            }
+            // 2. The "Double Check" Prompt
+            Swal.fire({
+                title: 'Confirm Registration',
+                html: `Please confirm the following:<br><br>
+                    <b>Employee ID:</b> ${empId}<br>
+                    <small style="color: gray;">Ensure your security answers are correct before proceeding.</small>`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes, Register!',
+                cancelButtonText: 'Review Info'
+            }).then((result) => {
+                // 3. If user clicks "Yes"
+                if (result.isConfirmed) {
+                    const formData = new FormData(form);
+                    formData.append('action', 'register');
 
-            const formData = new FormData(form);
+                    fetch('register.php', { method: 'POST', body: formData })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            Swal.fire('Success!', data.message, 'success');
+                            form.reset();
+                            closeAllForms();
+                        } else {
+                            Swal.fire('Oops!', data.message, 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Fetch Error:', error);
+                        Swal.fire('Error', 'Could not connect to the server.', 'error');
+                    });
+                }
+            });
+        });
+        // --- RESET PASSWORD: STEP 1 (Verify ID) ---
+        document.getElementById('verifyUserBtn').addEventListener('click', function() {
+            const empId = document.getElementById('reset_employee_id').value;
+            if (!empId) { Swal.fire('Error', 'Enter Employee ID', 'warning'); return; }
 
-            fetch('register.php', {
-                method: 'POST',
-                body: formData
-            })
+            const formData = new FormData();
+            formData.append('action', 'fetch_questions');
+            formData.append('employee_id', empId);
+
+            fetch('register.php', { method: 'POST', body: formData })
             .then(res => res.json())
             .then(data => {
                 if (data.status === 'success') {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Success!',
-                        text: data.message,
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
-                    form.reset();
-                    closeForm();
+                    document.getElementById('display_q1').innerText = "Q1: " + data.q1;
+                    document.getElementById('display_q2').innerText = "Q2: " + data.q2;
+                    document.getElementById('securityQuestionsSection').style.display = 'block';
+                    document.getElementById('resetSubmitBtn').style.display = 'block';
+                    document.getElementById('verifyUserBtn').style.display = 'none';
                 } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Oops!',
-                        text: data.message
-                    });
+                    Swal.fire('Error', data.message, 'error');
+                }
+            });
+        });
+
+        // --- RESET PASSWORD: STEP 2 (Final Submit) ---
+        document.getElementById('resetPasswordElement').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const newPass = document.getElementById('reset_new_password').value;
+            const confirmPass = document.getElementById('confirm_new_password').value;
+            
+            // Check 1: Do they match?
+            if (newPass !== confirmPass) {
+                Swal.fire('Error', 'New passwords do not match. Please try again.', 'error');
+                return;
+            }
+
+            // Check 2: Is it strong enough?
+            if (!isStrongPassword(newPass)) {
+                Swal.fire('Weak Password', 'New password must be at least 8 characters and include uppercase, lowercase, numbers, and symbols.', 'warning');
+                return;
+            }
+
+            const formData = new FormData(this);
+            formData.append('action', 'reset_password');
+
+            fetch('register.php', { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    Swal.fire('Success!', 'Your password has been updated.', 'success');
+                    closeAllForms();
+                    this.reset();
+                } else {
+                    Swal.fire('Verification Failed', data.message, 'error');
                 }
             })
             .catch(error => {
                 console.error(error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Something went wrong. Please try again.'
-                });
+                Swal.fire('Error', 'Something went wrong during the reset.', 'error');
             });
         });
     </script>
-    
 </body>
 </html>

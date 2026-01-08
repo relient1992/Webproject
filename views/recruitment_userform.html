@@ -11,44 +11,44 @@
             box-shadow: 0 0 0 2px #3b82f6; /* A blue ring on focus */
             border-color: #3b82f6;
         }
+        /* Custom scrollbar for the review modal content */
+        #reviewContent::-webkit-scrollbar {
+            width: 6px;
+        }
+        #reviewContent::-webkit-scrollbar-thumb {
+            background-color: #d1d5db;
+            border-radius: 10px;
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans अंतर् ">
 
-    <!-- Main Container -->
     <div class="container mx-auto max-w-4xl p-6 md:p-8">
 
-        <!-- Form Header -->
         <div class="text-center mb-8">
             <h1 class="text-3xl md:text-4xl font-bold text-gray-800">XBP Global Application Form</h1>
             <p class="text-gray-600 mt-2">We're excited to learn more about you. Please fill out the details below.</p>
         </div>
 
-        <!-- Form Card -->
         <div class="bg-white rounded-2xl shadow-lg p-6 md:p-10">
             <form id="recruitmentForm" novalidate>
-                <!-- Personal Information Section -->
                 <div class="mb-8">
                     <h2 class="text-xl font-semibold text-gray-700 border-b pb-2 mb-6">Personal Information</h2>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <!-- Surname -->
                         <div>
                             <label for="surname" class="block text-sm font-medium text-gray-700 mb-1">Surname <span class="text-red-500">*</span></label>
                             <input type="text" id="surname" name="surname" required class="form-input w-full p-2 border border-gray-300 rounded-md transition duration-200" placeholder="e.g., Smith">
                         </div>
-                        <!-- First Name -->
                         <div>
                             <label for="firstname" class="block text-sm font-medium text-gray-700 mb-1">First Name <span class="text-red-500">*</span></label>
                             <input type="text" id="firstname" name="firstname" required class="form-input w-full p-2 border border-gray-300 rounded-md transition duration-200" placeholder="e.g., John">
                         </div>
-                        <!-- Middle Name -->
                         <div>
                             <label for="middlename" class="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
                             <input type="text" id="middlename" name="middlename" class="form-input w-full p-2 border border-gray-300 rounded-md transition duration-200" placeholder="Optional">
                         </div>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                        <!-- Birthday -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Birthday <span class="text-red-500">*</span></label>
                             <div class="grid grid-cols-3 gap-2">
@@ -57,7 +57,6 @@
                                 <select id="birthYear" name="birthYear" required class="form-select w-full p-2 border border-gray-300 rounded-md transition duration-200"></select>
                             </div>
                         </div>
-                        <!-- Gender -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Gender <span class="text-red-500">*</span></label>
                             <div class="flex items-center space-x-6 h-full mt-1">
@@ -74,16 +73,13 @@
                     </div>
                 </div>
 
-                <!-- Contact Information Section -->
                 <div class="mb-8">
                     <h2 class="text-xl font-semibold text-gray-700 border-b pb-2 mb-6">Contact Information</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                         <!-- Mobile Number -->
-                        <div>
+                         <div>
                             <label for="mobile" class="block text-sm font-medium text-gray-700 mb-1">Mobile Number <span class="text-red-500">*</span></label>
                             <input type="tel" id="mobile" name="mobile" required pattern="[0-9]+" title="Please enter numbers only." class="form-input w-full p-2 border border-gray-300 rounded-md transition duration-200" placeholder="e.g., 09171234567">
                         </div>
-                        <!-- Email Address -->
                         <div>
                             <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email Address <span class="text-red-500">*</span></label>
                             <input type="email" id="email" name="email" required pattern="^[^@\s]+@[^@\s]+\.[^@\s]+$" title="Please enter a valid email address." class="form-input w-full p-2 border border-gray-300 rounded-md transition duration-200" placeholder="you@example.com">
@@ -91,38 +87,31 @@
                     </div>
                 </div>
                 
-                <!-- Social Media Section -->
                 <div class="mb-8">
                     <h2 class="text-xl font-semibold text-gray-700 border-b pb-2 mb-6">Social Media Accounts</h2>
                      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Facebook -->
                         <div>
                             <label for="facebook" class="block text-sm font-medium text-gray-700 mb-1">Facebook Profile URL</label>
                             <input type="url" id="facebook" name="facebook_account" class="form-input w-full p-2 border border-gray-300 rounded-md transition duration-200" placeholder="https://facebook.com/your.profile">
                         </div>
-                        <!-- Instagram -->
                         <div>
                             <label for="instagram" class="block text-sm font-medium text-gray-700 mb-1">Instagram Handle</label>
                             <input type="text" id="instagram" name="instagram_account" class="form-input w-full p-2 border border-gray-300 rounded-md transition duration-200" placeholder="@yourhandle">
                         </div>
-                         <!-- Twitter -->
-                        <div>
+                         <div>
                             <label for="twitter" class="block text-sm font-medium text-gray-700 mb-1">Twitter (X) Handle</label>
                             <input type="text" id="twitter" name="twitter_account" class="form-input w-full p-2 border border-gray-300 rounded-md transition duration-200" placeholder="@yourhandle">
                         </div>
-                         <!-- Viber -->
-                        <div>
+                         <div>
                             <label for="viber" class="block text-sm font-medium text-gray-700 mb-1">Viber Number</label>
                             <input type="tel" id="viber" name="viber_account" pattern="[0-9+]+" title="Please enter numbers only." class="form-input w-full p-2 border border-gray-300 rounded-md transition duration-200" placeholder="e.g., 09171234567">
                         </div>
                     </div>
                 </div>
 
-                <!-- Educational Background Section -->
                 <div class="mb-8">
                     <h2 class="text-xl font-semibold text-gray-700 border-b pb-2 mb-6">Educational Background</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Educational Level -->
                         <div>
                              <label for="education_level" class="block text-sm font-medium text-gray-700 mb-1">Highest Educational Attainment <span class="text-red-500">*</span></label>
                             <select id="education_level" name="education_level" required class="form-select w-full p-2 border border-gray-300 rounded-md transition duration-200">
@@ -134,8 +123,7 @@
                                 <option value="Post Graduate">Post Graduate (Master's/Doctorate)</option>
                             </select>
                         </div>
-                         <!-- College Degree (Conditional) -->
-                        <div id="collegeDegreeContainer" class="hidden">
+                         <div id="collegeDegreeContainer" class="hidden">
                              <label for="college_degree" class="block text-sm font-medium text-gray-700 mb-1">College Degree <span class="text-red-500">*</span></label>
                             <select id="college_degree" name="college_degree" class="form-select w-full p-2 border border-gray-300 rounded-md transition duration-200">
                                 <option value="" disabled selected>Select your degree...</option>
@@ -154,45 +142,37 @@
                             </select>
                         </div>
                     </div>
-                    <!-- Other College Degree (Conditional) -->
                     <div id="otherDegreeContainer" class="hidden mt-6">
                         <label for="other_degree" class="block text-sm font-medium text-gray-700 mb-1">If "Other", please specify your degree</label>
                         <input type="text" id="other_degree" name="college_degree_other" class="form-input w-full p-2 border border-gray-300 rounded-md transition duration-200">
                     </div>
                 </div>
 
-                <!-- Address Section -->
                 <div class="mb-8">
                      <h2 class="text-xl font-semibold text-gray-700 border-b pb-2 mb-6">Address</h2>
-                      <!-- Street Address -->
-                     <div class="mb-6">
+                      <div class="mb-6">
                         <label for="street" class="block text-sm font-medium text-gray-700 mb-1">Street Address <span class="text-red-500">*</span></label>
                         <input type="text" id="street" name="street" required class="form-input w-full p-2 border border-gray-300 rounded-md transition duration-200" placeholder="123 Main St, Brgy. Central">
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <!-- City -->
                         <div>
                             <label for="city" class="block text-sm font-medium text-gray-700 mb-1">City <span class="text-red-500">*</span></label>
                             <input type="text" id="city" name="city" required class="form-input w-full p-2 border border-gray-300 rounded-md transition duration-200" placeholder="e.g., Quezon City">
                         </div>
-                        <!-- Province -->
                         <div>
                             <label for="province" class="block text-sm font-medium text-gray-700 mb-1">Province <span class="text-red-500">*</span></label>
                             <input type="text" id="province" name="province" required class="form-input w-full p-2 border border-gray-300 rounded-md transition duration-200" placeholder="e.g., Metro Manila">
                         </div>
-                         <!-- Zip Code -->
-                        <div>
+                         <div>
                             <label for="zipcode" class="block text-sm font-medium text-gray-700 mb-1">Zip Code <span class="text-red-500">*</span></label>
                             <input type="text" id="zipcode" name="zipcode" required pattern="\d{4,}" class="form-input w-full p-2 border border-gray-300 rounded-md transition duration-200" placeholder="e.g., 1100">
                         </div>
                     </div>
                 </div>
                 
-                <!-- Recruitment Details Section -->
                 <div class="mb-8">
                     <h2 class="text-xl font-semibold text-gray-700 border-b pb-2 mb-6">Application Details</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Position Applied -->
                         <div>
                             <label for="position_applied" class="block text-sm font-medium text-gray-700 mb-1">Position Applying For <span class="text-red-500">*</span></label>
                             <select id="position_applied" name="position_applied" required class="form-select w-full p-2 border border-gray-300 rounded-md transition duration-200">
@@ -202,7 +182,6 @@
                                 <option value="Medcoder">Medcoder</option>
                             </select>
                         </div>
-                        <!-- Source of Application -->
                         <div>
                              <label for="application_source" class="block text-sm font-medium text-gray-700 mb-1">How did you hear about us? <span class="text-red-500">*</span></label>
                             <select id="application_source" name="application_source" required class="form-select w-full p-2 border border-gray-300 rounded-md transition duration-200">
@@ -217,7 +196,6 @@
                     </div>
                 </div>
 
-                <!-- Submit Button -->
                 <div class="mt-10 pt-6 border-t">
                      <p class="text-xs text-gray-500 mb-4">Fields marked with <span class="text-red-500">*</span> are required. Please review your information before submitting.</p>
                     <button type="submit" id="submitBtn" class="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-transform transform hover:scale-102">
@@ -229,11 +207,33 @@
         </div>
     </div>
 
-    <!-- Success/Error Message Modal -->
-    <div id="responseModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center hidden">
+    <div id="responseModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center hidden z-50">
         <div class="bg-white p-8 rounded-lg shadow-xl text-center max-w-sm">
             <h2 id="modalTitle" class="text-2xl font-bold mb-4"></h2>
             <p id="modalMessage" class="text-gray-700"></p>
+        </div>
+    </div>
+
+    <div id="reviewModal" class="fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center hidden z-40 p-4">
+        <div class="bg-white w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="p-6 border-b bg-gray-50">
+                <h2 class="text-2xl font-bold text-gray-800">Review Application</h2>
+                <p class="text-sm text-gray-500">Please double-check your entries before the final submission.</p>
+            </div>
+            
+            <div class="p-6 overflow-y-auto" id="reviewContent">
+                <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm text-gray-700" id="reviewDataList">
+                    </dl>
+            </div>
+
+            <div class="p-6 border-t bg-gray-50 flex flex-col sm:flex-row gap-3">
+                <button type="button" id="closeReviewBtn" class="flex-1 px-6 py-3 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-100 transition">
+                    Edit Information
+                </button>
+                <button type="button" id="confirmSubmitBtn" class="flex-1 px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 shadow-lg transition">
+                    Confirm & Submit
+                </button>
+            </div>
         </div>
     </div>
 
@@ -241,4 +241,3 @@
     
 </body>
 </html>
-

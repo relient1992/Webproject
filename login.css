@@ -345,3 +345,48 @@ body {
         font-size: 14px;
     }
 }
+
+/* Styling for the security answer inputs */
+input[name="answer1"], 
+input[name="answer2"] {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    margin-bottom: 15px; /* Space before the next question */
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: #f9f9f9; /* Slightly different color to distinguish from login */
+    font-family: 'Poppins', sans-serif;
+    transition: all 0.3s ease;
+    box-sizing: border-box; /* Ensures padding doesn't affect width */
+}
+
+/* Focus effect for answers */
+input[name="answer1"]:focus, 
+input[name="answer2"]:focus {
+    border-color: #007bff;
+    background-color: #fff;
+    outline: none;
+    box-shadow: 0 0 5px rgba(0, 123, 255, 0.2);
+}
+
+/* Label styling for better clarity */
+.security-section label {
+    display: block;
+    font-size: 0.85rem;
+    color: #555;
+    font-weight: 600;
+    margin-top: 10px;
+}
+
+/* Dropdown styling to match */
+select[name="question1"], 
+select[name="question2"] {
+    width: 100%;
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+    background-color: #fff;
+    cursor: pointer;
+    font-family: 'Poppins', sans-serif;
+}

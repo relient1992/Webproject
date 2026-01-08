@@ -17,10 +17,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const otherDegreeContainer = document.getElementById('otherDegreeContainer');
     const otherDegreeInput = document.getElementById('other_degree');
 
-    // Modal Elements
+    // Modal Elements (Original)
     const responseModal = document.getElementById('responseModal');
     const modalTitle = document.getElementById('modalTitle');
     const modalMessage = document.getElementById('modalMessage');
+
+    // --- NEW: Review Modal Selectors ---
+    const reviewModal = document.getElementById('reviewModal');
+    const reviewDataList = document.getElementById('reviewDataList');
+    const confirmSubmitBtn = document.getElementById('confirmSubmitBtn');
+    const closeReviewBtn = document.getElementById('closeReviewBtn');
     
     // --- Date Population Logic ---
     const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -48,7 +54,7 @@ document.addEventListener('DOMContentLoaded', function() {
         viberInput.addEventListener('input', function() { this.value = this.value.replace(/[^\d+]/g, ''); });
     }
 
-    // --- **FIXED** Conditional Logic for Education Fields ---
+    // --- Conditional Logic for Education Fields ---
     if (educationLevelSelect) {
         educationLevelSelect.addEventListener('change', function() {
             if (this.value === 'College Graduate') {
@@ -57,7 +63,6 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 collegeDegreeContainer.classList.add('hidden');
                 collegeDegreeSelect.required = false;
-                // Also hide the 'other' field if the main level is not College Graduate
                 otherDegreeContainer.classList.add('hidden');
                 otherDegreeInput.required = false;
             }
@@ -76,15 +81,74 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // --- NEW: Function to Populate Review List ---
+    function populateReview() {
+        reviewDataList.innerHTML = ''; // Clear existing
+        const formData = new FormData(form);
+        
+        // Define labels for readable display
+        const fieldLabels = {
+            'surname': 'Surname',
+            'firstname': 'First Name',
+            'middlename': 'Middle Name',
+            'birthMonth': 'Birth Month',
+            'birthDay': 'Birth Day',
+            'birthYear': 'Birth Year',
+            'gender': 'Gender',
+            'mobile': 'Mobile Number',
+            'email': 'Email Address',
+            'education_level': 'Education Level',
+            'college_degree': 'Degree',
+            'street': 'Street',
+            'city': 'City',
+            'province': 'Province',
+            'zipcode': 'Zip Code',
+            'position_applied': 'Position',
+            'application_source': 'Source'
+        };
+
+        formData.forEach((value, key) => {
+            if (fieldLabels[key] && value) {
+                // If it's a month, convert index back to name
+                let displayValue = value;
+                if(key === 'birthMonth') displayValue = months[value - 1];
+
+                const div = document.createElement('div');
+                div.className = 'border-b border-gray-100 pb-2';
+                div.innerHTML = `<dt class="font-semibold text-gray-600">${fieldLabels[key]}</dt><dd class="text-gray-900">${displayValue}</dd>`;
+                reviewDataList.appendChild(div);
+            }
+        });
+    }
+
+    // --- NEW: Close Review Listener ---
+    if (closeReviewBtn) {
+        closeReviewBtn.addEventListener('click', () => {
+            reviewModal.classList.add('hidden');
+        });
+    }
+
     // --- Form Submission Logic ---
     if (form) {
-        form.addEventListener('submit', async function(event) {
-            event.preventDefault();
+        form.addEventListener('submit', function(event) {
+            event.preventDefault(); // Stop initial submission
             
             if (!form.checkValidity()) {
                 form.reportValidity();
                 return;
             }
+
+            // Show the review modal instead of submitting
+            populateReview();
+            reviewModal.classList.remove('hidden');
+        });
+    }
+
+    // --- NEW: Actual Submission Logic (Triggered from Confirm button) ---
+    if (confirmSubmitBtn) {
+        confirmSubmitBtn.addEventListener('click', async function() {
+            // Hide review modal
+            reviewModal.classList.add('hidden');
 
             if (submitBtn) {
                 submitBtn.disabled = true;
@@ -93,11 +157,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const formData = new FormData(form);
 
-            // If 'Other' degree is specified, use its value
             if (collegeDegreeSelect.value === 'Other' && otherDegreeInput.value) {
                 formData.set('college_degree', otherDegreeInput.value);
             }
-            formData.delete('college_degree_other'); // Remove the temporary field
+            formData.delete('college_degree_other');
 
             try {
                 const response = await fetch('../recruitment_applicants.php', {
@@ -114,7 +177,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     setTimeout(() => {
                         responseModal.classList.add('hidden');
                         form.reset();
-                        // Manually hide conditional fields after reset
                         collegeDegreeContainer.classList.add('hidden');
                         otherDegreeContainer.classList.add('hidden');
                     }, 3000);

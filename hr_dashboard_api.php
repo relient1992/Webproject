@@ -98,6 +98,12 @@ switch ($action) {
     case 'bulkUpdateStatus': 
         bulkUpdateStatus($conn, $loggedInUser); 
         break; 
+    case 'saveColumnPrefs': 
+        saveColumnPreferences($conn, $loggedInUser); 
+        break;
+    case 'resetColumnPrefs': 
+        resetColumnPreferences($conn, $loggedInUser); 
+        break;    
     default:
         http_response_code(400);
         echo json_encode(['status' => 'error', 'message' => 'Invalid action specified.']);
@@ -117,7 +123,22 @@ function logAction($conn, $userIdentifier, $actionType, $description) {
 // --- CORE FUNCTIONS ---
 
 function getUserInfo($conn, $employeeId, $role) {
-    echo json_encode(['employee_id' => $employeeId, 'role' => $role]);
+    // UPDATED query to fetch preferences
+    $stmt = $conn->prepare("SELECT dashboard_preferences FROM user_accounts WHERE employee_id = ?");
+    $stmt->bind_param("s", $employeeId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $prefs = null;
+    
+    if ($row = $result->fetch_assoc()) {
+        $prefs = $row['dashboard_preferences'];
+    }
+    
+    echo json_encode([
+        'employee_id' => $employeeId, 
+        'role' => $role,
+        'preferences' => $prefs ? json_decode($prefs, true) : null // Return JSON object or null
+    ]);
 }
 
 function getAllApplicants($conn) {
@@ -581,4 +602,36 @@ function bulkUpdateStatus($conn, $userIdentifier) {
     }
     $stmt->close();
 }
+
+function saveColumnPreferences($conn, $userIdentifier) {
+    $data = json_decode(file_get_contents('php://input'), true);
+    $columns = $data['columns'] ?? [];
+    
+    if (empty($columns)) {
+        echo json_encode(['status' => 'error', 'message' => 'No columns provided.']);
+        exit();
+    }
+
+    // Save as JSON
+    $jsonPrefs = json_encode(['visibleColumns' => $columns]);
+    
+    $stmt = $conn->prepare("UPDATE user_accounts SET dashboard_preferences = ? WHERE employee_id = ?");
+    $stmt->bind_param("ss", $jsonPrefs, $userIdentifier);
+    
+    if ($stmt->execute()) {
+        echo json_encode(['status' => 'success', 'message' => 'Column order saved as default!']);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Failed to save preferences.']);
+    }
+}
+
+function resetColumnPreferences($conn, $userIdentifier) {
+    $stmt = $conn->prepare("UPDATE user_accounts SET dashboard_preferences = NULL WHERE employee_id = ?");
+    if ($stmt->execute()) {
+        echo json_encode(['status' => 'success', 'message' => 'Columns reset to system default.']);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Failed to reset preferences.']);
+    }
+}
+
 ?>

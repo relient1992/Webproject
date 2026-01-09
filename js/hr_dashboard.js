@@ -1,20 +1,22 @@
-// --- GLOBAL HELPERS (Exposed for inline HTML attributes if needed) ---
+// --- GLOBAL HELPERS ---
 window.dashboardGlobals = {
     getApiUrl: () => '../hr_dashboard_api.php',
     getDropdownData: () => dropdownData,
-    refreshAllData: async () => {}, // Will be assigned inside DOMContentLoaded
+    refreshAllData: async () => {}, 
     getCurrentView: () => currentView,
-    getFilteredIds: () => [] // Will be assigned
+    getFilteredIds: () => [] 
 };
 
 document.addEventListener('DOMContentLoaded', function () {
-
 
     // --- CONFIGURATION & STATE ---
     let USER_ROLE = 'hr_staff'; 
     const API_URL = '../hr_dashboard_api.php';
     
-    // 1. College Degrees List (Restored)
+    // Drag & Drop State
+    let dragSrcColumn = null;
+
+    // 1. College Degrees List
     const collegeDegrees = [
         "Bachelor of Science in Information Technology", "Bachelor of Science in Computer Science", 
         "Bachelor of Science in Business Administration", "Bachelor of Arts in Communication",
@@ -23,7 +25,7 @@ document.addEventListener('DOMContentLoaded', function () {
         "Bachelor of Elementary/Secondary Education", "Other"
     ];
 
-    // 2. Position & Expertise Logic (For Pre-screening)
+    // 2. Position & Expertise Logic
     const positionLogic = {
         'Accounting': { label: 'Accounting Specialization', options: ['Payroll Processing', 'Taxation/Compliance', 'Accounts Payable/Receivable', 'General Audit'] },
         'Call Center Agent': { label: 'Account Type Experience', options: ['International Voice', 'Technical Support', 'Sales/Telemarketing', 'Customer Service (Chat/Email)'] },
@@ -39,18 +41,18 @@ document.addEventListener('DOMContentLoaded', function () {
         'Reports Analyst': { label: 'Reporting Tools', options: ['Real-time Monitoring', 'Advanced Excel/VBA', 'Power BI/Tableau', 'SQL/Data Mining'] }
     };
 
-    // 3. Column Definitions (Includes new Screening Columns)
+    // 3. Column Definitions
     const ALL_COLUMNS = [
         { key: 'select', label: '<input type="checkbox" id="selectAllCheckbox" />', editable: false },
         { key: 'application_id', label: 'ID', editable: false },
         { key: 'surname', label: 'Surname', editable: true, type: 'text', required: true },
         { key: 'firstname', label: 'First Name', editable: true, type: 'text', required: true },
         { key: 'middlename', label: 'Middle Name', editable: true, type: 'text' },
-        { key: 'screening_score', label: 'Score', editable: true, type: 'number' }, // NEW
-        { key: 'screening_status', label: 'Pre-Screen', editable: true, type: 'text' }, // NEW
+        { key: 'screening_score', label: 'Score', editable: true, type: 'number' },
+        { key: 'screening_status', label: 'Pre-Screen', editable: true, type: 'text' },
         { key: 'position_applied', label: 'Position', editable: true, type: 'select', options: Object.keys(positionLogic), required: true },
-        { key: 'experience_years', label: 'Experience', editable: true, type: 'select', options: ['0','1','2','3','5'] }, // NEW
-        { key: 'specific_skill', label: 'Expertise', editable: true, type: 'select' }, // NEW (Dynamic options)
+        { key: 'experience_years', label: 'Experience', editable: true, type: 'select', options: ['0','1','2','3','5'] },
+        { key: 'specific_skill', label: 'Expertise', editable: true, type: 'select' },
         { key: 'birthday', label: 'Birthday', editable: true, type: 'date', required: true },
         { key: 'gender', label: 'Gender', editable: true, type: 'select', options: ['Male', 'Female'], required: true },
         { key: 'mobile_number', label: 'Mobile', editable: true, type: 'tel', required: true },
@@ -82,6 +84,7 @@ document.addEventListener('DOMContentLoaded', function () {
         { key: 'actions', label: 'Actions', editable: false },
     ];
 
+    // IMPORTANT: Defined as a separate constant so Reset can use it
     const DEFAULT_VISIBLE_COLUMNS = ['select', 'application_id', 'surname', 'firstname', 'position_applied', 'screening_score', 'screening_status', 'recruitment_status_text','specific_skill','recruiter_name', 'application_date'];
     
     // --- VARIABLES ---
@@ -95,6 +98,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const getEl = (id) => document.getElementById(id);
     const tableHead = getEl('tableHead'), tableBody = getEl('tableBody'), searchInput = getEl('searchInput'), searchFieldSelector = getEl('searchFieldSelector');
     const columnToggleBtn = getEl('columnToggleBtn'), columnSelector = getEl('columnSelector'), columnCheckboxes = getEl('columnCheckboxes'), closeColumnSelector = getEl('closeColumnSelector');
+    const saveViewBtn = getEl('saveViewBtn'), resetViewBtn = getEl('resetViewBtn'); // Buttons
+    
     const statusFiltersContainer = getEl('statusFilters');
     const editModal = getEl('editModal'), editFormContent = getEl('editFormContent'), editForm = getEl('editForm'), deleteBtn = getEl('deleteBtn'), cancelEditBtn = getEl('cancelEditBtn'), editApplicationIdInput = getEl('edit_application_id');
     const newApplicantBtn = getEl('newApplicantBtn'), addApplicantModal = getEl('addApplicantModal'), addApplicantForm = getEl('addApplicantForm'), addFormContent = getEl('addFormContent'), cancelAddBtn = getEl('cancelAddBtn');
@@ -117,9 +122,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function getScoreColorClass(score) {
         const val = parseInt(score);
-        if (val >= 70) return 'score-high'; // Green badge
-        if (val >= 40) return 'score-mid';  // Yellow badge
-        return 'score-low';                 // Red badge
+        if (val >= 70) return 'score-high';
+        if (val >= 40) return 'score-mid';
+        return 'score-low';
     }
 
     function formatDate(dateString) { 
@@ -131,11 +136,24 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- INITIALIZATION ---
     async function initializeDashboard() {
         try {
-            const userRes = await fetch(`${API_URL}?action=getUserInfo`);
+            // Anti-cache: force fresh user data
+            const userRes = await fetch(`${API_URL}?action=getUserInfo&_t=${new Date().getTime()}`);
             if (!userRes.ok) throw new Error("Authentication failed");
             const userInfo = await userRes.json();
             USER_ROLE = userInfo.role || 'hr_staff'; 
             
+            // --- LOAD SAVED COLUMN PREFERENCES ---
+            if (userInfo.preferences && userInfo.preferences.visibleColumns) {
+                const savedCols = userInfo.preferences.visibleColumns;
+                const validCols = savedCols.filter(key => ALL_COLUMNS.some(c => c.key === key));
+                
+                // Safety checks for essential columns
+                if (!validCols.includes('select')) validCols.unshift('select');
+                if (!validCols.includes('actions')) validCols.push('actions');
+                
+                visibleColumns = validCols;
+            }
+
             initializePlugins(); 
             await refreshAllData();
             setupColumnSelector();
@@ -172,11 +190,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- DATA FETCHING ---
     async function refreshAllData() { 
         await fetchDropdownAndStatusData();
-        await Promise.all([
-            fetchData(), 
-            fetchChartData(), 
-            fetchRecruiterPerformance()
-        ]); 
+        await Promise.all([fetchData(), fetchChartData(), fetchRecruiterPerformance()]); 
     }
 
     async function fetchDropdownAndStatusData() { 
@@ -185,22 +199,9 @@ document.addEventListener('DOMContentLoaded', function () {
             const endDate = dateRangePicker.getEndDate()?.toJSDate().toISOString().slice(0, 10);
             let statusUrl = `${API_URL}?action=getStatusCounts&view=${currentView}`;
             if (startDate && endDate) { statusUrl += `&start_date=${startDate}&end_date=${endDate}`; }
-            
-            const [statusRes, dropdownRes] = await Promise.all([
-                fetch(statusUrl), 
-                fetch(`${API_URL}?action=getDropdownData`)
-            ]); 
-            
-            if (!statusRes.ok || !dropdownRes.ok) throw new Error('Failed to fetch auxiliary data.'); 
-            
+            const [statusRes, dropdownRes] = await Promise.all([fetch(statusUrl), fetch(`${API_URL}?action=getDropdownData`)]); 
             const statusCounts = await statusRes.json(); 
             dropdownData = await dropdownRes.json(); 
-            
-            // Update Qualified Count Card
-            if (statusCounts.qualified_total !== undefined && document.getElementById('qualifiedCount')) {
-                document.getElementById('qualifiedCount').textContent = statusCounts.qualified_total;
-            }
-
             renderSidebar(statusCounts); 
         } catch (error) { 
             console.error(error); 
@@ -216,15 +217,10 @@ document.addEventListener('DOMContentLoaded', function () {
             allApplicants = await response.json(); 
             currentPage = 1; 
             selectedApplicants = [];
-            
-            // Reset Select All checkbox
             const selectAll = document.getElementById('selectAllCheckbox');
             if (selectAll) selectAll.checked = false;
-
             renderAll(); 
-        } catch (error) { 
-            tableBody.innerHTML = `<tr><td colspan="${visibleColumns.length}" class="text-center p-8 text-red-500">Failed to load data: ${error.message}</td></tr>`; 
-        } 
+        } catch (error) { tableBody.innerHTML = `<tr><td colspan="99" class="text-center p-8 text-red-500">Failed to load data: ${error.message}</td></tr>`; } 
     }
 
     async function fetchChartData() { 
@@ -234,16 +230,12 @@ document.addEventListener('DOMContentLoaded', function () {
             const endDate = dateRangePicker.getEndDate()?.toJSDate().toISOString().slice(0, 10);
             let chartUrl = `${API_URL}?action=getChartData&metric=${metric}`;
             if (startDate && endDate) { chartUrl += `&start_date=${startDate}&end_date=${endDate}`; }
-            
             const response = await fetch(chartUrl);
             const chartData = await response.json();
             renderMainChart(chartData, metric);
-            
-            // Always fetch Sidebar chart data separately (Last 7 Days fixed)
             const sidebarResponse = await fetch(`${API_URL}?action=getChartData&metric=deploymentTrend&days=7`);
             const sidebarData = await sidebarResponse.json();
             renderSidebarChart(sidebarData);
-
         } catch (error) { console.error('Failed to load chart data:', error); } 
     }
 
@@ -262,8 +254,6 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- RENDERING ---
     function renderAll() {
         const dataToDisplay = getFilteredAndSortedData();
-        
-        // Expose filtered IDs for "Select All" logic
         window.dashboardGlobals.getFilteredIds = () => dataToDisplay.map(a => a.application_id);
 
         if (currentView === 'recruiters') {
@@ -277,13 +267,14 @@ document.addEventListener('DOMContentLoaded', function () {
             renderTable(paginateData(dataToDisplay));
             renderPagination(dataToDisplay.length);
         }
-        updateAnalytics(allApplicants);
+        updateAnalytics(dataToDisplay);
+        // Important: Update checkbox state in case columns were removed via header
+        setupColumnSelector(); 
     }
     
     function getFilteredAndSortedData() {
         const searchTerm = searchInput.value.toLowerCase();
         const searchField = searchFieldSelector ? searchFieldSelector.value : 'firstname';
-
         const startDate = dateRangePicker.getStartDate()?.toJSDate();
         const endDate = dateRangePicker.getEndDate()?.toJSDate();
         if (startDate) startDate.setHours(0, 0, 0, 0);
@@ -291,28 +282,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
         let filteredData = allApplicants.filter(applicant => {
             let matchesSearch = false;
-            if (!searchTerm) {
-                matchesSearch = true;
-            } else {
-                // If specific field is selected, search only that field
-                if (applicant[searchField]) {
-                    matchesSearch = String(applicant[searchField]).toLowerCase().includes(searchTerm);
-                }
-            }
-
+            if (!searchTerm) matchesSearch = true;
+            else if (applicant[searchField]) matchesSearch = String(applicant[searchField]).toLowerCase().includes(searchTerm);
+            
             if (!startDate && !endDate) return matchesSearch;
             const appDateStr = applicant.application_date || applicant.status_date; 
-            const applicationDate = new Date(appDateStr);
-            const matchesDate = (!startDate || applicationDate >= startDate) && (!endDate || applicationDate <= endDate);
+            const matchesDate = (!startDate || new Date(appDateStr) >= startDate) && (!endDate || new Date(appDateStr) <= endDate);
             return matchesSearch && matchesDate;
         });
 
         filteredData.sort((a, b) => { 
             const valA = a[sortConfig.key] || '', valB = b[sortConfig.key] || ''; 
-            // Numeric Sort for Score
-            if (sortConfig.key === 'screening_score') {
-                return sortConfig.direction === 'asc' ? (valA - valB) : (valB - valA);
-            }
+            if (sortConfig.key === 'screening_score') return sortConfig.direction === 'asc' ? (valA - valB) : (valB - valA);
             if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1; 
             if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1; 
             return 0; 
@@ -324,62 +305,149 @@ document.addEventListener('DOMContentLoaded', function () {
     function renderPagination(totalItems) { const totalPages = Math.ceil(totalItems / rowsPerPage); pageInfo.textContent = `Page ${currentPage} of ${totalPages || 1}`; prevPageBtn.disabled = currentPage === 1; nextPageBtn.disabled = currentPage >= totalPages; }
 
     function renderTable(applicants) {
+        // --- HEADER RENDER (With Drag & Drop + Remove Btn) ---
         let headerHTML = '<tr>';
-        ALL_COLUMNS.forEach(col => { 
-            if (visibleColumns.includes(col.key)) { 
-                let sortClass = sortConfig.key === col.key ? sortConfig.direction : ''; 
-                if (col.key === 'select') {
-                    headerHTML += `<th scope="col" class="px-6 py-3 w-10">${col.label}</th>`;
-                } else {
-                    headerHTML += `<th scope="col" class="px-6 py-3 sortable ${sortClass}" data-key="${col.key}">${col.label}</th>`; 
-                }
-            } 
+        visibleColumns.forEach((colKey, index) => { 
+            const colConfig = ALL_COLUMNS.find(c => c.key === colKey);
+            if (!colConfig) return;
+
+            let sortClass = sortConfig.key === colConfig.key ? sortConfig.direction : ''; 
+            const isDraggable = colKey !== 'select' && colKey !== 'actions' ? 'draggable="true"' : '';
+            const dragClass = colKey !== 'select' && colKey !== 'actions' ? 'cursor-move hover:bg-gray-200' : '';
+
+            // Create Remove Button (Small X)
+            let removeBtn = '';
+            if (colKey !== 'select' && colKey !== 'actions') {
+                removeBtn = `<span class="remove-col-btn ml-2 text-gray-400 hover:text-red-500 cursor-pointer" title="Hide Column" data-key="${colKey}"><i class="fas fa-times"></i></span>`;
+            }
+
+            if (colKey === 'select') {
+                headerHTML += `<th scope="col" class="px-6 py-3 w-10">${colConfig.label}</th>`;
+            } else {
+                // Add removeBtn to the header
+                headerHTML += `<th scope="col" class="px-6 py-3 sortable ${sortClass} ${dragClass}" ${isDraggable} data-key="${colKey}" data-index="${index}">
+                    <div class="flex items-center justify-between">
+                        <span>${colConfig.label}</span>
+                        ${removeBtn}
+                    </div>
+                </th>`; 
+            }
         });
-        headerHTML += '</tr>'; tableHead.innerHTML = headerHTML;
+        headerHTML += '</tr>'; 
+        tableHead.innerHTML = headerHTML;
         
+        // --- ADD DRAG LISTENERS ---
+        const ths = tableHead.querySelectorAll('th[draggable="true"]');
+        ths.forEach(th => {
+            th.addEventListener('dragstart', handleDragStart);
+            th.addEventListener('dragover', handleDragOver);
+            th.addEventListener('drop', handleDrop);
+            th.addEventListener('dragenter', handleDragEnter);
+            th.addEventListener('dragleave', handleDragLeave);
+        });
+
+        // --- ADD REMOVE COLUMN LISTENER ---
+        tableHead.querySelectorAll('.remove-col-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent sorting/dragging
+                const keyToRemove = btn.dataset.key;
+                
+                // Update visible columns
+                visibleColumns = visibleColumns.filter(c => c !== keyToRemove);
+                
+                // Re-render table and analytics
+                renderAll();
+                
+                // Optionally save preference immediately (uncomment if desired)
+                // saveViewBtn.click(); 
+            });
+        });
+
         let bodyHTML = '';
         if (applicants.length > 0) {
             applicants.forEach(applicant => {
                 const isSelected = selectedApplicants.includes(parseInt(applicant.application_id));
                 bodyHTML += `<tr class="bg-white border-b hover:bg-gray-50">`;
-                ALL_COLUMNS.forEach(col => {
-                    if (visibleColumns.includes(col.key)) {
-                        let content = applicant[col.key] === null || applicant[col.key] === undefined ? '' : applicant[col.key];
-                        
-                        // --- Custom Cell Rendering ---
-                        if (col.key === 'select') {
-                            content = (currentView === 'active') ? `<input type="checkbox" class="applicant-checkbox" data-id="${applicant.application_id}" ${isSelected ? 'checked' : ''}>` : '';
-                        }
-                        else if (col.key === 'screening_score') {
-                            content = `<span class="${getScoreColorClass(content)}">${content}</span>`;
-                        }
-                        else if (col.key === 'recruiter_name' && currentView === 'active') { 
-                            let options = `<option value="">- Assign -</option>` + dropdownData.recruiters.map(r => `<option value="${r}" ${r === content ? 'selected' : ''}>${r}</option>`).join(''); 
-                            content = `<select class="table-select" data-id="${applicant.application_id}" data-field="recruiter_name">${options}</select>`; 
-                        } 
-                        else if (col.key === 'recruitment_status_text') { 
-                             if (currentView === 'active') {
-                                const fullColorClass = getStatusColorClass(content);
-                                const bgColor = fullColorClass.split(' ').find(c => c.startsWith('bg-')) || 'bg-gray-100';
-                                let options = Object.entries(dropdownData.statuses).map(([id, name]) => `<option value="${id}" ${id == applicant.recruitment_status_id ? 'selected' : ''}>${name}</option>`).join('');
-                                content = `<div class="${bgColor} rounded-full px-1"><select class="table-select bg-transparent border-none w-full focus:ring-0 p-1 font-semibold" data-id="${applicant.application_id}" data-field="recruitment_status">${options}</select></div>`;
-                            } else {
-                                const fullColorClass = getStatusColorClass(content);
-                                content = `<span class="px-2 py-1 font-semibold leading-tight ${fullColorClass} rounded-full">${content}</span>`;
-                            }
-                        } 
-                        else if (col.key === 'actions') { 
-                            content = currentView === 'active' ? `<button class="text-blue-600 hover:underline edit-btn" data-id="${applicant.application_id}">Edit</button>` : `<button class="text-green-600 hover:underline restore-btn" data-id="${applicant.application_id}">Restore</button>`; 
-                        }
-                        else if (col.key.includes('date')) { content = formatDate(content); }
-                        
-                        bodyHTML += `<td class="px-6 py-4">${content || 'N/A'}</td>`;
+                
+                visibleColumns.forEach(colKey => {
+                    const colConfig = ALL_COLUMNS.find(c => c.key === colKey);
+                    if (!colConfig) return;
+
+                    let content = applicant[colKey] === null || applicant[colKey] === undefined ? '' : applicant[colKey];
+                    
+                    if (colKey === 'select') {
+                        content = (currentView === 'active') ? `<input type="checkbox" class="applicant-checkbox" data-id="${applicant.application_id}" ${isSelected ? 'checked' : ''}>` : '';
                     }
+                    else if (colKey === 'screening_score') {
+                        content = `<span class="${getScoreColorClass(content)}">${content}</span>`;
+                    }
+                    else if (colKey === 'recruitment_status_text') { 
+                        if (currentView === 'active') {
+                            const fullColorClass = getStatusColorClass(content);
+                            const bgColor = fullColorClass.split(' ').find(c => c.startsWith('bg-')) || 'bg-gray-100';
+                            let options = Object.entries(dropdownData.statuses).map(([id, name]) => `<option value="${id}" ${id == applicant.recruitment_status_id ? 'selected' : ''}>${name}</option>`).join('');
+                            content = `<div class="${bgColor} rounded-full px-1"><select class="table-select bg-transparent border-none w-full focus:ring-0 p-1 font-semibold" data-id="${applicant.application_id}" data-field="recruitment_status">${options}</select></div>`;
+                        } else {
+                            const fullColorClass = getStatusColorClass(content);
+                            content = `<span class="px-2 py-1 font-semibold leading-tight ${fullColorClass} rounded-full text-xs">${content}</span>`;
+                        }
+                    } 
+                    else if (colKey === 'actions') { 
+                        content = currentView === 'active' ? `<button class="text-blue-600 hover:underline edit-btn" data-id="${applicant.application_id}">Edit</button>` : `<button class="text-green-600 hover:underline restore-btn" data-id="${applicant.application_id}">Restore</button>`; 
+                    }
+                    else if (colKey.includes('date')) { content = formatDate(content); }
+                    else if (colKey === 'recruiter_name' && currentView === 'active') {
+                         let options = `<option value="">- Assign -</option>` + dropdownData.recruiters.map(r => `<option value="${r}" ${r === content ? 'selected' : ''}>${r}</option>`).join(''); 
+                         content = `<select class="table-select" data-id="${applicant.application_id}" data-field="recruiter_name">${options}</select>`; 
+                    }
+
+                    bodyHTML += `<td class="px-6 py-4">${content}</td>`;
                 });
                 bodyHTML += '</tr>';
             });
-        } else { bodyHTML = `<tr><td colspan="${visibleColumns.length + 1}" class="text-center p-8 text-gray-500">No applicants found for this filter.</td></tr>`; }
+        } else { bodyHTML = `<tr><td colspan="${visibleColumns.length}" class="text-center p-8 text-gray-500">No applicants found for this filter.</td></tr>`; }
         tableBody.innerHTML = bodyHTML;
+    }
+
+    // --- DRAG & DROP HANDLERS ---
+    function handleDragStart(e) {
+        dragSrcColumn = e.target.closest('th');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', dragSrcColumn.dataset.key);
+        dragSrcColumn.classList.add('opacity-50', 'bg-blue-100');
+    }
+
+    function handleDragOver(e) { if (e.preventDefault) e.preventDefault(); return false; }
+
+    function handleDragEnter(e) {
+        const target = e.target.closest('th');
+        if (target && target !== dragSrcColumn && target.getAttribute('draggable') === 'true') {
+            target.classList.add('border-l-4', 'border-blue-500');
+        }
+    }
+
+    function handleDragLeave(e) {
+        const target = e.target.closest('th');
+        if (target) target.classList.remove('border-l-4', 'border-blue-500');
+    }
+
+    function handleDrop(e) {
+        if (e.stopPropagation) e.stopPropagation();
+        const targetTh = e.target.closest('th');
+        if (dragSrcColumn && targetTh && targetTh !== dragSrcColumn && targetTh.getAttribute('draggable') === 'true') {
+            const srcKey = dragSrcColumn.dataset.key;
+            const destKey = targetTh.dataset.key;
+            const srcIndex = visibleColumns.indexOf(srcKey);
+            const destIndex = visibleColumns.indexOf(destKey);
+            if (srcIndex > -1 && destIndex > -1) {
+                visibleColumns.splice(srcIndex, 1);
+                visibleColumns.splice(destIndex, 0, srcKey);
+                renderAll();
+            }
+        }
+        if (dragSrcColumn) dragSrcColumn.classList.remove('opacity-50', 'bg-blue-100');
+        tableHead.querySelectorAll('th').forEach(th => th.classList.remove('border-l-4', 'border-blue-500'));
+        return false;
     }
     
     function renderRecruiterPerformance() {
@@ -506,25 +574,16 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function updateAnalytics(applicants) {
-        // Helper to safely update text content only if element exists
         const safeSetText = (id, text) => {
             const el = document.getElementById(id);
             if (el) el.textContent = text;
         };
     
-        // 1. Total Applicants
         safeSetText('totalApplicants', applicants.length);
-        
-        // 2. NEW: Qualified Count (Score >= 70)
-        // This filters the *currently displayed* list for high scores
         const qualified = applicants.filter(a => parseInt(a.screening_score || 0) >= 70).length;
         safeSetText('qualifiedCount', qualified);
-
-        // 3. Interviewing
         const interviewing = applicants.filter(a => ['3', '5'].includes(String(a.recruitment_status_id))).length;
         safeSetText('interviewingCount', interviewing);
-        
-        // 4. Deployed This Month
         const currentMonth = new Date().getMonth();
         const currentYear = new Date().getFullYear();
         const deployedThisMonth = applicants.filter(a => {
@@ -533,8 +592,6 @@ document.addEventListener('DOMContentLoaded', function () {
             return joiningDate.getMonth() === currentMonth && joiningDate.getFullYear() === currentYear;
         }).length;
         safeSetText('deployedThisMonth', deployedThisMonth);
-    
-        // 5. Avg Time to Hire
         const hiredApplicants = applicants.filter(a => a.joining_date && a.application_date && a.recruitment_status_id == '13');
         if(hiredApplicants.length > 0) {
             const totalDays = hiredApplicants.reduce((sum, a) => sum + (new Date(a.joining_date) - new Date(a.application_date)), 0);
@@ -589,8 +646,6 @@ document.addEventListener('DOMContentLoaded', function () {
             if (formType === 'add' && col.key === 'recruitment_status_id') return;
 
             let fieldWrapper = document.createElement('div');
-            
-            // Handle hiding the conditional container logic
             if (col.key === 'college_degree') fieldWrapper.id = `${formType}_collegeDegreeContainer`;
             if (col.key === 'specific_skill') fieldWrapper.id = `${formType}_specificSkillContainer`;
 
@@ -598,12 +653,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 case 'select': 
                     let optionsHTML = `<option value="">- Select -</option>`;
                     let options = [];
-                    
                     if (col.options_key === 'statuses') {
                         optionsHTML = Object.entries(dropdownData.statuses).map(([id, name]) => `<option value="${id}" ${id == applicantData.recruitment_status_id ? 'selected' : ''}>${name}</option>`).join('');
                     } 
                     else if (col.key === 'specific_skill' && applicantData.position_applied) {
-                        // Dynamic load specific skill
                         options = positionLogic[applicantData.position_applied]?.options || [];
                         optionsHTML += options.map(opt => `<option value="${opt}" ${opt === value ? 'selected' : ''}>${opt}</option>`).join('');
                     }
@@ -619,7 +672,6 @@ document.addEventListener('DOMContentLoaded', function () {
             fieldWrapper.innerHTML = label + inputHTML;
             container.appendChild(fieldWrapper);
 
-            // Add 'Other' degree field
             if (col.key === 'college_degree') {
                 let otherWrapper = document.createElement('div');
                 otherWrapper.id = `${formType}_otherDegreeContainer`;
@@ -629,32 +681,19 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
 
-        // Initialize Dynamic Visibility State
-        // 1. Education -> Degree
         const eduSelect = document.getElementById(`${formType}_education_level`);
         const degreeContainer = document.getElementById(`${formType}_collegeDegreeContainer`);
         if(eduSelect && degreeContainer) {
             degreeContainer.classList.toggle('hidden', eduSelect.value !== 'College Graduate' && eduSelect.value !== 'Post Graduate');
         }
-
-        // 2. Position -> Skill
-        const posSelect = document.getElementById(`${formType}_position_applied`);
-        const skillContainer = document.getElementById(`${formType}_specificSkillContainer`);
-        if(posSelect && skillContainer) {
-            // Note: The logic for hiding/showing specific skills depends on if the Position is selected
-            // We usually always show it if a position is selected, or hide it if none.
-        }
     }
 
     function openEditModal(applicant) { 
         editApplicationIdInput.value = applicant.application_id; 
-        
-        // Show Score in Modal
         if(document.getElementById('edit_screening_score_display')) {
             document.getElementById('edit_screening_score_display').textContent = applicant.screening_score || '0';
             document.getElementById('edit_screening_status_display').textContent = applicant.screening_status || 'Pending';
         }
-
         buildFormFields(editFormContent, applicant, 'edit'); 
         deleteBtn.style.display = USER_ROLE === 'hr_manager' || USER_ROLE === 'super_user' ? 'inline-block' : 'none'; 
         editModal.classList.remove('hidden'); 
@@ -741,6 +780,50 @@ document.addEventListener('DOMContentLoaded', function () {
             } 
         });
 
+        if (saveViewBtn) {
+            saveViewBtn.addEventListener('click', () => {
+                fetch(`${API_URL}?action=saveColumnPrefs`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ columns: visibleColumns })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') Swal.fire('Saved!', data.message, 'success');
+                    else Swal.fire('Error', data.message, 'error');
+                });
+            });
+        }
+
+        if (resetViewBtn) {
+            resetViewBtn.addEventListener('click', () => {
+                Swal.fire({
+                    title: 'Reset Columns?',
+                    text: 'This will revert your column order to the system default.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Yes, reset',
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        fetch(`${API_URL}?action=resetColumnPrefs`, { method: 'POST' })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                // FIXED: Manually reset state in JS instantly, no reload needed
+                                visibleColumns = [...DEFAULT_VISIBLE_COLUMNS];
+                                renderAll();
+                                Swal.fire({ icon: 'success', title: 'Reset!', text: 'Columns have been reset to default.', timer: 1500, showConfirmButton: false });
+                            } else {
+                                Swal.fire('Error', data.message, 'error');
+                            }
+                        });
+                    }
+                });
+            });
+        }
+
         document.getElementById('logoutBtn').addEventListener('click', () => {
             Swal.fire({
                 title: 'Are you sure?',
@@ -753,7 +836,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 cancelButtonText: 'Stay logged in'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    // Optional: Show a "Logging out..." spinner before redirecting
                     Swal.fire({
                         title: 'Logging out...',
                         text: 'Please wait.',
@@ -761,7 +843,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         didOpen: () => { Swal.showLoading(); }
                     });
                     
-                    // Redirect after a short delay to let the user see the spinner
                     setTimeout(() => {
                         window.location.href = '../logout.php'; 
                     }, 800);
@@ -794,21 +875,18 @@ document.addEventListener('DOMContentLoaded', function () {
             } 
             if (target.classList.contains('restore-btn')) {
                 const id = target.dataset.id;
-                
                 Swal.fire({
                     title: 'Restore Applicant?',
                     text: "This will move the applicant back to the Active list.",
                     icon: 'question',
                     showCancelButton: true,
-                    confirmButtonColor: '#10b981', // Green for positive action
-                    cancelButtonColor: '#6b7280', // Grey for cancel
+                    confirmButtonColor: '#10b981',
+                    cancelButtonColor: '#6b7280',
                     confirmButtonText: 'Yes, restore record',
                     cancelButtonText: 'Cancel'
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        // Show loading state while fetching
                         Swal.showLoading();
-
                         fetch(`${API_URL}?action=restoreApplicant`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -817,33 +895,15 @@ document.addEventListener('DOMContentLoaded', function () {
                         .then(res => res.json())
                         .then(result => {
                             if (result.status !== 'success') throw new Error(result.message);
-                            
-                            // Success Notification
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Restored!',
-                                text: 'The applicant is now active.',
-                                timer: 1500,
-                                showConfirmButton: false
-                            });
-                            
-                            fetchData(); // Refresh table
+                            Swal.fire({ icon: 'success', title: 'Restored!', text: 'The applicant is now active.', timer: 1500, showConfirmButton: false });
+                            fetchData(); 
                         })
-                        .catch(err => {
-                            // Error Notification
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Action Failed',
-                                text: err.message
-                            });
-                        });
+                        .catch(err => { Swal.fire({ icon: 'error', title: 'Action Failed', text: err.message }); });
                     }
                 });
             }
         });
 
-        // --- CHECKBOX LOGIC (Bulk Actions) ---
-        // Single Checkbox
         tableBody.addEventListener('change', e => {
             if (e.target.classList.contains('applicant-checkbox')) {
                 const id = parseInt(e.target.dataset.id);
@@ -852,7 +912,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
 
-        // Select All Checkbox
         tableHead.addEventListener('change', e => {
             if (e.target.id === 'selectAllCheckbox') {
                 const isChecked = e.target.checked;
@@ -862,54 +921,30 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
 
-        // Apply Bulk Status
         document.getElementById('applyBulkStatus').addEventListener('click', () => {
-            // 1. Validation: Ensure applicants are selected
             if (!selectedApplicants.length) {
-                return Swal.fire({
-                    icon: 'warning',
-                    title: 'No Selection',
-                    text: 'Please select at least one applicant from the list.',
-                    confirmButtonColor: '#3b82f6' // Blue to match theme
-                });
+                return Swal.fire({ icon: 'warning', title: 'No Selection', text: 'Please select at least one applicant from the list.', confirmButtonColor: '#3b82f6' });
             }
-
-            // 2. Validation: Ensure a status is picked
             const statusDropdown = document.getElementById('bulkStatusDropdown');
             const newStatus = statusDropdown.value;
-            // Get the text label (e.g., "Final Interview") for the confirmation message
             const newStatusText = statusDropdown.options[statusDropdown.selectedIndex].text;
 
             if (!newStatus) {
-                return Swal.fire({
-                    icon: 'warning',
-                    title: 'No Status Selected',
-                    text: 'Please select a status to apply to the selected applicants.',
-                    confirmButtonColor: '#3b82f6'
-                });
+                return Swal.fire({ icon: 'warning', title: 'No Status Selected', text: 'Please select a status to apply to the selected applicants.', confirmButtonColor: '#3b82f6' });
             }
 
-            // 3. Confirmation Dialog
             Swal.fire({
                 title: 'Update Multiple Applicants?',
                 text: `You are about to move ${selectedApplicants.length} applicants to "${newStatusText}". This cannot be undone easily.`,
                 icon: 'question',
                 showCancelButton: true,
-                confirmButtonColor: '#3b82f6', // Blue for primary action
-                cancelButtonColor: '#6b7280', // Grey for cancel
+                confirmButtonColor: '#3b82f6', 
+                cancelButtonColor: '#6b7280', 
                 confirmButtonText: 'Yes, apply update',
                 cancelButtonText: 'Cancel'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    // 4. Show Loading Spinner
-                    Swal.fire({
-                        title: 'Processing...',
-                        text: 'Updating applicant records.',
-                        allowOutsideClick: false,
-                        didOpen: () => { Swal.showLoading(); }
-                    });
-
-                    // 5. Perform the API Request
+                    Swal.fire({ title: 'Processing...', text: 'Updating applicant records.', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
                     fetch(`${API_URL}?action=bulkUpdateStatus`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -918,59 +953,30 @@ document.addEventListener('DOMContentLoaded', function () {
                     .then(res => res.json())
                     .then(data => {
                         if (data.status === 'success') {
-                            // 6. Success Notification
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Batch Update Complete',
-                                text: data.message,
-                                timer: 2000,
-                                showConfirmButton: false
-                            });
-
-                            // Refresh UI
+                            Swal.fire({ icon: 'success', title: 'Batch Update Complete', text: data.message, timer: 2000, showConfirmButton: false });
                             refreshAllData();
                             selectedApplicants = [];
                             document.getElementById('selectAllCheckbox').checked = false;
-                            statusDropdown.value = ""; // Reset the dropdown
-                        } else {
-                            throw new Error(data.message);
-                        }
+                            statusDropdown.value = ""; 
+                        } else { throw new Error(data.message); }
                     })
-                    .catch(err => {
-                        // 7. Error Notification
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Update Failed',
-                            text: err.message || err
-                        });
-                    });
+                    .catch(err => { Swal.fire({ icon: 'error', title: 'Update Failed', text: err.message || err }); });
                 }
             });
         });
 
-        // --- DYNAMIC FORM LISTENERS (Inside Modal) ---
         document.addEventListener('change', e => {
             const targetId = e.target.id;
             const formType = targetId.startsWith('add_') ? 'add' : (targetId.startsWith('edit_') ? 'edit' : null);
-            
             if (formType) {
-                // Education Level Change -> Toggle Degree Dropdown
                 if (targetId.endsWith('_education_level')) {
                     const degreeContainer = document.getElementById(`${formType}_collegeDegreeContainer`);
-                    if (degreeContainer) {
-                        degreeContainer.classList.toggle('hidden', e.target.value !== 'College Graduate' && e.target.value !== 'Post Graduate');
-                    }
+                    if (degreeContainer) degreeContainer.classList.toggle('hidden', e.target.value !== 'College Graduate' && e.target.value !== 'Post Graduate');
                 }
-                
-                // College Degree "Other" -> Toggle Text Input
                 if (targetId.endsWith('_college_degree')) {
                     const otherDegreeContainer = document.getElementById(`${formType}_otherDegreeContainer`);
-                    if (otherDegreeContainer) {
-                        otherDegreeContainer.classList.toggle('hidden', e.target.value !== 'Other');
-                    }
+                    if (otherDegreeContainer) otherDegreeContainer.classList.toggle('hidden', e.target.value !== 'Other');
                 }
-
-                // Position -> Update Expertise Dropdown
                 if (targetId.endsWith('_position_applied')) {
                     const skillSelect = document.getElementById(`${formType}_specific_skill`);
                     if (skillSelect) {
@@ -1000,7 +1006,7 @@ document.addEventListener('DOMContentLoaded', function () {
             e.preventDefault();
             if (!addApplicantForm.checkValidity()) { addApplicantForm.reportValidity(); return; }
             const formData = new FormData(addApplicantForm);
-            const submitUrl = '../recruitment_applicants.php'; // Uses public submission script
+            const submitUrl = '../recruitment_applicants.php'; 
             try {
                 const response = await fetch(submitUrl, { method: 'POST', body: formData });
                 const result = await response.json();
@@ -1038,35 +1044,22 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 (function() {
-    // 8 hours in milliseconds (8 * 60 * 60 * 1000)
-    // You can change this to 10000 (10 seconds) to test if it works first
     const INACTIVITY_LIMIT = 8 * 60 * 60 * 1000; 
     let timeoutTimer;
 
     function startTimer() {
-        // Clear the existing timer
         clearTimeout(timeoutTimer);
-        // Set a new timer to trigger logout
         timeoutTimer = setTimeout(doLogout, INACTIVITY_LIMIT);
     }
 
     function doLogout() {
-        // Optional: Alert the user before redirecting
-        // alert("Session timed out due to inactivity.");
-        
-        // Redirect to your logout script
-        // Adjust path if necessary (assuming hr_dashboard.php is in /views/)
         window.location.href = '../logout.php'; 
     }
 
-    // List of events that define "activity"
     const activityEvents = ['mousemove', 'mousedown', 'keypress', 'touchmove', 'scroll', 'click'];
-
-    // Attach listener to all events
     activityEvents.forEach(event => {
         document.addEventListener(event, startTimer, true);
     });
 
-    // Initialize timer on load
     startTimer();
 })();

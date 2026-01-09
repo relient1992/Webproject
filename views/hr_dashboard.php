@@ -177,7 +177,12 @@ if (!isset($_SESSION['employee_id'])) {
 
                     <div class="flex items-center gap-4">
                         <button id="exportDataBtn" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700"><i class="fas fa-file-csv mr-2"></i>Export</button>
-                        <button id="columnToggleBtn" class="bg-gray-700 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-800"><i class="fas fa-columns mr-2"></i>Columns</button>
+                        <div class="flex items-center bg-gray-100 rounded-lg p-1 border">
+                            <!-- <button id="resetViewBtn" class="text-xs font-semibold text-gray-600 px-3 py-2 hover:text-red-600 hover:bg-gray-200 rounded" title="Reset to Default"><i class="fas fa-undo"></i></button> -->
+                            <button id="saveViewBtn" class="text-xs font-semibold text-blue-600 px-3 py-2 hover:bg-blue-100 rounded" title="Save Current Order as Default"><i class="fas fa-save"></i> Save</button>
+                            <div class="w-px h-6 bg-gray-300 mx-1"></div>
+                            <button id="columnToggleBtn" class="text-sm font-bold text-gray-700 px-3 py-2 hover:text-black"><i class="fas fa-columns mr-2"></i>Columns</button>
+                        </div>
                     </div>
                 </div>
 

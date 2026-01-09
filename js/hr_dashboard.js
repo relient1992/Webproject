@@ -1019,16 +1019,59 @@ document.addEventListener('DOMContentLoaded', function () {
 
         deleteBtn.addEventListener('click', async () => {
             const id = editApplicationIdInput.value;
-            if(confirm(`Are you sure you want to archive this applicant?`)) {
-                try {
-                    const response = await fetch(`${API_URL}?action=archiveApplicant`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ application_id: id }) });
-                    const result = await response.json();
-                    if(result.status !== 'success') throw new Error(result.message);
-                    alert('Applicant archived successfully!'); 
-                    editModal.classList.add('hidden');
-                    refreshAllData();
-                } catch (error) { alert('Archive failed: ' + error.message); }
-            }
+            
+            Swal.fire({
+                title: 'Archive Applicant?',
+                text: "This record will be moved to the Archived view and hidden from the active list.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33', // Red to indicate removal
+                cancelButtonColor: '#3085d6', // Blue for cancel
+                confirmButtonText: 'Yes, archive record',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Show Loading Spinner
+                    Swal.fire({
+                        title: 'Archiving...',
+                        text: 'Updating database records.',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); }
+                    });
+
+                    // Perform API Request
+                    fetch(`${API_URL}?action=archiveApplicant`, { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify({ application_id: id }) 
+                    })
+                    .then(res => res.json())
+                    .then(result => {
+                        if(result.status !== 'success') throw new Error(result.message);
+                        
+                        // Success Notification
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Archived Successfully',
+                            text: 'The applicant has been moved to the archives.',
+                            timer: 1500,
+                            showConfirmButton: false
+                        });
+
+                        // Close Modal and Refresh Table
+                        editModal.classList.add('hidden');
+                        refreshAllData();
+                    })
+                    .catch(error => {
+                        // Error Notification
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Archive Failed',
+                            text: error.message
+                        });
+                    });
+                }
+            });
         });
 
         toggleChartBtn.addEventListener('click', () => {

@@ -512,11 +512,19 @@ document.addEventListener('DOMContentLoaded', function () {
             if (el) el.textContent = text;
         };
     
+        // 1. Total Applicants
         safeSetText('totalApplicants', applicants.length);
         
+        // 2. NEW: Qualified Count (Score >= 70)
+        // This filters the *currently displayed* list for high scores
+        const qualified = applicants.filter(a => parseInt(a.screening_score || 0) >= 70).length;
+        safeSetText('qualifiedCount', qualified);
+
+        // 3. Interviewing
         const interviewing = applicants.filter(a => ['3', '5'].includes(String(a.recruitment_status_id))).length;
         safeSetText('interviewingCount', interviewing);
         
+        // 4. Deployed This Month
         const currentMonth = new Date().getMonth();
         const currentYear = new Date().getFullYear();
         const deployedThisMonth = applicants.filter(a => {
@@ -526,6 +534,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }).length;
         safeSetText('deployedThisMonth', deployedThisMonth);
     
+        // 5. Avg Time to Hire
         const hiredApplicants = applicants.filter(a => a.joining_date && a.application_date && a.recruitment_status_id == '13');
         if(hiredApplicants.length > 0) {
             const totalDays = hiredApplicants.reduce((sum, a) => sum + (new Date(a.joining_date) - new Date(a.application_date)), 0);
@@ -783,15 +792,54 @@ document.addEventListener('DOMContentLoaded', function () {
                 const applicant = allApplicants.find(a => a.application_id == target.dataset.id); 
                 if(applicant) openEditModal(applicant); 
             } 
-            if(target.classList.contains('restore-btn')) { 
-                const id = target.dataset.id; 
-                if (confirm(`Are you sure you want to restore this applicant?`)) { 
-                    fetch(`${API_URL}?action=restoreApplicant`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ application_id: id }) })
-                    .then(res => res.json())
-                    .then(result => { if(result.status !== 'success') throw new Error(result.message); alert('Applicant restored!'); fetchData(); })
-                    .catch(err => alert('Restore failed: ' + err.message)); 
-                } 
-            } 
+            if (target.classList.contains('restore-btn')) {
+                const id = target.dataset.id;
+                
+                Swal.fire({
+                    title: 'Restore Applicant?',
+                    text: "This will move the applicant back to the Active list.",
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#10b981', // Green for positive action
+                    cancelButtonColor: '#6b7280', // Grey for cancel
+                    confirmButtonText: 'Yes, restore record',
+                    cancelButtonText: 'Cancel'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Show loading state while fetching
+                        Swal.showLoading();
+
+                        fetch(`${API_URL}?action=restoreApplicant`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ application_id: id })
+                        })
+                        .then(res => res.json())
+                        .then(result => {
+                            if (result.status !== 'success') throw new Error(result.message);
+                            
+                            // Success Notification
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Restored!',
+                                text: 'The applicant is now active.',
+                                timer: 1500,
+                                showConfirmButton: false
+                            });
+                            
+                            fetchData(); // Refresh table
+                        })
+                        .catch(err => {
+                            // Error Notification
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Action Failed',
+                                text: err.message
+                            });
+                        });
+                    }
+                });
+            }
         });
 
         // --- CHECKBOX LOGIC (Bulk Actions) ---
@@ -816,26 +864,88 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Apply Bulk Status
         document.getElementById('applyBulkStatus').addEventListener('click', () => {
-            if (!selectedApplicants.length) return alert("Please select applicants.");
+            // 1. Validation: Ensure applicants are selected
+            if (!selectedApplicants.length) {
+                return Swal.fire({
+                    icon: 'warning',
+                    title: 'No Selection',
+                    text: 'Please select at least one applicant from the list.',
+                    confirmButtonColor: '#3b82f6' // Blue to match theme
+                });
+            }
+
+            // 2. Validation: Ensure a status is picked
             const statusDropdown = document.getElementById('bulkStatusDropdown');
             const newStatus = statusDropdown.value;
-            if (!newStatus) return alert("Please select a status.");
-            
-            fetch(`${API_URL}?action=bulkUpdateStatus`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ application_ids: selectedApplicants, new_status: parseInt(newStatus) })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    alert(data.message);
-                    refreshAllData();
-                    selectedApplicants = [];
-                    document.getElementById('selectAllCheckbox').checked = false;
-                } else { alert("Error: " + data.message); }
-            })
-            .catch(err => alert("Request failed: " + err));
+            // Get the text label (e.g., "Final Interview") for the confirmation message
+            const newStatusText = statusDropdown.options[statusDropdown.selectedIndex].text;
+
+            if (!newStatus) {
+                return Swal.fire({
+                    icon: 'warning',
+                    title: 'No Status Selected',
+                    text: 'Please select a status to apply to the selected applicants.',
+                    confirmButtonColor: '#3b82f6'
+                });
+            }
+
+            // 3. Confirmation Dialog
+            Swal.fire({
+                title: 'Update Multiple Applicants?',
+                text: `You are about to move ${selectedApplicants.length} applicants to "${newStatusText}". This cannot be undone easily.`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#3b82f6', // Blue for primary action
+                cancelButtonColor: '#6b7280', // Grey for cancel
+                confirmButtonText: 'Yes, apply update',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // 4. Show Loading Spinner
+                    Swal.fire({
+                        title: 'Processing...',
+                        text: 'Updating applicant records.',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); }
+                    });
+
+                    // 5. Perform the API Request
+                    fetch(`${API_URL}?action=bulkUpdateStatus`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ application_ids: selectedApplicants, new_status: parseInt(newStatus) })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            // 6. Success Notification
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Batch Update Complete',
+                                text: data.message,
+                                timer: 2000,
+                                showConfirmButton: false
+                            });
+
+                            // Refresh UI
+                            refreshAllData();
+                            selectedApplicants = [];
+                            document.getElementById('selectAllCheckbox').checked = false;
+                            statusDropdown.value = ""; // Reset the dropdown
+                        } else {
+                            throw new Error(data.message);
+                        }
+                    })
+                    .catch(err => {
+                        // 7. Error Notification
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Update Failed',
+                            text: err.message || err
+                        });
+                    });
+                }
+            });
         });
 
         // --- DYNAMIC FORM LISTENERS (Inside Modal) ---

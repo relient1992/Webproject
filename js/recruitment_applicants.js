@@ -135,7 +135,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // 1. Education Weight (Max 30)
         if (edu === "Post Graduate") score += 30;
-        else if (edu === "College Graduate") score += 25;
+        else if (edu === "College Graduate") score += 30;
         else if (edu === "Some College") score += 15;
 
         // 2. Experience Weight (Max 40)

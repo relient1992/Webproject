@@ -1,10 +1,10 @@
 <?php
-// --- ERROR REPORTING (Good for development, remove in production) ---
+// --- ERROR REPORTING ---
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-// Start session to access variables set by your login.php
+// Start session to access variables set by login
 session_start();
 
 header('Content-Type: application/json');
@@ -15,7 +15,6 @@ $username   = "supersu";
 $password   = "H110mds2!";
 $database   = "database_rda";
 
-
 $conn = new mysqli($servername, $username, $password, $database);
 
 if ($conn->connect_error) {
@@ -24,7 +23,11 @@ if ($conn->connect_error) {
     exit();
 }
 
-// --- REAL ROLE-BASED ACCESS CONTROL ---
+// --- FIX FOR Ñ (Set encoding to UTF-8) ---
+// This ensures that special characters like Ñ and ñ are handled correctly.
+$conn->set_charset("utf8mb4");
+
+// --- ROLE-BASED ACCESS CONTROL ---
 if (!isset($_SESSION['employee_id'])) {
     http_response_code(401); 
     echo json_encode(['status' => 'error', 'message' => 'Authentication required. Please log in first.']);
@@ -89,8 +92,12 @@ switch ($action) {
     case 'getRecruiterPerformance': 
         getRecruiterPerformance($conn); 
         break;
-    case 'bulkInsert': bulkInsertApplicants($conn, $loggedInUser); break;    
-    case 'bulkUpdateStatus': bulkUpdateStatus($conn, $loggedInUser); break; 
+    case 'bulkInsert': 
+        bulkInsertApplicants($conn, $loggedInUser); 
+        break;    
+    case 'bulkUpdateStatus': 
+        bulkUpdateStatus($conn, $loggedInUser); 
+        break; 
     default:
         http_response_code(400);
         echo json_encode(['status' => 'error', 'message' => 'Invalid action specified.']);
@@ -118,15 +125,17 @@ function getAllApplicants($conn) {
     $statusFilter = $_GET['status'] ?? 'all';
     $is_archived = ($view === 'archived') ? 1 : 0;
 
+    // UPDATED SELECT: Included the new pre-screening and experience columns
     $sql = "
         SELECT 
             application_id, surname, firstname, middlename, birthday, gender,
             mobile_number, email, street_address, city, province, postcode,
             position_applied, recruiter_name, status_date, application_source,
             application_date, interview_dates, interviewers, feedback_comments,
-            offer_status, offer_date, joining_date, employee_id,
+            offer_status, offer_date, joining_date, employee_id, Project,
             facebook_account, instagram_account, twitter_account, viber_account,
             education_level, college_degree,
+            experience_years, specific_skill, screening_score, screening_status,
             CASE recruitment_status
                 WHEN 1 THEN 'Applied' WHEN 2 THEN 'Failed Speedtest' WHEN 3 THEN 'Initial Interview'
                 WHEN 4 THEN 'Failed L1 Interview' WHEN 5 THEN 'Final Interview' WHEN 6 THEN 'Failed L2 Interview'
@@ -161,11 +170,6 @@ function getAllApplicants($conn) {
     $stmt->execute();
     $result = $stmt->get_result();
 
-    if ($result === false) {
-        http_response_code(500);
-        echo json_encode(['status' => 'error', 'message' => 'Query execution failed: ' . $stmt->error]);
-        exit();
-    }
     $applicants = [];
     while($row = $result->fetch_assoc()) {
         $applicants[] = $row;
@@ -199,14 +203,16 @@ function getStatusCounts($conn) {
         exit();
     }
 
-    if (!empty($params)) {
-        $stmt->bind_param($types, ...$params);
-    }
-    
+    $stmt->bind_param($types, ...$params);
     $stmt->execute();
     $result = $stmt->get_result();
     
     $counts = ['all' => 0];
+
+    // NEW: Count Qualified Applicants (Score >= 70) for the Dashboard Card
+    $q_res = $conn->query("SELECT COUNT(*) as qcount FROM applicants WHERE screening_score >= 70 AND is_archived = 0");
+    $counts['qualified_total'] = ($q_res) ? $q_res->fetch_assoc()['qcount'] : 0;
+
     $statusMap = [
         1 => 'Applied', 2 => 'Failed Speedtest', 3 => 'Initial Interview', 4 => 'Failed L1 Interview', 5 => 'Final Interview', 6 => 'Failed L2 Interview', 7 => 'For BGV', 8 => 'Job Offer', 9 => 'Processing Requirements', 10 => 'Complete Requirements', 11 => 'Onboarding', 12 => 'Pooling', 13 => 'Deployed', 14 => 'Withdrawn', 15 => 'Declined Offer'
     ];
@@ -244,7 +250,11 @@ function getDropdownData($conn) {
 function updateApplicant($conn, $userIdentifier) {
     $data = json_decode(file_get_contents('php://input'), true);
     $applicationId = $data['application_id'] ?? 0;
-    if ($applicationId <= 0) { http_response_code(400); echo json_encode(['status' => 'error', 'message' => 'Invalid Application ID.']); exit(); }
+    if ($applicationId <= 0) { 
+        http_response_code(400); 
+        echo json_encode(['status' => 'error', 'message' => 'Invalid Application ID.']); 
+        exit(); 
+    }
 
     $stmt_select = $conn->prepare("SELECT * FROM applicants WHERE application_id = ?");
     $stmt_select->bind_param("i", $applicationId);
@@ -253,37 +263,54 @@ function updateApplicant($conn, $userIdentifier) {
     $oldData = $result->fetch_assoc();
     $stmt_select->close();
 
-    if (!$oldData) { http_response_code(404); echo json_encode(['status' => 'error', 'message' => 'Applicant not found.']); exit(); }
+    if (!$oldData) { 
+        http_response_code(404); 
+        echo json_encode(['status' => 'error', 'message' => 'Applicant not found.']); 
+        exit(); 
+    }
 
     $setClauses = []; $params = []; $types = '';
-    $allowedColumns = [ 'surname', 'firstname', 'middlename', 'birthday', 'gender', 'mobile_number', 'email', 'street_address', 'city', 'province', 'postcode', 'position_applied', 'recruiter_name', 'recruitment_status', 'status_date', 'application_source', 'interview_dates', 'interviewers', 'feedback_comments', 'offer_status', 'offer_date', 'joining_date', 'employee_id', 'facebook_account', 'instagram_account', 'twitter_account', 'viber_account', 'education_level', 'college_degree' ];
+    // UPDATED: Added new screening and experience columns to the allowed list for updates
+    $allowedColumns = [ 
+        'surname', 'firstname', 'middlename', 'birthday', 'gender', 'mobile_number', 'email', 
+        'street_address', 'city', 'province', 'postcode', 'position_applied', 'recruiter_name', 
+        'recruitment_status', 'status_date', 'application_source', 'interview_dates', 'interviewers', 
+        'feedback_comments', 'offer_status', 'offer_date', 'joining_date', 'employee_id', 'Project',
+        'facebook_account', 'instagram_account', 'twitter_account', 'viber_account', 
+        'education_level', 'college_degree', 'experience_years', 'specific_skill', 'screening_score', 'screening_status' 
+    ];
 
-    foreach ($data as $key => $value) { if ($key === 'application_id') continue; if(in_array($key, $allowedColumns)) { $setClauses[] = "`{$key}` = ?"; $params[] = ($value === '') ? null : $value; $types .= 's'; } }
-    if (empty($setClauses)) { http_response_code(400); echo json_encode(['status' => 'error', 'message' => 'No valid fields to update.']); exit(); }
+    foreach ($data as $key => $value) { 
+        if ($key === 'application_id') continue; 
+        if(in_array($key, $allowedColumns)) { 
+            $setClauses[] = "`{$key}` = ?"; 
+            $params[] = ($value === '') ? null : $value; 
+            // Use 'i' for screening_score if it's numeric
+            $types .= (is_numeric($value) && $key === 'screening_score') ? 'i' : 's'; 
+        } 
+    }
+    
+    if (empty($setClauses)) { 
+        http_response_code(400); 
+        echo json_encode(['status' => 'error', 'message' => 'No valid fields to update.']); 
+        exit(); 
+    }
 
     $sql = "UPDATE applicants SET " . implode(', ', $setClauses) . " WHERE application_id = ?";
-    $types .= 'i'; $params[] = $applicationId;
+    $types .= 'i'; 
+    $params[] = $applicationId;
     
     $stmt = $conn->prepare($sql);
-    if ($stmt === false) { http_response_code(500); echo json_encode(['status' => 'error', 'message' => 'Prepare failed: ' . $conn->error]); exit(); }
+    if ($stmt === false) { 
+        http_response_code(500); 
+        echo json_encode(['status' => 'error', 'message' => 'Prepare failed: ' . $conn->error]); 
+        exit(); 
+    }
     
     $stmt->bind_param($types, ...$params);
     
     if ($stmt->execute()) {
-        $changesDescription = "";
-        $statusMap = [ 1 => 'Applied', 2 => 'Failed Speedtest', 3 => 'Initial Interview', 4 => 'Failed L1 Interview', 5 => 'Final Interview', 6 => 'Failed L2 Interview', 7 => 'For BGV', 8 => 'Job Offer', 9 => 'Processing Requirements', 10 => 'Complete Requirements', 11 => 'Onboarding', 12 => 'Pooling', 13 => 'Deployed', 14 => 'Withdrawn', 15 => 'Declined Offer' ];
-        
-        foreach ($data as $key => $newValue) {
-            if ($key === 'application_id') continue;
-            if (isset($oldData[$key]) && $oldData[$key] != $newValue) {
-                $oldValue = $oldData[$key] ?? 'NULL';
-                $newValue = $newValue ?? 'NULL';
-                if ($key === 'recruitment_status') { $oldValueText = $statusMap[$oldValue] ?? 'Unknown'; $newValueText = $statusMap[$newValue] ?? 'Unknown'; $changesDescription .= "[Status: '{$oldValueText}' -> '{$newValueText}'] "; } else { $changesDescription .= "[{$key}: '{$oldValue}' -> '{$newValue}'] "; }
-            }
-        }
-        if (empty($changesDescription)) { $changesDescription = "No values were changed."; }
-        logAction($conn, $userIdentifier, 'UPDATE', "Updated applicant ID #{$applicationId}. Changes: " . trim($changesDescription));
-        
+        logAction($conn, $userIdentifier, 'UPDATE', "Updated applicant ID #{$applicationId}.");
         echo json_encode(['status' => 'success', 'message' => 'Applicant updated successfully.']);
     } else {
         http_response_code(500);
@@ -294,55 +321,64 @@ function updateApplicant($conn, $userIdentifier) {
 
 
 function archiveApplicant($conn, $userIdentifier, $userRole) {
-    if ($userRole !== 'hr_manager' && $userRole !== 'super_user') { http_response_code(403); echo json_encode(['status' => 'error', 'message' => 'Access Denied.']); exit(); }
+    if ($userRole !== 'hr_manager' && $userRole !== 'super_user') { 
+        http_response_code(403); 
+        echo json_encode(['status' => 'error', 'message' => 'Access Denied.']); 
+        exit(); 
+    }
     
     $data = json_decode(file_get_contents('php://input'), true);
     $applicationId = $data['application_id'] ?? 0;
-    if ($applicationId <= 0) { http_response_code(400); echo json_encode(['status' => 'error', 'message' => 'Invalid Application ID.']); exit(); }
-
-    $stmt_select = $conn->prepare("SELECT surname, firstname FROM applicants WHERE application_id = ?");
-    $stmt_select->bind_param("i", $applicationId); $stmt_select->execute();
-    $applicantNameResult = $stmt_select->get_result()->fetch_assoc();
-    $applicantName = $applicantNameResult ? "({$applicantNameResult['surname']}, {$applicantNameResult['firstname']})" : "";
-    $stmt_select->close();
+    if ($applicationId <= 0) { 
+        http_response_code(400); 
+        echo json_encode(['status' => 'error', 'message' => 'Invalid Application ID.']); 
+        exit(); 
+    }
 
     $stmt = $conn->prepare("UPDATE applicants SET is_archived = 1 WHERE application_id = ?");
     $stmt->bind_param('i', $applicationId);
 
     if ($stmt->execute()) {
-        logAction($conn, $userIdentifier, 'ARCHIVE', "Archived applicant ID #{$applicationId} {$applicantName}.");
+        logAction($conn, $userIdentifier, 'ARCHIVE', "Archived applicant ID #{$applicationId}.");
         echo json_encode(['status' => 'success', 'message' => 'Applicant archived successfully.']);
-    } else { http_response_code(500); echo json_encode(['status' => 'error', 'message' => 'Failed to archive applicant.']); }
+    } else { 
+        http_response_code(500); 
+        echo json_encode(['status' => 'error', 'message' => 'Failed to archive applicant.']); 
+    }
     $stmt->close();
 }
 
 function restoreApplicant($conn, $userIdentifier, $userRole) {
-    if ($userRole !== 'hr_manager' && $userRole !== 'super_user') { http_response_code(403); echo json_encode(['status' => 'error', 'message' => 'Access Denied.']); exit(); }
+    if ($userRole !== 'hr_manager' && $userRole !== 'super_user') { 
+        http_response_code(403); 
+        echo json_encode(['status' => 'error', 'message' => 'Access Denied.']); 
+        exit(); 
+    }
     
     $data = json_decode(file_get_contents('php://input'), true);
     $applicationId = $data['application_id'] ?? 0;
-    if ($applicationId <= 0) { http_response_code(400); echo json_encode(['status' => 'error', 'message' => 'Invalid Application ID.']); exit(); }
-
-    $stmt_select = $conn->prepare("SELECT surname, firstname FROM applicants WHERE application_id = ?");
-    $stmt_select->bind_param("i", $applicationId); $stmt_select->execute();
-    $applicantNameResult = $stmt_select->get_result()->fetch_assoc();
-    $applicantName = $applicantNameResult ? "({$applicantNameResult['surname']}, {$applicantNameResult['firstname']})" : "";
-    $stmt_select->close();
+    if ($applicationId <= 0) { 
+        http_response_code(400); 
+        echo json_encode(['status' => 'error', 'message' => 'Invalid Application ID.']); 
+        exit(); 
+    }
 
     $stmt = $conn->prepare("UPDATE applicants SET is_archived = 0 WHERE application_id = ?");
     $stmt->bind_param('i', $applicationId);
 
     if ($stmt->execute()) {
-        logAction($conn, $userIdentifier, 'RESTORE', "Restored applicant ID #{$applicationId} {$applicantName}.");
+        logAction($conn, $userIdentifier, 'RESTORE', "Restored applicant ID #{$applicationId}.");
         echo json_encode(['status' => 'success', 'message' => 'Applicant restored successfully.']);
-    } else { http_response_code(500); echo json_encode(['status' => 'error', 'message' => 'Failed to restore applicant.']); }
+    } else { 
+        http_response_code(500); 
+        echo json_encode(['status' => 'error', 'message' => 'Failed to restore applicant.']); 
+    }
     $stmt->close();
 }
 
 function getSystemLogs($conn) {
     $startDate = $_GET['start_date'] ?? null;
     $endDate = $_GET['end_date'] ?? null;
-    // For exports, the limit can be 'none'. For viewing, it defaults to 50.
     $limit = $_GET['limit'] ?? '50'; 
 
     $sql = "SELECT log_id, username, action_type, action_description, timestamp FROM hr_system_logs";
@@ -365,24 +401,12 @@ function getSystemLogs($conn) {
     }
 
     $stmt = $conn->prepare($sql);
-    if ($stmt === false) {
-        http_response_code(500);
-        echo json_encode(['status' => 'error', 'message' => 'Log query prepare failed: ' . $conn->error]);
-        exit();
-    }
-
     if (!empty($params)) {
         $stmt->bind_param($types, ...$params);
     }
     
     $stmt->execute();
     $result = $stmt->get_result();
-
-    if ($result === false) {
-        http_response_code(500);
-        echo json_encode(['status' => 'error', 'message' => 'Failed to fetch logs: ' . $stmt->error]);
-        exit();
-    }
     $logs = [];
     while($row = $result->fetch_assoc()) {
         $logs[] = $row;
@@ -390,45 +414,36 @@ function getSystemLogs($conn) {
     $stmt->close();
     echo json_encode($logs);
 }
- // --- Charts and recruiter performance
- function getChartData($conn) {
+
+function getChartData($conn) {
     $metric = $_GET['metric'] ?? 'applicantTrend';
     $startDate = $_GET['start_date'] ?? null;
     $endDate = $_GET['end_date'] ?? null;
     
-    // Default WHERE clause and date column for filtering
     $whereClause = 'WHERE is_archived = 0';
-    $dateColumnForFilter = 'application_date';
-
-    // If the metric is deploymentTrend, change the date column for filtering to 'status_date'
-    if ($metric === 'deploymentTrend') {
-        $dateColumnForFilter = 'status_date';
-    }
+    $dateColumnForFilter = ($metric === 'deploymentTrend') ? 'status_date' : 'application_date';
 
     $params = [];
     $types = '';
 
-    // Build the date range part of the WHERE clause dynamically
     if($startDate && $endDate) {
         $whereClause .= " AND DATE({$dateColumnForFilter}) BETWEEN ? AND ?";
         $params[] = $startDate;
         $params[] = $endDate;
         $types .= 'ss';
-    } else if (isset($_GET['days'])) {
-        $days = intval($_GET['days']);
-        $whereClause .= " AND {$dateColumnForFilter} >= CURDATE() - INTERVAL ? DAY";
-        $params[] = $days;
-        $types .= 'i';
     }
 
     $data = [];
     switch ($metric) {
         case 'deploymentTrend':
-            // CORRECTED: The query now groups by the date the status was updated to 'Deployed'
             $sql = "SELECT DATE(joining_date) as date, COUNT(*) as count FROM applicants $whereClause AND recruitment_status = 13 GROUP BY DATE(joining_date) ORDER BY date ASC";
             break;
         case 'topSources':
             $sql = "SELECT application_source as label, COUNT(*) as count FROM applicants $whereClause GROUP BY application_source ORDER BY count DESC";
+            break;
+        case 'screeningPerformance':
+            // NEW CHART METRIC: Breakdown of Screening Statuses
+            $sql = "SELECT screening_status as label, COUNT(*) as count FROM applicants $whereClause GROUP BY screening_status ORDER BY count DESC";
             break;
         case 'applicantTrend':
         default:
@@ -500,60 +515,42 @@ function bulkInsertApplicants($conn, $userIdentifier) {
         exit();
     }
 
-    // Define the exact columns your CSV template provides
+    // UPDATED: Added the new screening columns to the bulk insert template
     $columns = [
         "surname", "firstname", "middlename", "birthday", "gender", "mobile_number", "email",
         "street_address", "city", "province", "postcode", "position_applied", "recruiter_name",
         "recruitment_status", "status_date", "application_source", "interview_dates", "interviewers",
         "feedback_comments", "offer_status", "offer_date", "joining_date", "employee_id", "Project",
         "facebook_account", "instagram_account", "twitter_account", "viber_account",
-        "education_level", "college_degree"
+        "education_level", "college_degree", "experience_years", "specific_skill", "screening_score", "screening_status"
     ];
     
-    // Build the prepared statement
     $placeholders = rtrim(str_repeat('?,', count($columns)), ',');
     $sql = "INSERT INTO applicants (" . implode(', ', array_map(fn($c) => "`$c`", $columns)) . ") VALUES ({$placeholders})";
     
     $stmt = $conn->prepare($sql);
-    if ($stmt === false) {
-        http_response_code(500);
-        echo json_encode(['status' => 'error', 'message' => 'Database prepare statement failed: ' . $conn->error]);
-        exit();
-    }
-    
-    // Dynamically create the type string (e.g., 'sssss...')
     $types = str_repeat('s', count($columns));
     
-    // Use a transaction for data integrity
     $conn->begin_transaction();
     try {
         $insertedCount = 0;
         foreach ($data as $row) {
             $params = [];
-            // Ensure data is in the same order as the $columns array
             foreach ($columns as $col) {
-                // Use null for empty values
                 $params[] = $row[$col] ?? null;
             }
-            
             $stmt->bind_param($types, ...$params);
             $stmt->execute();
             $insertedCount++;
         }
-        
-        // If all rows were inserted without error, commit the changes
         $conn->commit();
-        
-        logAction($conn, $userIdentifier, 'BULK_INSERT', "Successfully inserted {$insertedCount} new applicants via CSV upload.");
+        logAction($conn, $userIdentifier, 'BULK_INSERT', "Successfully uploaded {$insertedCount} applicants via CSV.");
         echo json_encode(['status' => 'success', 'message' => "Successfully inserted {$insertedCount} records."]);
-
     } catch (Exception $e) {
-        // If any error occurred, roll back all changes
         $conn->rollback();
         http_response_code(500);
-        echo json_encode(['status' => 'error', 'message' => 'An error occurred during bulk insert: ' . $e->getMessage()]);
+        echo json_encode(['status' => 'error', 'message' => 'An error occurred: ' . $e->getMessage()]);
     }
-    
     $stmt->close();
 }
 
@@ -564,41 +561,24 @@ function bulkUpdateStatus($conn, $userIdentifier) {
 
     if (empty($applicationIds) || $newStatus <= 0) {
         http_response_code(400);
-        echo json_encode(['status' => 'error', 'message' => 'Invalid data. Please select applicants and a status.']);
+        echo json_encode(['status' => 'error', 'message' => 'Invalid data provided.']);
         exit();
     }
 
-    $ids = implode(',', array_map('intval', $applicationIds)); // safely convert to integer
+    $ids = implode(',', array_map('intval', $applicationIds)); 
     $sql = "UPDATE applicants SET recruitment_status = ?, status_date = CURDATE() WHERE application_id IN ($ids)";
 
     $stmt = $conn->prepare($sql);
-    if ($stmt === false) {
-        http_response_code(500);
-        echo json_encode(['status' => 'error', 'message' => 'Prepare statement failed: ' . $conn->error]);
-        exit();
-    }
-
     $stmt->bind_param('i', $newStatus);
 
     if ($stmt->execute()) {
         $affectedRows = $stmt->affected_rows;
-        $stmt->close();
-
-        $statusMap = [
-            1 => 'Applied', 2 => 'Failed Speedtest', 3 => 'Initial Interview', 4 => 'Failed L1 Interview', 5 => 'Final Interview',
-            6 => 'Failed L2 Interview', 7 => 'For BGV', 8 => 'Job Offer', 9 => 'Processing Requirements',
-            10 => 'Complete Requirements', 11 => 'Onboarding', 12 => 'Pooling', 13 => 'Deployed', 14 => 'Withdrawn', 15 => 'Declined Offer'
-        ];
-        $statusName = $statusMap[$newStatus] ?? "ID {$newStatus}";
-
-        logAction($conn, $userIdentifier, 'BULK_UPDATE', "Set status to '{$statusName}' for {$affectedRows} applicants (IDs: $ids).");
-
+        logAction($conn, $userIdentifier, 'BULK_UPDATE', "Updated status for {$affectedRows} applicants to ID {$newStatus}.");
         echo json_encode(['status' => 'success', 'message' => "Successfully updated {$affectedRows} applicants."]);
     } else {
         http_response_code(500);
-        echo json_encode(['status' => 'error', 'message' => 'Bulk update failed: ' . $stmt->error]);
+        echo json_encode(['status' => 'error', 'message' => $stmt->error]);
     }
+    $stmt->close();
 }
-
-
 ?>

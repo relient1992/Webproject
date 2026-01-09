@@ -9,13 +9,10 @@ header("Expires: 0"); // Proxies
 // Check if user is logged in (session variable exists)
 if (!isset($_SESSION['employee_id'])) {
     // Redirect to login page if not logged in.
-    // IMPORTANT: Adjust the path to your login page if it's not 'index.html' in the main directory.
-    header('Location: ../../index.html'); // Assuming login is two levels up from /views/
+    header('Location: ../../index.html'); 
     exit();
 }
 ?>
-
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -32,6 +29,7 @@ if (!isset($_SESSION['employee_id'])) {
     <script src="https://cdn.jsdelivr.net/npm/litepicker/dist/bundle.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/litepicker/dist/plugins/ranges.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
     <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
     <style>
@@ -49,11 +47,15 @@ if (!isset($_SESSION['employee_id'])) {
         .table-select:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px #bfdbfe; }
         .filter-link.active { background-color: #eff6ff; color: #2563eb; font-weight: 600; }
         .view-toggle-btn.active { background-color: white; color: #2563eb; box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1); }
+        
+        /* --- NEW STYLES FOR PRE-SCREENING --- */
+        .score-high { color: #059669; font-weight: bold; background: #ecfdf5; padding: 2px 8px; border-radius: 12px; }
+        .score-mid { color: #d97706; font-weight: bold; background: #fffbeb; padding: 2px 8px; border-radius: 12px; }
+        .score-low { color: #dc2626; font-weight: bold; background: #fef2f2; padding: 2px 8px; border-radius: 12px; }
     </style>
 </head>
 <body class="bg-gray-100 font-sans text-gray-800">
     <div class="flex h-screen">
-        <!-- Sidebar -->
         <aside class="w-64 bg-white shadow-md flex-shrink-0 flex flex-col">
             <div class="p-4 border-b"><h2 class="text-xl font-bold text-gray-800">Recruitment Filters</h2></div>
             <nav id="statusFilters" class="p-2 flex-1 overflow-y-auto"></nav>
@@ -65,30 +67,39 @@ if (!isset($_SESSION['employee_id'])) {
             </div>
         </aside>
 
-        <!-- Main Content -->
         <main class="flex-1 flex flex-col overflow-hidden">
-            <!-- Header -->
             <header class="bg-white shadow-sm p-4 flex justify-between items-center">
                 <h1 class="text-2xl font-semibold text-gray-800">Applicant Dashboard</h1>
                 <div class="flex items-center gap-2 flex-wrap">
                      <button id="downloadTemplateBtn" class="bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600"><i class="fas fa-download mr-2"></i>Template</button>
-                     <button id="bulkUploadBtn" class="bg-purple-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-700"><i class="fas fa-upload mr-2"></i>Bulk Upload</button>
+                     <button id="bulkUploadBtn" class="bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600"><i class="fas fa-upload mr-2"></i>Bulk Upload</button>
                      <button id="viewLogsBtn" class="bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300"><i class="fas fa-history mr-2"></i>Logs</button>
-                     <button id="newApplicantBtn" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700"><i class="fas fa-plus mr-2"></i>New</button>
+                     <button id="newApplicantBtn" class="bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700"><i class="fas fa-plus mr-2"></i>New</button>
+                     <button id="logoutBtn" class="bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600 border border-red-600 shadow-sm ml-2">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Logout</button>  
                 </div>
             </header>
 
-            <!-- Dashboard Content -->
             <div class="flex-1 p-6 overflow-y-auto">
-                <!-- Analytics Section -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                    <div class="bg-white p-6 rounded-2xl shadow-md"><p class="text-gray-500 text-sm">Total Applicants</p><p id="totalApplicants" class="text-3xl font-bold">0</p></div>
-                    <div class="bg-white p-6 rounded-2xl shadow-md"><p class="text-gray-500 text-sm">Interviewing</p><p id="interviewingCount" class="text-3xl font-bold">0</p></div>
-                    <div class="bg-white p-6 rounded-2xl shadow-md"><p class="text-gray-500 text-sm">Deployed (This Month)</p><p id="deployedThisMonth" class="text-3xl font-bold">0</p></div>
-                    <div class="bg-white p-6 rounded-2xl shadow-md"><p class="text-gray-500 text-sm">Avg. Time to Hire</p><p id="avgTimeToHire" class="text-3xl font-bold">N/A</p></div>
-                </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-md border-l-4 border-blue-500">
+                        <p class="text-gray-500 text-sm">Total Applicants</p>
+                        <p id="totalApplicants" class="text-3xl font-bold">0</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-md border-l-4 border-green-500">
+                        <p class="text-gray-500 text-sm">Qualified (Score 70+)</p>
+                        <p id="qualifiedCount" class="text-3xl font-bold text-green-600">0</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-md border-l-4 border-purple-500">
+                        <p class="text-gray-500 text-sm">Interviewing</p>
+                        <p id="interviewingCount" class="text-3xl font-bold">0</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-md border-l-4 border-orange-500">
+                        <p class="text-gray-500 text-sm">Deployed (This Month)</p>
+                        <p id="deployedThisMonth" class="text-3xl font-bold">0</p>
+                    </div>
+                    </div>
 
-                <!-- Charts Section -->
                 <div class="bg-white p-4 rounded-2xl shadow-md mb-6">
                     <div class="flex justify-between items-center mb-4">
                         <div class="flex items-center gap-4">
@@ -97,6 +108,7 @@ if (!isset($_SESSION['employee_id'])) {
                                 <option value="applicantTrend">Applicant Trend</option>
                                 <option value="deploymentTrend">Deployment Trend</option>
                                 <option value="topSources">Top Application Sources</option>
+                                <option value="screeningPerformance">Screening Outcomes</option>
                             </select>
                         </div>
                         <button id="toggleChartBtn" class="text-gray-500 hover:text-gray-800"><i class="fas fa-chevron-up"></i></button>
@@ -106,11 +118,7 @@ if (!isset($_SESSION['employee_id'])) {
                     </div>
                 </div>
 
-
-                
-                <!-- Table Controls -->
                 <div class="bg-white p-4 rounded-2xl shadow-md mb-6 flex flex-wrap gap-4 justify-between items-center">
-                    <!-- Bulk Status Dropdown -->
                     <select id="bulkStatusDropdown" class="p-2 border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">Select Status</option>
                         <option value="1">Applied</option>
@@ -130,23 +138,22 @@ if (!isset($_SESSION['employee_id'])) {
                         <option value="15">Declined Offer</option>
                     </select>
 
-                    <!-- Apply Button -->
-                    <button id="applyBulkStatus" class="btn">Apply Selected Status to All Checked</button>
+                    <button id="applyBulkStatus" class="bg-blue-50 text-blue-600 font-semibold py-2 px-4 rounded-lg border border-blue-200 hover:bg-blue-100 transition">Apply Selected Status</button>
 
-                    <!-- Search Input -->
                     <div class="relative w-full md:w-auto flex-grow">
                         <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
                         <input type="text" id="searchInput" class="w-full p-2 pl-10 border rounded-lg" placeholder="Search...">
                     </div>
 
-                    <!-- Search Field Selector -->
                     <select id="searchFieldSelector" class="p-2 border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="firstname">Firstname</option>
                         <option value="surname">Surname</option>
+                        <option value="position_applied">Position Applied</option>
+                        <option value="screening_status">Screening Status</option>
+                        <option value="specific_skill">Expertise</option>
                         <option value="street_address">Street Address</option>
                         <option value="city">City</option>
                         <option value="province">Province</option>
-                        <option value="position_applied">Position Applied</option>
                         <option value="recruiter_name">Recruiter Name</option>
                         <option value="recruitment_status_text">Recruitment Status</option>
                         <option value="application_source">Application Source</option>
@@ -156,7 +163,6 @@ if (!isset($_SESSION['employee_id'])) {
                         <option value="college_degree">College Degree</option>
                     </select>
 
-                    <!-- Date Picker and View Toggle -->
                     <div class="flex items-center gap-4 flex-wrap">
                         <div class="relative">
                             <i class="fas fa-calendar-alt absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
@@ -169,14 +175,12 @@ if (!isset($_SESSION['employee_id'])) {
                         </div>
                     </div>
 
-                    <!-- Export and Column Toggle -->
                     <div class="flex items-center gap-4">
                         <button id="exportDataBtn" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700"><i class="fas fa-file-csv mr-2"></i>Export</button>
                         <button id="columnToggleBtn" class="bg-gray-700 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-800"><i class="fas fa-columns mr-2"></i>Columns</button>
                     </div>
                 </div>
 
-                <!-- Main Data Display Area -->
                 <div id="mainDisplayArea" class="bg-white rounded-2xl shadow-md overflow-x-auto">
                     <table class="w-full text-sm text-left">
                         <thead id="tableHead">
@@ -184,14 +188,19 @@ if (!isset($_SESSION['employee_id'])) {
                                 <th class="px-4 py-2 sortable" data-key="id">ID</th>
                                 <th class="px-4 py-2 sortable" data-key="firstname">Firstname</th>
                                 <th class="px-4 py-2 sortable" data-key="surname">Surname</th>
-                                <th class="px-4 py-2 sortable" data-key="position_applied">Position Applied</th>
+                                <th class="px-4 py-2 sortable" data-key="position_applied">Position</th>
+                                <th class="px-4 py-2 sortable" data-key="screening_score">Score</th>
+                                <th class="px-4 py-2 sortable" data-key="screening_status">Pre-Screen</th>
+                                <th class="px-4 py-2 sortable" data-key="experience_years">Exp (Yrs)</th>
+                                <th class="px-4 py-2 sortable" data-key="specific_skill">Expertise</th>
+                                
                                 <th class="px-4 py-2 sortable" data-key="recruiter_name">Recruiter</th>
                                 <th class="px-4 py-2 sortable" data-key="recruitment_status_text">Status</th>
                                 <th class="px-4 py-2 sortable" data-key="application_source">Source</th>
                                 <th class="px-4 py-2 sortable" data-key="interviewers">Interviewers</th>
                                 <th class="px-4 py-2 sortable" data-key="Project">Project</th>
-                                <th class="px-4 py-2 sortable" data-key="education_level">Education Level</th>
-                                <th class="px-4 py-2 sortable" data-key="college_degree">College Degree</th>
+                                <th class="px-4 py-2 sortable" data-key="education_level">Education</th>
+                                <th class="px-4 py-2 sortable" data-key="college_degree">Degree</th>
                             </tr>
                         </thead>
                         <tbody id="tableBody"></tbody>
@@ -199,7 +208,6 @@ if (!isset($_SESSION['employee_id'])) {
                     <div id="recruiterPerformanceArea" class="hidden p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
                 </div>
 
-                <!-- Pagination Controls -->
                 <div id="paginationControls" class="flex justify-between items-center mt-4">
                     <div>
                         <span class="text-sm text-gray-600">Rows per page:</span>
@@ -219,8 +227,6 @@ if (!isset($_SESSION['employee_id'])) {
         </main>
     </div>
 
-    <!-- All Modals -->
-    <!-- Column Selector Modal -->
     <div id="columnSelector" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center">
         <div class="bg-white p-8 rounded-lg shadow-xl max-w-lg w-full">
             <h2 class="text-2xl font-bold mb-4">Select Columns to Display</h2>
@@ -231,13 +237,28 @@ if (!isset($_SESSION['employee_id'])) {
         </div>
     </div>
 
-    <!-- Edit Modal -->
     <div id="editModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center">
         <div class="bg-white p-8 rounded-lg shadow-xl max-w-4xl w-full max-h-screen overflow-y-auto">
-            <h2 class="text-2xl font-bold mb-6">Edit Applicant Details</h2>
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Edit Applicant Details</h2>
+                <button onclick="document.getElementById('editModal').classList.add('hidden')" class="text-gray-500 hover:text-gray-700"><i class="fas fa-times"></i></button>
+            </div>
+            
             <form id="editForm" novalidate>
                 <input type="hidden" id="edit_application_id" name="application_id">
                 <div id="editFormContent" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+                
+                <div class="mt-6 p-4 bg-gray-50 rounded-lg flex items-center justify-between border">
+                    <div>
+                        <span class="text-sm text-gray-500">Auto-calculated Score:</span>
+                        <span id="edit_screening_score_display" class="ml-2 text-lg font-bold text-gray-800">0</span>
+                    </div>
+                    <div>
+                        <span class="text-sm text-gray-500">Screening Status:</span>
+                        <span id="edit_screening_status_display" class="ml-2 font-semibold text-gray-800">Pending</span>
+                    </div>
+                </div>
+
                 <div class="mt-8 pt-4 border-t flex justify-between items-center">
                     <button id="deleteBtn" type="button" class="bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700">
                         <i class="fas fa-archive mr-2"></i>Archive Applicant
@@ -251,7 +272,6 @@ if (!isset($_SESSION['employee_id'])) {
         </div>
     </div>
 
-    <!-- Add Applicant Modal -->
     <div id="addApplicantModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center">
         <div class="bg-white p-8 rounded-lg shadow-xl max-w-4xl w-full max-h-screen overflow-y-auto">
             <h2 class="text-2xl font-bold mb-6">Add New Applicant</h2>
@@ -265,7 +285,6 @@ if (!isset($_SESSION['employee_id'])) {
         </div>
     </div>
 
-    <!-- Logs Modal -->
     <div id="logsModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center">
         <div class="bg-white p-8 rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] flex flex-col">
             <div class="flex justify-between items-center mb-4">
@@ -295,7 +314,6 @@ if (!isset($_SESSION['employee_id'])) {
         </div>
     </div>
 
-    <!-- Bulk Upload Modal -->
     <div id="bulkUploadModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center">
         <div class="bg-white p-8 rounded-lg shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto">
             <h2 class="text-2xl font-bold mb-6">Bulk Upload Applicants</h2>
@@ -309,15 +327,9 @@ if (!isset($_SESSION['employee_id'])) {
         </div>
     </div>
 
-    <!-- Scripts -->
     <script src="../js/hr_dashboard.js"></script>
     <script src="../js/hr_bulk_upload.js"></script>
     <script src="../js/hr_logs.js"></script>
     <script src="../js/hr_dashboard_bulk_actions.js"></script>
 </body>
 </html>
-
-
-
-
-

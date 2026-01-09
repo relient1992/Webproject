@@ -17,6 +17,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const otherDegreeContainer = document.getElementById('otherDegreeContainer');
     const otherDegreeInput = document.getElementById('other_degree');
 
+    // --- NEW: Pre-screening Selectors ---
+    const positionSelect = document.getElementById('position_applied');
+    const experienceSelect = document.getElementById('experience_years');
+    const factorContainer = document.getElementById('determiningFactorContainer');
+    const factorLabel = document.getElementById('factorLabel');
+    const specificSkillSelect = document.getElementById('specific_skill');
+
     // Modal Elements (Original)
     const responseModal = document.getElementById('responseModal');
     const modalTitle = document.getElementById('modalTitle');
@@ -28,6 +35,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const confirmSubmitBtn = document.getElementById('confirmSubmitBtn');
     const closeReviewBtn = document.getElementById('closeReviewBtn');
     
+    // --- Pre-screening Mapping Logic ---
+    const positionLogic = {
+        'Accounting': { label: 'Accounting Specialization', options: ['Payroll Processing', 'Taxation/Compliance', 'Accounts Payable/Receivable', 'General Audit'] },
+        'Call Center Agent': { label: 'Account Type Experience', options: ['International Voice', 'Technical Support', 'Sales/Telemarketing', 'Customer Service (Chat/Email)'] },
+        'Data Entry Operator': { label: 'Typing & Software Proficiency', options: ['Alpha-Numeric (High Speed)', 'Transcription', 'MS Excel Advanced', 'Database Management'] },
+        'Facilities': { label: 'Facilities Expertise', options: ['Building Maintenance', 'Electrical/Plumbing', 'Vendor Management', 'Security Operations'] },
+        'Human Resource': { label: 'HR Focus Area', options: ['Recruitment/Sourcing', 'Employee Relations', 'Compensation & Benefits', 'Training & Development'] },
+        'IT': { label: 'IT Specialization', options: ['Network Administration', 'Technical Helpdesk', 'System Security', 'Software Troubleshooting'] },
+        'Manager Level': { label: 'Management Experience', options: ['Operations Management', 'Team Lead (People Management)', 'Project Management', 'Strategic Planning'] },
+        'Medcoder': { label: 'Coding Certification/Skill', options: ['ICD-10-CM Proficiency', 'CPC Certified', 'Medical Billing', 'Inpatient/Outpatient Coding'] },
+        'Nurse': { label: 'Clinical Area', options: ['ER/ICU Experience', 'General Ward', 'Occupational Health', 'Pediatrics/OB-GYN'] },
+        'Procurement': { label: 'Supply Chain Focus', options: ['Purchasing/Buying', 'Inventory Management', 'Logistics/Distribution', 'Vendor Negotiation'] },
+        'Quality Analyst': { label: 'QA Expertise', options: ['Call Monitoring', 'Process Improvement (Six Sigma)', 'Data Analysis', 'Compliance Auditing'] },
+        'Reports Analyst': { label: 'Reporting Tools', options: ['Real-time Monitoring', 'Advanced Excel/VBA', 'Power BI/Tableau', 'SQL/Data Mining'] }
+    };
+
     // --- Date Population Logic ---
     const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     monthSelect.innerHTML = '<option value="" disabled selected>Month</option>';
@@ -57,7 +80,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- Conditional Logic for Education Fields ---
     if (educationLevelSelect) {
         educationLevelSelect.addEventListener('change', function() {
-            if (this.value === 'College Graduate') {
+            if (this.value === 'College Graduate' || this.value === 'Post Graduate') {
                 collegeDegreeContainer.classList.remove('hidden');
                 collegeDegreeSelect.required = true;
             } else {
@@ -80,13 +103,71 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // --- Dynamic Dropdown for Determining Factors ---
+    if (positionSelect) {
+        positionSelect.addEventListener('change', function() {
+            const selectedPos = this.value;
+            const logic = positionLogic[selectedPos];
+
+            if (logic) {
+                factorLabel.textContent = logic.label;
+                specificSkillSelect.innerHTML = '<option value="" disabled selected>Select your primary expertise...</option>';
+                logic.options.forEach(opt => {
+                    specificSkillSelect.innerHTML += `<option value="${opt}">${opt}</option>`;
+                });
+                factorContainer.classList.remove('hidden');
+                specificSkillSelect.required = true;
+            } else {
+                factorContainer.classList.add('hidden');
+                specificSkillSelect.required = false;
+            }
+        });
+    }
+
+    // --- Pre-screening Scoring Logic ---
+    function calculatePrescreening() {
+        const edu = educationLevelSelect.value;
+        const exp = experienceSelect.value;
+        const pos = positionSelect.value;
+        
+        let score = 0;
+
+        // 1. Education Weight (Max 30)
+        if (edu === "Post Graduate") score += 30;
+        else if (edu === "College Graduate") score += 25;
+        else if (edu === "Some College") score += 15;
+
+        // 2. Experience Weight (Max 40)
+        if (exp === "5") score += 40;
+        else if (exp === "3") score += 30;
+        else if (exp === "2") score += 20;
+        else if (exp === "1") score += 10;
+
+        // 3. Status Determination
+        let status = "Pending Review";
+        
+        // Hard Gates
+        if (pos === "Nurse" && (edu !== "College Graduate" && edu !== "Post Graduate")) {
+            status = "Underqualified (Education)";
+        } else if (pos === "Manager Level" && parseInt(exp) < 3) {
+            status = "Underqualified (Experience)";
+        } else if (score >= 60) {
+            status = "Qualified";
+        } else if (score >= 40) {
+            status = "Review Required";
+        } else {
+            status = "Low Match";
+        }
+
+        return { score, status };
+    }
     
     // --- NEW: Function to Populate Review List ---
     function populateReview() {
-        reviewDataList.innerHTML = ''; // Clear existing
+        reviewDataList.innerHTML = ''; 
         const formData = new FormData(form);
         
-        // Define labels for readable display
         const fieldLabels = {
             'surname': 'Surname',
             'firstname': 'First Name',
@@ -104,14 +185,19 @@ document.addEventListener('DOMContentLoaded', function() {
             'province': 'Province',
             'zipcode': 'Zip Code',
             'position_applied': 'Position',
+            'experience_years': 'Years of Experience',
+            'specific_skill': 'Specialization',
             'application_source': 'Source'
         };
 
         formData.forEach((value, key) => {
             if (fieldLabels[key] && value) {
-                // If it's a month, convert index back to name
                 let displayValue = value;
                 if(key === 'birthMonth') displayValue = months[value - 1];
+                if(key === 'experience_years') {
+                    const expMap = {'0':'Entry Level', '1':'< 1 Year', '2':'1-2 Years', '3':'3-5 Years', '5':'> 5 Years'};
+                    displayValue = expMap[value];
+                }
 
                 const div = document.createElement('div');
                 div.className = 'border-b border-gray-100 pb-2';
@@ -131,23 +217,21 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- Form Submission Logic ---
     if (form) {
         form.addEventListener('submit', function(event) {
-            event.preventDefault(); // Stop initial submission
+            event.preventDefault(); 
             
             if (!form.checkValidity()) {
                 form.reportValidity();
                 return;
             }
 
-            // Show the review modal instead of submitting
             populateReview();
             reviewModal.classList.remove('hidden');
         });
     }
 
-    // --- NEW: Actual Submission Logic (Triggered from Confirm button) ---
+    // --- NEW: Actual Submission Logic ---
     if (confirmSubmitBtn) {
         confirmSubmitBtn.addEventListener('click', async function() {
-            // Hide review modal
             reviewModal.classList.add('hidden');
 
             if (submitBtn) {
@@ -156,6 +240,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const formData = new FormData(form);
+
+            // Pre-screening calculation
+            const screening = calculatePrescreening();
+            formData.append('screening_score', screening.score);
+            formData.append('screening_status', screening.status);
 
             if (collegeDegreeSelect.value === 'Other' && otherDegreeInput.value) {
                 formData.set('college_degree', otherDegreeInput.value);
@@ -179,6 +268,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         form.reset();
                         collegeDegreeContainer.classList.add('hidden');
                         otherDegreeContainer.classList.add('hidden');
+                        factorContainer.classList.add('hidden'); // Reset Pre-screening UI
                     }, 3000);
                 } else {
                     throw new Error(result.message || 'An unknown error occurred.');

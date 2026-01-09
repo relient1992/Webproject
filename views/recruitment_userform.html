@@ -177,22 +177,50 @@
                             <label for="position_applied" class="block text-sm font-medium text-gray-700 mb-1">Position Applying For <span class="text-red-500">*</span></label>
                             <select id="position_applied" name="position_applied" required class="form-select w-full p-2 border border-gray-300 rounded-md transition duration-200">
                                 <option value="" disabled selected>Select a position...</option>
-                                <option value="Data Entry Operator">Data Entry Operator</option>
+                                <option value="Accounting">Accounting</option>
                                 <option value="Call Center Agent">Call Center Agent</option>
+                                <option value="Data Entry Operator">Data Entry Operator</option>
+                                <option value="Facilities">Facilities</option>
+                                <option value="Human Resource">Human Resource</option>
+                                <option value="IT">IT</option>
+                                <option value="Manager Level">Manager Level</option>
                                 <option value="Medcoder">Medcoder</option>
+                                <option value="Nurse">Nurse</option>
+                                <option value="Procurement">Procurement</option>
+                                <option value="Quality Analyst">Quality Analyst</option>
+                                <option value="Reports Analyst">Reports Analyst</option>
                             </select>
                         </div>
                         <div>
-                             <label for="application_source" class="block text-sm font-medium text-gray-700 mb-1">How did you hear about us? <span class="text-red-500">*</span></label>
-                            <select id="application_source" name="application_source" required class="form-select w-full p-2 border border-gray-300 rounded-md transition duration-200">
-                                <option value="" disabled selected>Select a source...</option>
-                                <option value="Job Portal">Job Portal (e.g., LinkedIn, JobStreet)</option>
-                                <option value="Employee Referral">Employee Referral</option>
-                                <option value="Career Page">Career Page (Our Website)</option>
-                                <option value="Recruitment Agency">Recruitment Agency</option>
-                                <option value="Walk-in">Walk-in</option>
+                            <label for="experience_years" class="block text-sm font-medium text-gray-700 mb-1">Total Years of Related Experience <span class="text-red-500">*</span></label>
+                            <select id="experience_years" name="experience_years" required class="form-select w-full p-2 border border-gray-300 rounded-md transition duration-200">
+                                <option value="" disabled selected>Select years...</option>
+                                <option value="0">No Experience / Entry Level</option>
+                                <option value="1">Less than 1 Year</option>
+                                <option value="2">1 to 2 Years</option>
+                                <option value="3">3 to 5 Years</option>
+                                <option value="5">More than 5 Years</option>
                             </select>
                         </div>
+                    </div>
+
+                    <div id="determiningFactorContainer" class="hidden mt-6 p-4 bg-blue-50 border border-blue-100 rounded-lg">
+                        <label id="factorLabel" for="specific_skill" class="block text-sm font-semibold text-blue-800 mb-2">Specific Experience Required</label>
+                        <select id="specific_skill" name="specific_skill" class="form-select w-full p-2 border border-blue-300 rounded-md transition duration-200">
+                            </select>
+                        <p class="text-xs text-blue-600 mt-2">Select the area where you have the most expertise to help us assess your application faster.</p>
+                    </div>
+
+                    <div class="mt-6">
+                        <label for="application_source" class="block text-sm font-medium text-gray-700 mb-1">How did you hear about us? <span class="text-red-500">*</span></label>
+                        <select id="application_source" name="application_source" required class="form-select w-full p-2 border border-gray-300 rounded-md transition duration-200">
+                            <option value="" disabled selected>Select a source...</option>
+                            <option value="Job Portal">Job Portal (e.g., LinkedIn, JobStreet)</option>
+                            <option value="Employee Referral">Employee Referral</option>
+                            <option value="Career Page">Career Page (Our Website)</option>
+                            <option value="Recruitment Agency">Recruitment Agency</option>
+                            <option value="Walk-in">Walk-in</option>
+                        </select>
                     </div>
                 </div>
 
@@ -220,19 +248,12 @@
                 <h2 class="text-2xl font-bold text-gray-800">Review Application</h2>
                 <p class="text-sm text-gray-500">Please double-check your entries before the final submission.</p>
             </div>
-            
             <div class="p-6 overflow-y-auto" id="reviewContent">
-                <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm text-gray-700" id="reviewDataList">
-                    </dl>
+                <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm text-gray-700" id="reviewDataList"></dl>
             </div>
-
             <div class="p-6 border-t bg-gray-50 flex flex-col sm:flex-row gap-3">
-                <button type="button" id="closeReviewBtn" class="flex-1 px-6 py-3 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-100 transition">
-                    Edit Information
-                </button>
-                <button type="button" id="confirmSubmitBtn" class="flex-1 px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 shadow-lg transition">
-                    Confirm & Submit
-                </button>
+                <button type="button" id="closeReviewBtn" class="flex-1 px-6 py-3 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-100 transition">Edit Information</button>
+                <button type="button" id="confirmSubmitBtn" class="flex-1 px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 shadow-lg transition">Confirm & Submit</button>
             </div>
         </div>
     </div>

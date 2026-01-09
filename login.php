@@ -63,14 +63,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 11 => 'bps_quality_user',
                 12 => 'hr_staff',
                 13 => 'hr_manager'
-
             ];
             $roleName = $roleMap[$user['role_id']] ?? 'User';
             $_SESSION['user_role'] = $roleName;
 
-            // --- ADDED: Log the successful login event ---
+            // --- UPDATED: Determine Redirect Page based on Role ---
+            $redirectPage = 'main.php'; // Default for everyone else
+
+            // Check if user is HR Staff (12) or HR Manager (13)
+            if ($roleName === 'hr_staff' || $roleName === 'hr_manager') {
+                // IMPORTANT: Update this path if your dashboard is in a subfolder 
+                // e.g., 'views/hr_dashboard.php'
+                $redirectPage = 'views/hr_dashboard.php'; 
+            }
+            // -----------------------------------------------------
+
             logActivity($conn, 'login', 'User logged in successfully.');
-            // ---------------------------------------------
 
             echo "<script>
                 Swal.fire({
@@ -80,7 +88,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     timer: 2500,
                     showConfirmButton: false
                 }).then(() => {
-                    window.location.href = 'main.php';
+                    // Use the dynamic variable here
+                    window.location.href = '$redirectPage';
                 });
             </script>";
         } else {

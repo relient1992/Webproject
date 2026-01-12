@@ -133,6 +133,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); 
     }
     
+    
     // --- INITIALIZATION ---
     async function initializeDashboard() {
         try {
@@ -369,11 +370,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 const isSelected = selectedApplicants.includes(parseInt(applicant.application_id));
                 bodyHTML += `<tr class="bg-white border-b hover:bg-gray-50">`;
                 
-                visibleColumns.forEach(colKey => {
+                visibleColumns.forEach(colKey => { 
                     const colConfig = ALL_COLUMNS.find(c => c.key === colKey);
                     if (!colConfig) return;
-
+                
                     let content = applicant[colKey] === null || applicant[colKey] === undefined ? '' : applicant[colKey];
+                    
+                    // --- START OF NEW CODE ---
+                    // Check if the column is a name field and format it to Title Case
+                    if (['surname', 'firstname', 'middlename', 'email','street_address','city','province','facebook_account','instagram_account','twitter_account'].includes(colKey) && typeof content === 'string') {
+                        content = content.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
+                    }
+                    // --- END OF NEW CODE ---
                     
                     if (colKey === 'select') {
                         content = (currentView === 'active') ? `<input type="checkbox" class="applicant-checkbox" data-id="${applicant.application_id}" ${isSelected ? 'checked' : ''}>` : '';
@@ -481,13 +489,15 @@ document.addEventListener('DOMContentLoaded', function () {
             return new Date(year, month - 1, day);
         }
         const chartContainer = mainChartCanvas.parentElement;
-        chartContainer.style.height = '300px';
+        // Set fixed height for consistency
+        chartContainer.style.height = '350px'; 
         mainChartCanvas.style.height = '100%';
         mainChartCanvas.style.width = '100%';
         
         let labels = [], counts = [];
         let startDate = dateRangePicker?.getStartDate()?.toJSDate();
         let endDate = dateRangePicker?.getEndDate()?.toJSDate();
+        
         if (!startDate || !endDate) {
             const today = new Date();
             startDate = new Date(today.getFullYear(), today.getMonth(), 1); 
@@ -495,6 +505,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     
         if (metric === 'applicantTrend' || metric === 'deploymentTrend') {
+            // --- LINE CHART LOGIC (unchanged) ---
             const dataMap = new Map(data.map(d => [d.date, d.count]));
             const fullLabels = [], fullCounts = [];
             let currentDate = new Date(startDate);
@@ -507,23 +518,101 @@ document.addEventListener('DOMContentLoaded', function () {
             labels = fullLabels; counts = fullCounts;
             const datasetLabel = metric === 'applicantTrend' ? 'New Applicants' : 'Deployments';
             const borderColor = metric === 'applicantTrend' ? '#3b82f6' : '#10b981';
-            const backgroundColor = metric === 'applicantTrend' ? 'rgba(59,130,246,0.2)' : 'rgba(16,185,129,0.2)';
+            const backgroundColor = metric === 'applicantTrend' ? 'rgba(59,130,246,0.1)' : 'rgba(16,185,129,0.1)';
     
             const chartConfig = {
                 type: 'line',
-                data: { labels: labels, datasets: [{ label: datasetLabel, data: counts, fill: true, backgroundColor: backgroundColor, borderColor: borderColor, borderWidth: 2, tension: 0.3 }] },
-                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+                data: { labels: labels, datasets: [{ label: datasetLabel, data: counts, fill: true, backgroundColor: backgroundColor, borderColor: borderColor, borderWidth: 2, tension: 0.4, pointRadius: 3, pointHoverRadius: 5 }] },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    scales: { 
+                        y: { beginAtZero: true, grid: { borderDash: [2, 4], color: '#e5e7eb' }, ticks: { precision: 0 } },
+                        x: { grid: { display: false } }
+                    },
+                    plugins: { legend: { display: false } } // Hide legend for cleaner trend lines
+                }
             };
             if (mainChartInstance) mainChartInstance.destroy();
             mainChartInstance = new Chart(mainChartCanvas, chartConfig);
+
         } else if (metric === 'topSources' || metric === 'screeningPerformance') {
+            // --- PROFESSIONAL PIE/DOUGHNUT CHART LOGIC ---
             labels = data.map(d => d.label || d.source);
             counts = data.map(d => d.count);
-            const backgroundColors = ['#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#ec4899', '#64748b', '#f59e0b', '#14b8a6'];
+            
+            // Professional Color Palette (Modern UI)
+            const backgroundColors = [
+                '#3b82f6', '#10b981', '#f59e0b', '#ef4444', 
+                '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6'
+            ];
+
             const chartConfig = {
-                type: 'pie',
-                data: { labels: labels, datasets: [{ label: 'Count', data: counts, backgroundColor: backgroundColors.slice(0, labels.length) }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+                type: 'doughnut', // 'Doughnut' looks more modern than 'Pie'
+                data: { 
+                    labels: labels, 
+                    datasets: [{ 
+                        data: counts, 
+                        backgroundColor: backgroundColors.slice(0, labels.length),
+                        borderColor: '#ffffff', // White borders between slices
+                        borderWidth: 2,
+                        hoverOffset: 4
+                    }] 
+                },
+                // REGISTER THE PLUGIN HERE
+                plugins: [ChartDataLabels], 
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    layout: { padding: 20 },
+                    plugins: { 
+                        legend: { 
+                            position: 'right',
+                            labels: {
+                                usePointStyle: true, // Use circles instead of squares in legend
+                                padding: 20,
+                                font: { size: 12, family: "'Inter', sans-serif" }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                            titleColor: '#1f2937',
+                            bodyColor: '#1f2937',
+                            borderColor: '#e5e7eb',
+                            borderWidth: 1,
+                            padding: 10,
+                            boxPadding: 4,
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) { label += ': '; }
+                                    let value = context.raw;
+                                    return label + value;
+                                }
+                            }
+                        },
+                        // CONFIGURATION FOR LABELS INSIDE THE CHART
+                        datalabels: {
+                            color: '#ffffff',
+                            font: { weight: 'bold', size: 11 },
+                            formatter: (value, ctx) => {
+                                let sum = 0;
+                                let dataArr = ctx.chart.data.datasets[0].data;
+                                dataArr.map(data => { sum += data; });
+                                let percentage = (value * 100 / sum).toFixed(1) + "%";
+                                return percentage; // Display Percentage
+                            },
+                            display: function(context) {
+                                // Hide label if value is less than 5% to avoid clutter
+                                var index = context.dataIndex;
+                                var value = context.dataset.data[index];
+                                var sum = 0;
+                                context.dataset.data.map(data => { sum += data; });
+                                return (value * 100 / sum) > 5; 
+                            }
+                        }
+                    } 
+                }
             };
             if (mainChartInstance) mainChartInstance.destroy();
             mainChartInstance = new Chart(mainChartCanvas, chartConfig);
@@ -1004,17 +1093,70 @@ document.addEventListener('DOMContentLoaded', function () {
 
         addApplicantForm.addEventListener('submit', async e => {
             e.preventDefault();
-            if (!addApplicantForm.checkValidity()) { addApplicantForm.reportValidity(); return; }
+            
+            // 1. Validate Form
+            if (!addApplicantForm.checkValidity()) { 
+                addApplicantForm.reportValidity(); 
+                return; 
+            }
+
+            // 2. Prepare Data & Force Uppercase
             const formData = new FormData(addApplicantForm);
+            // Ensure all text inputs are sent as Uppercase (to match recruitment form standard)
+            for (let [key, value] of formData.entries()) {
+                if (typeof value === 'string') {
+                    formData.set(key, value.toUpperCase());
+                }
+            }
+
             const submitUrl = '../recruitment_applicants.php'; 
+
+            // 3. Show Loading Spinner
+            Swal.fire({
+                title: 'Adding Applicant...',
+                text: 'Submitting record to database.',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+
             try {
-                const response = await fetch(submitUrl, { method: 'POST', body: formData });
+                const response = await fetch(submitUrl, { 
+                    method: 'POST', 
+                    body: formData 
+                });
+                
+                // Handle non-JSON responses (e.g., PHP errors)
+                const contentType = response.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) {
+                    const text = await response.text();
+                    throw new Error("Server returned unexpected format: " + text.substring(0, 50));
+                }
+
                 const result = await response.json();
+                
                 if (result.status !== 'success') throw new Error(result.message);
-                alert('Applicant added successfully!');
+                
+                // 4. Success Notification
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success!',
+                    text: 'Applicant added successfully.',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+
+                // 5. Cleanup & Refresh
                 addApplicantModal.classList.add('hidden');
                 refreshAllData();
-            } catch (error) { alert('Failed to add applicant: ' + error.message); }
+                
+            } catch (error) {
+                // 6. Error Notification
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Submission Failed',
+                    text: error.message
+                });
+            }
         });
 
         deleteBtn.addEventListener('click', async () => {

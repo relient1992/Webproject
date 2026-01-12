@@ -1,36 +1,74 @@
 document.addEventListener('DOMContentLoaded', function () {
     const API_URL = '../hr_dashboard_api.php';
 
+    // DOM Elements
     const getEl = (id) => document.getElementById(id);
     const downloadTemplateBtn = getEl('downloadTemplateBtn');
     const bulkUploadBtn = getEl('bulkUploadBtn');
     const bulkUploadModal = getEl('bulkUploadModal');
-    const cancelUploadBtn = getEl('cancelUploadBtn');
+    
+    // --- FIX: UPDATED ID TO MATCH YOUR HTML ---
+    const cancelUploadBtn = getEl('cancelBulkBtn'); 
+    
     const processUploadBtn = getEl('processUploadBtn');
-    const csvFileInput = getEl('csvFile');
-    const uploadFeedback = getEl('uploadFeedback');
+    // Ensure we grab the correct input ID (check your HTML ID, usually 'csvFile' or 'bulkFileInput')
+    const csvFileInput = getEl('bulkFileInput') || getEl('csvFile'); 
+    
+    // Feedback Element Logic
+    let uploadFeedback = getEl('uploadFeedback');
+    if (!uploadFeedback && bulkUploadModal) {
+        uploadFeedback = document.createElement('div');
+        uploadFeedback.id = 'uploadFeedback';
+        uploadFeedback.className = 'mt-4 text-sm text-center hidden';
+        const btnContainer = bulkUploadModal.querySelector('.flex.justify-end');
+        if(btnContainer) btnContainer.before(uploadFeedback);
+    }
 
+    // --- HEADERS CONFIGURATION ---
     const templateHeaders = [
         "surname", "firstname", "middlename", "birthday", "gender", "mobile_number", "email",
-        "street_address", "city", "province", "postcode", "position_applied", "recruiter_name",
-        "recruitment_status", "status_date", "application_source", "interview_dates", "interviewers",
-        "feedback_comments", "offer_status", "offer_date", "joining_date", "employee_id", "Project",
+        "street_address", "city", "province", "postcode", 
+        "position_applied", "experience_years", "specific_skill",
+        "recruiter_name", "recruitment_status", "status_date", "application_source", 
+        "screening_score", "screening_status",
+        "interview_dates", "interviewers", "feedback_comments", 
+        "offer_status", "offer_date", "joining_date", "employee_id", "Project",
         "facebook_account", "instagram_account", "twitter_account", "viber_account",
         "education_level", "college_degree"
     ];
 
     const sampleRow = {
-        surname: "Doe", firstname: "John", middlename: "Michael", birthday: "1995-01-15", gender: "Male",
-        mobile_number: "09171234567", email: "john.doe@example.com", street_address: "123 Maple St, Brgy. Central",
-        city: "Makati", province: "Metro Manila", postcode: "1227", 
-        position_applied: "Data Entry Operator", recruiter_name: "SALAZAR, ANA KARISA A.", 
-        recruitment_status: "1", status_date: new Date().toISOString().slice(0, 10), application_source: "Job Portal",
-        interview_dates: "2025-10-20", interviewers: "HR Team", feedback_comments: "Good initial screening.",
-        offer_status: "", offer_date: "", joining_date: "", employee_id: "", Project: "Project Alpha",
-        facebook_account: "https://facebook.com/johndoe", instagram_account: "@johndoe",
-        twitter_account: "@johndoe", viber_account: "09171234567",
+        surname: "Doe", firstname: "John", middlename: "M", birthday: "1995-01-15", gender: "Male",
+        mobile_number: "09171234567", email: "john.doe@example.com", 
+        street_address: "123 Maple St", city: "Makati", province: "Metro Manila", postcode: "1227", 
+        position_applied: "Call Center Agent", experience_years: "2", specific_skill: "Technical Support",
+        recruiter_name: "Smith, Jane", recruitment_status: "1", status_date: new Date().toISOString().slice(0, 10), 
+        application_source: "Job Portal", screening_score: "85", screening_status: "Qualified",
+        interview_dates: "", interviewers: "", feedback_comments: "",
+        offer_status: "", offer_date: "", joining_date: "", employee_id: "", Project: "",
+        facebook_account: "", instagram_account: "", twitter_account: "", viber_account: "",
         education_level: "College Graduate", college_degree: "Bachelor of Science in Information Technology"
     };
+
+    // --- HELPER: Fix Date Format (MM/DD/YYYY -> YYYY-MM-DD) ---
+    function sanitizeData(data) {
+        return data.map(row => {
+            // List of columns that might contain dates
+            const dateColumns = ['birthday', 'status_date', 'offer_date', 'joining_date'];
+            
+            dateColumns.forEach(col => {
+                if (row[col]) {
+                    // Check if date is like 1/15/1995 or 01/15/1995
+                    const dateParts = row[col].match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+                    if (dateParts) {
+                        // Convert to YYYY-MM-DD
+                        row[col] = `${dateParts[3]}-${dateParts[1].padStart(2, '0')}-${dateParts[2].padStart(2, '0')}`;
+                    }
+                }
+            });
+            return row;
+        });
+    }
 
     function downloadTemplate() {
         const sampleValues = templateHeaders.map(header => sampleRow[header]);
@@ -43,7 +81,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "full_applicant_template.csv");
+        link.setAttribute("download", "applicant_import_template.csv");
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -58,30 +96,37 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         uploadFeedback.classList.remove('hidden');
-        uploadFeedback.textContent = 'Verifying file...';
-        uploadFeedback.className = 'text-sm text-blue-600';
+        uploadFeedback.textContent = 'Verifying file structure...';
+        uploadFeedback.className = 'mt-4 text-sm text-blue-600 text-center font-medium';
 
         Papa.parse(file, {
             header: true,
-            skipEmptyLines: true,
+            skipEmptyLines: 'greedy', // Removes completely empty lines
             complete: (results) => {
-                const uploadedHeaders = results.meta.fields;
+                const uploadedHeaders = results.meta.fields || [];
                 const missingHeaders = templateHeaders.filter(h => !uploadedHeaders.includes(h));
 
                 if (missingHeaders.length > 0) {
-                    uploadFeedback.textContent = `Error: Missing columns: ${missingHeaders.join(', ')}.`;
-                    uploadFeedback.className = 'text-sm text-red-600 font-semibold';
+                    uploadFeedback.innerHTML = `<strong>Error:</strong> Missing columns:<br>${missingHeaders.join(', ')}`;
+                    uploadFeedback.className = 'mt-4 text-sm text-red-600 text-center font-semibold';
+                    processUploadBtn.disabled = true;
+                } else if (results.data.length === 0) {
+                    uploadFeedback.textContent = "Error: File appears to be empty.";
+                    uploadFeedback.className = 'mt-4 text-sm text-red-600 text-center font-semibold';
                     processUploadBtn.disabled = true;
                 } else {
-                    uploadFeedback.textContent = `File verified. Found ${results.data.length} records ready to upload.`;
-                    uploadFeedback.className = 'text-sm text-green-600 font-semibold';
+                    // Sanitize Data (Fix Dates)
+                    const cleanedData = sanitizeData(results.data);
+                    
+                    uploadFeedback.textContent = `Success! Ready to upload ${cleanedData.length} records.`;
+                    uploadFeedback.className = 'mt-4 text-sm text-green-600 text-center font-semibold';
                     processUploadBtn.disabled = false;
-                    processUploadBtn.dataset.payload = JSON.stringify(results.data);
+                    processUploadBtn.dataset.payload = JSON.stringify(cleanedData);
                 }
             },
             error: (error) => {
                 uploadFeedback.textContent = `Error parsing CSV: ${error.message}`;
-                uploadFeedback.className = 'text-sm text-red-600 font-semibold';
+                uploadFeedback.className = 'mt-4 text-sm text-red-600 text-center';
                 processUploadBtn.disabled = true;
             }
         });
@@ -89,10 +134,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function processUpload() {
         const payload = processUploadBtn.dataset.payload;
-        if (!payload) { alert('No data to upload.'); return; }
+        if (!payload) { 
+            Swal.fire({ icon: 'warning', title: 'No Data', text: 'Please select a valid CSV file first.' });
+            return; 
+        }
 
-        processUploadBtn.disabled = true;
-        processUploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
+        Swal.fire({
+            title: 'Uploading...',
+            text: 'Importing records into the database.',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); }
+        });
 
         try {
             const response = await fetch(`${API_URL}?action=bulkInsert`, {
@@ -100,39 +152,73 @@ document.addEventListener('DOMContentLoaded', function () {
                 headers: { 'Content-Type': 'application/json' },
                 body: payload
             });
+            
+            // Check if response is actually JSON before parsing
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                const text = await response.text();
+                throw new Error("Server returned non-JSON response: " + text.substring(0, 100));
+            }
+
             const result = await response.json();
-            if (result.status !== 'success') {
+            
+            if (result.status === 'success') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Import Successful',
+                    text: result.message,
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+
+                bulkUploadModal.classList.add('hidden');
+                csvFileInput.value = '';
+                uploadFeedback.classList.add('hidden');
+                
+                if(window.dashboardGlobals && typeof window.dashboardGlobals.refreshAllData === 'function') {
+                    window.dashboardGlobals.refreshAllData();
+                } else {
+                    setTimeout(() => window.location.reload(), 1000);
+                }
+            } else {
                 throw new Error(result.message);
             }
-            alert(`Bulk upload successful! ${result.message}`);
-            bulkUploadModal.classList.add('hidden');
-            if(typeof initializeDashboard === 'function') {
-                initializeDashboard();
-            } else {
-                window.location.reload();
-            }
         } catch (error) {
-            alert('Upload failed: ' + error.message);
+            Swal.fire({
+                icon: 'error',
+                title: 'Upload Failed',
+                text: error.message
+            });
         } finally {
             processUploadBtn.disabled = false;
-            processUploadBtn.innerHTML = 'Upload & Process';
         }
     }
 
+    // --- EVENT LISTENERS ---
     if (downloadTemplateBtn) downloadTemplateBtn.addEventListener('click', downloadTemplate);
+    
     if (bulkUploadBtn) {
         bulkUploadBtn.addEventListener('click', () => {
-            // CORRECTED: Added a check to ensure csvFileInput exists before using it.
-            if (csvFileInput) {
-                csvFileInput.value = ''; // Reset file input
-            }
+            if (csvFileInput) csvFileInput.value = ''; 
             if (uploadFeedback) uploadFeedback.classList.add('hidden');
             if (processUploadBtn) processUploadBtn.disabled = true;
             if (bulkUploadModal) bulkUploadModal.classList.remove('hidden');
         });
     }
-    if (cancelUploadBtn) cancelUploadBtn.addEventListener('click', () => bulkUploadModal.classList.add('hidden'));
-    if (csvFileInput) csvFileInput.addEventListener('change', handleFileUpload);
-    if (processUploadBtn) processUploadBtn.addEventListener('click', processUpload);
-});
+    
+    // --- FIXED CANCEL BUTTON ---
+    if (cancelUploadBtn) {
+        cancelUploadBtn.addEventListener('click', (e) => {
+            e.preventDefault(); // Prevents accidental form submission
+            if (bulkUploadModal) bulkUploadModal.classList.add('hidden');
+        });
+    }
 
+    if (csvFileInput) csvFileInput.addEventListener('change', handleFileUpload);
+    if (processUploadBtn) {
+        processUploadBtn.addEventListener('click', (e) => {
+            e.preventDefault(); // Prevents form submission refresh
+            processUpload();
+        });
+    }
+});

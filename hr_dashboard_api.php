@@ -108,6 +108,21 @@ switch ($action) {
         http_response_code(400);
         echo json_encode(['status' => 'error', 'message' => 'Invalid action specified.']);
         break;
+    case 'getSkills':
+        // Fetch all skills sorted by Category then Name
+        $sql = "SELECT * FROM ref_skills ORDER BY category ASC, skill_name ASC";
+        $result = $conn->query($sql);
+        
+        $skills = [];
+        while ($row = $result->fetch_assoc()) {
+            $skills[] = [
+                'name' => $row['skill_name'],
+                'category' => $row['category']
+            ];
+        }
+        
+        echo json_encode($skills);
+        break;    
 }
 $conn->close();
 

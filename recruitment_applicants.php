@@ -3,6 +3,7 @@
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     http_response_code(200);
     exit();
@@ -58,7 +59,8 @@ try {
     // --- NEW: Retrieve Pre-screening Data ---
     $experience_years = $_POST['experience_years'] ?? '';
     $specific_skill = $_POST['specific_skill'] ?? null;
-    $screening_score = $_POST['screening_score'] ?? 0;
+    // Ensure scores are integers
+    $screening_score = isset($_POST['screening_score']) ? (int)$_POST['screening_score'] : 0;
     $screening_status = $_POST['screening_status'] ?? 'Pending';
 
     // 2. Birthday formatting
@@ -67,21 +69,27 @@ try {
     $birthDay = str_pad($_POST['birthDay'] ?? 0, 2, '0', STR_PAD_LEFT);
     $birthday = "{$birthYear}-{$birthMonth}-{$birthDay}";
 
-    // 3. UPDATED: SQL INSERT with 23 columns total
-    $stmt = $conn->prepare(
-        "INSERT INTO applicants (
+    // 3. SQL INSERT
+    $sql = "INSERT INTO applicants (
             surname, firstname, middlename, birthday, gender, mobile_number, email, 
             street_address, city, province, postcode, position_applied, application_source,
             facebook_account, instagram_account, twitter_account, viber_account,
             education_level, college_degree, 
             experience_years, specific_skill, screening_score, screening_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-    );
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-    // 4. UPDATED: Bind 23 variables. 
-    // Added 's' (string) for exp, skill, status and 'i' (integer) for score.
+    $stmt = $conn->prepare($sql);
+
+    // --- SAFETY CHECK: Did prepare() fail? ---
+    if (!$stmt) {
+        throw new Exception("Database Prepare Error: " . $conn->error . " (Check if new columns exist in your table)");
+    }
+
+    // 4. Bind Parameters
+    // Changed pattern to 's' for experience_years (safer for dropdown values)
+    // s = string, i = integer
     $stmt->bind_param(
-        "sssssssssssssssssssisis", 
+        "sssssssssssssssssssssis", 
         $surname, $firstname, $middlename, $birthday, $gender, $mobile_number, $email, 
         $street_address, $city, $province, $postcode, $position_applied, $application_source,
         $facebook_account, $instagram_account, $twitter_account, $viber_account,
@@ -99,7 +107,8 @@ try {
     $stmt->close();
 
 } catch (Exception $e) {
-    echo json_encode(['status' => 'error', 'message' => 'An error occurred: ' . $e->getMessage()]);
+    // Return error as JSON so the JS alert shows it instead of hanging
+    echo json_encode(['status' => 'error', 'message' => 'Error: ' . $e->getMessage()]);
 }
 
 $conn->close();

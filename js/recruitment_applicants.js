@@ -1,290 +1,388 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // --- Element Selectors ---
-    const form = document.getElementById('recruitmentForm');
-    const submitBtn = document.getElementById('submitBtn');
-    const mobileInput = document.getElementById('mobile');
-    const viberInput = document.getElementById('viber');
+    // --- 1. SMART ELEMENT SELECTORS (Works for Public Form & HR Dashboard) ---
+    // Helper to find element by ID or 'add_' prefixed ID
+    const getEl = (id) => document.getElementById(id) || document.getElementById('add_' + id);
+
+    const form = document.getElementById('recruitmentForm') || document.getElementById('addApplicantForm');
+    const submitBtn = document.getElementById('submitBtn') || document.querySelector('#addApplicantForm button[type="submit"]');
+    
+    // Personal Info
+    const mobileInput = getEl('mobile');
+    const viberInput = getEl('viber');
     
     // Birthday dropdowns
-    const monthSelect = document.getElementById('birthMonth');
-    const daySelect = document.getElementById('birthDay');
-    const yearSelect = document.getElementById('birthYear');
+    const monthSelect = document.getElementById('birthMonth') || document.getElementById('add_birthMonth');
+    const daySelect = document.getElementById('birthDay') || document.getElementById('add_birthDay');
+    const yearSelect = document.getElementById('birthYear') || document.getElementById('add_birthYear');
     
-    // Education dropdowns & containers
-    const educationLevelSelect = document.getElementById('education_level');
-    const collegeDegreeContainer = document.getElementById('collegeDegreeContainer');
-    const collegeDegreeSelect = document.getElementById('college_degree');
-    const otherDegreeContainer = document.getElementById('otherDegreeContainer');
-    const otherDegreeInput = document.getElementById('other_degree');
+    // Education
+    const educationLevelSelect = getEl('education_level');
+    const collegeDegreeContainer = getEl('collegeDegreeContainer');
+    const collegeDegreeSelect = getEl('college_degree');
+    const otherDegreeContainer = getEl('otherDegreeContainer');
+    const otherDegreeInput = getEl('other_degree');
 
-    // --- NEW: Pre-screening Selectors ---
-    const positionSelect = document.getElementById('position_applied');
-    const experienceSelect = document.getElementById('experience_years');
-    const factorContainer = document.getElementById('determiningFactorContainer');
-    const factorLabel = document.getElementById('factorLabel');
-    const specificSkillSelect = document.getElementById('specific_skill');
+    // Job & Skills
+    const positionSelect = getEl('position_applied');
+    const experienceSelect = getEl('experience_years');
+    const skillsContainer = getEl('skillsContainer'); 
+    const skillDropdown = getEl('skill_dropdown');   
+    const addSkillBtn = getEl('addSkillBtn');       
+    const skillsDisplay = getEl('selectedSkillsContainer'); 
+    const hiddenSkillInput = getEl('hidden_specific_skill'); 
 
-    // Modal Elements (Original)
+    // Modal Elements (Public Form Only)
     const responseModal = document.getElementById('responseModal');
     const modalTitle = document.getElementById('modalTitle');
     const modalMessage = document.getElementById('modalMessage');
-
-    // --- NEW: Review Modal Selectors ---
     const reviewModal = document.getElementById('reviewModal');
     const reviewDataList = document.getElementById('reviewDataList');
     const confirmSubmitBtn = document.getElementById('confirmSubmitBtn');
     const closeReviewBtn = document.getElementById('closeReviewBtn');
     
-    // --- Pre-screening Mapping Logic ---
-    const positionLogic = {
-        'Accounting': { label: 'Accounting Specialization', options: ['Payroll Processing', 'Taxation/Compliance', 'Accounts Payable/Receivable', 'General Audit'] },
-        'Call Center Agent': { label: 'Account Type Experience', options: ['International Voice', 'Technical Support', 'Sales/Telemarketing', 'Customer Service (Chat/Email)'] },
-        'Data Entry Operator': { label: 'Typing & Software Proficiency', options: ['Alpha-Numeric (High Speed)', 'Transcription', 'MS Excel Advanced', 'Database Management'] },
-        'Facilities': { label: 'Facilities Expertise', options: ['Building Maintenance', 'Electrical/Plumbing', 'Vendor Management', 'Security Operations'] },
-        'Human Resource': { label: 'HR Focus Area', options: ['Recruitment/Sourcing', 'Employee Relations', 'Compensation & Benefits', 'Training & Development'] },
-        'IT': { label: 'IT Specialization', options: ['Network Administration', 'Technical Helpdesk', 'System Security', 'Software Troubleshooting'] },
-        'Manager Level': { label: 'Management Experience', options: ['Operations Management', 'Team Lead (People Management)', 'Project Management', 'Strategic Planning'] },
-        'Medcoder': { label: 'Coding Certification/Skill', options: ['ICD-10-CM Proficiency', 'CPC Certified', 'Medical Billing', 'Inpatient/Outpatient Coding'] },
-        'Nurse': { label: 'Clinical Area', options: ['ER/ICU Experience', 'General Ward', 'Occupational Health', 'Pediatrics/OB-GYN'] },
-        'Procurement': { label: 'Supply Chain Focus', options: ['Purchasing/Buying', 'Inventory Management', 'Logistics/Distribution', 'Vendor Negotiation'] },
-        'Quality Analyst': { label: 'QA Expertise', options: ['Call Monitoring', 'Process Improvement (Six Sigma)', 'Data Analysis', 'Compliance Auditing'] },
-        'Reports Analyst': { label: 'Reporting Tools', options: ['Real-time Monitoring', 'Advanced Excel/VBA', 'Power BI/Tableau', 'SQL/Data Mining'] }
-    };
+    // --- SKILLS DATA MASTER LIST ---
+    let selectedSkills = []; // Keep this! It tracks user choices.
+    let allSkillsData = [];  // Start empty (we will fill this from DB)
 
-    // --- Date Population Logic ---
+    // Function to fetch skills from Database
+    async function fetchSkillsFromDB() {
+        try {
+            // Adjust path if your PHP file is in a different folder
+            const response = await fetch('../hr_dashboard_api.php?action=getSkills');
+            const data = await response.json();
+            
+            if (Array.isArray(data)) {
+                allSkillsData = data;
+                console.log("Skills loaded from DB:", allSkillsData.length);
+            }
+        } catch (error) {
+            console.error("Failed to load skills:", error);
+            // Optional: Fallback data if DB fails
+            allSkillsData = [
+                { name: 'Payroll Processing', category: 'Accounting' },
+                { name: 'Technical Support', category: 'Call Center Agent' }
+            ];
+        }
+    }
+
+    // Call this immediately to load data when page opens
+    fetchSkillsFromDB();
+
+    // --- 2. DATE POPULATION ---
     const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    monthSelect.innerHTML = '<option value="" disabled selected>Month</option>';
-    months.forEach((month, index) => {
-        monthSelect.innerHTML += `<option value="${index + 1}">${month}</option>`;
-    });
-    daySelect.innerHTML = '<option value="" disabled selected>Day</option>';
-    for (let i = 1; i <= 31; i++) {
-        daySelect.innerHTML += `<option value="${i}">${i}</option>`;
-    }
-    const currentYear = new Date().getFullYear();
-    const startYear = currentYear - 65;
-    const endYear = currentYear - 18;
-    yearSelect.innerHTML = '<option value="" disabled selected>Year</option>';
-    for (let i = endYear; i >= startYear; i--) {
-        yearSelect.innerHTML += `<option value="${i}">${i}</option>`;
-    }
-    
-    // --- Real-time Input Validation ---
-    if (mobileInput) {
-        mobileInput.addEventListener('input', function() { this.value = this.value.replace(/\D/g, ''); });
-    }
-    if(viberInput) {
-        viberInput.addEventListener('input', function() { this.value = this.value.replace(/[^\d+]/g, ''); });
+    if(monthSelect) {
+        // Only populate if empty
+        if (monthSelect.options.length <= 1) {
+            monthSelect.innerHTML = '<option value="" disabled selected>Month</option>';
+            months.forEach((month, index) => monthSelect.add(new Option(month, index + 1)));
+            
+            if(daySelect) {
+                daySelect.innerHTML = '<option value="" disabled selected>Day</option>';
+                for (let i = 1; i <= 31; i++) daySelect.add(new Option(i, i));
+            }
+            if(yearSelect) {
+                const currentYear = new Date().getFullYear();
+                yearSelect.innerHTML = '<option value="" disabled selected>Year</option>';
+                for (let i = currentYear; i >= 1960; i--) yearSelect.add(new Option(i, i));
+            }
+        }
     }
 
-    // --- Conditional Logic for Education Fields ---
+    // --- 3. INPUT VALIDATION ---
+    if (mobileInput) mobileInput.addEventListener('input', function() { this.value = this.value.replace(/\D/g, ''); });
+    if (viberInput) viberInput.addEventListener('input', function() { this.value = this.value.replace(/\D/g, ''); });
+
+    // --- 4. EDUCATION LOGIC ---
     if (educationLevelSelect) {
         educationLevelSelect.addEventListener('change', function() {
-            if (this.value === 'College Graduate' || this.value === 'Post Graduate') {
-                collegeDegreeContainer.classList.remove('hidden');
-                collegeDegreeSelect.required = true;
-            } else {
-                collegeDegreeContainer.classList.add('hidden');
-                collegeDegreeSelect.required = false;
-                otherDegreeContainer.classList.add('hidden');
-                otherDegreeInput.required = false;
+            const showDegree = this.value === 'College Graduate' || this.value === 'Post Graduate';
+            if (collegeDegreeContainer) collegeDegreeContainer.classList.toggle('hidden', !showDegree);
+            if (collegeDegreeSelect) {
+                collegeDegreeSelect.required = showDegree;
+                if (!showDegree) {
+                    collegeDegreeSelect.value = "";
+                    if (otherDegreeContainer) otherDegreeContainer.classList.add('hidden');
+                    if (otherDegreeInput) otherDegreeInput.required = false;
+                }
             }
         });
     }
 
     if (collegeDegreeSelect) {
         collegeDegreeSelect.addEventListener('change', function() {
-            if (this.value === 'Other') {
-                otherDegreeContainer.classList.remove('hidden');
-                otherDegreeInput.required = true;
-            } else {
-                otherDegreeContainer.classList.add('hidden');
-                otherDegreeInput.required = false;
-            }
+            const isOther = this.value === 'Other';
+            if (otherDegreeContainer) otherDegreeContainer.classList.toggle('hidden', !isOther);
+            if (otherDegreeInput) otherDegreeInput.required = isOther;
         });
     }
 
-    // --- Dynamic Dropdown for Determining Factors ---
-    if (positionSelect) {
+    // --- 5. SKILLS TAGGING LOGIC ---
+    if (positionSelect && skillDropdown) {
+        // A. Populate Dropdown on Position Change
         positionSelect.addEventListener('change', function() {
             const selectedPos = this.value;
-            const logic = positionLogic[selectedPos];
+            skillDropdown.innerHTML = '<option value="">Select a skill to add...</option>';
+            
+            // Reset selections
+            selectedSkills = []; 
+            renderTags();
 
-            if (logic) {
-                factorLabel.textContent = logic.label;
-                specificSkillSelect.innerHTML = '<option value="" disabled selected>Select your primary expertise...</option>';
-                logic.options.forEach(opt => {
-                    specificSkillSelect.innerHTML += `<option value="${opt}">${opt}</option>`;
+            if (selectedPos) {
+                if (skillsContainer) skillsContainer.classList.remove('hidden');
+                
+                // Group skills by category
+                const groupedSkills = allSkillsData.reduce((acc, skill) => {
+                    if (!acc[skill.category]) acc[skill.category] = [];
+                    acc[skill.category].push(skill.name);
+                    return acc;
+                }, {});
+
+                // Create OptGroups
+                Object.keys(groupedSkills).sort().forEach(category => {
+                    const group = document.createElement('optgroup');
+                    group.label = category;
+                    groupedSkills[category].forEach(skillName => {
+                        const opt = document.createElement('option');
+                        opt.value = skillName;
+                        opt.textContent = skillName;
+                        group.appendChild(opt);
+                    });
+                    skillDropdown.appendChild(group);
                 });
-                factorContainer.classList.remove('hidden');
-                specificSkillSelect.required = true;
             } else {
-                factorContainer.classList.add('hidden');
-                specificSkillSelect.required = false;
+                if (skillsContainer) skillsContainer.classList.add('hidden');
             }
         });
-    }
 
-    // --- Pre-screening Scoring Logic ---
-    function calculatePrescreening() {
-        const edu = educationLevelSelect.value;
-        const exp = experienceSelect.value;
-        const pos = positionSelect.value;
-        
-        let score = 0;
-
-        // 1. Education Weight (Max 30)
-        if (edu === "Post Graduate") score += 30;
-        else if (edu === "College Graduate") score += 30;
-        else if (edu === "Some College") score += 15;
-
-        // 2. Experience Weight (Max 40)
-        if (exp === "5") score += 40;
-        else if (exp === "3") score += 30;
-        else if (exp === "2") score += 20;
-        else if (exp === "1") score += 10;
-
-        // 3. Status Determination
-        let status = "Pending Review";
-        
-        // Hard Gates
-        if (pos === "Nurse" && (edu !== "College Graduate" && edu !== "Post Graduate")) {
-            status = "Underqualified (Education)";
-        } else if (pos === "Manager Level" && parseInt(exp) < 3) {
-            status = "Underqualified (Experience)";
-        } else if (score >= 60) {
-            status = "Qualified";
-        } else if (score >= 40) {
-            status = "Review Required";
-        } else {
-            status = "Low Match";
+        // B. Add Skill Button Logic
+        if(addSkillBtn) {
+            addSkillBtn.addEventListener('click', function() {
+                const val = skillDropdown.value;
+                if (val && !selectedSkills.includes(val)) {
+                    selectedSkills.push(val);
+                    renderTags();
+                    skillDropdown.value = ""; 
+                }
+            });
         }
 
+        // C. Render Tags Function
+        function renderTags() {
+            if(!skillsDisplay) return;
+            skillsDisplay.innerHTML = '';
+            selectedSkills.forEach(skill => {
+                const tag = document.createElement('span');
+                tag.className = 'skill-tag'; // Ensure CSS exists for this class
+                tag.innerHTML = `${skill} <span class="remove-skill" data-skill="${skill}">&times;</span>`;
+                skillsDisplay.appendChild(tag);
+            });
+            
+            if(hiddenSkillInput) hiddenSkillInput.value = selectedSkills.join(', ');
+            
+            document.querySelectorAll('.remove-skill').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const skillToRemove = this.getAttribute('data-skill');
+                    selectedSkills = selectedSkills.filter(s => s !== skillToRemove);
+                    renderTags();
+                });
+            });
+        }
+    }
+
+    // --- 6. PRE-SCREENING CALCULATION (FIXED) ---
+    function calculatePrescreening() {
+        // 1. Re-fetch elements dynamically to ensure we get the active form's inputs
+        const eduEl = document.getElementById('education_level') || document.getElementById('add_education_level');
+        const expEl = document.getElementById('experience_years') || document.getElementById('add_experience_years');
+        const posEl = document.getElementById('position_applied') || document.getElementById('add_position_applied'); // Need Position for logic
+
+        // Safety: If elements are missing, return 0
+        if (!eduEl || !expEl || !posEl) {
+            console.error("Scoring Error: Could not find required dropdowns.");
+            return { score: 0, status: 'Pending' };
+        }
+
+        const edu = eduEl.value;
+        const exp = expEl.value;
+        const pos = posEl.value;
+        let score = 0;
+
+        console.log(`Calculating for Position: "${pos}" | Edu: "${edu}" | Exp: "${exp}"`);
+
+        // --- 1. EDUCATION SCORING (Max 30) ---
+        // Logic: Data Entry & Call Center accept HS Grads, so we boost their base score.
+        
+        const isEntryLevelRole = (pos === "Data Entry Operator" || pos === "Call Center Agent");
+
+        if (edu === "Post Graduate") {
+            score += 30;
+        } 
+        else if (edu === "College Graduate") {
+            // Full marks for College in entry roles
+            score += isEntryLevelRole ? 30 : 25; 
+        } 
+        else if (edu === "Vocational Graduate") {
+            // Vocational is very strong for practical roles like Data Entry
+            score += isEntryLevelRole ? 28 : 20; 
+        } 
+        else if (edu === "Some College") {
+            // Undergrads are often hired for Call Centers
+            score += isEntryLevelRole ? 25 : 15; 
+        } 
+        else if (edu === "High School Graduate") {
+            // CRITICAL CHANGE: 
+            // For standard roles: 5 points (Likely underqualified)
+            // For Entry Level roles: 20 points (Meets requirement)
+            score += isEntryLevelRole ? 20 : 5; 
+        }
+
+        // --- 2. EXPERIENCE SCORING (Max 50) ---
+        if (exp === "5") score += 50;       // 5+ Years
+        else if (exp === "3") score += 40;  // 3-5 Years
+        else if (exp === "2") score += 30;  // 1-2 Years
+        else if (exp === "1") score += 15;  // Less than 1 Year
+        else if (exp === "0") score += 5;   // Entry Level
+
+        // --- 3. SKILLS BONUS (Max 20) ---
+        if (selectedSkills && selectedSkills.length > 0) {
+            score += Math.min(selectedSkills.length * 2, 20);
+        }
+
+        // --- 4. STATUS DETERMINATION ---
+        let status = "Low Match";
+
+        // Hard Gates (Auto-Fail Conditions)
+        if (pos === "Nurse" && (edu !== "College Graduate" && edu !== "Post Graduate")) {
+            status = "Underqualified (Education)";
+        } 
+        else if (pos === "Manager Level" && (exp === "0" || exp === "1")) {
+            status = "Underqualified (Experience)";
+        }
+        else {
+            // Standard Scoring Thresholds
+            if (score >= 90) {
+                status = "Highly Recommended";
+            } else if (score >= 70) {
+                status = "Qualified";
+            } else if (score >= 40) {
+                // With the boost, a HS Grad (20) + 1 Yr Exp (15) + Skills (6) = 41
+                // This correctly places them in "Review Required" instead of "Low Match"
+                status = "Review Required";
+            }
+        }
+
+        console.log(`Final Result: Score = ${score}, Status = ${status}`);
+        
         return { score, status };
     }
-    
-    // --- NEW: Function to Populate Review List ---
+
+    // --- 7. PUBLIC FORM SUBMISSION (With Review Modal) ---
     function populateReview() {
+        if (!reviewDataList) return;
         reviewDataList.innerHTML = ''; 
         const formData = new FormData(form);
         
-        const fieldLabels = {
-            'surname': 'Surname',
-            'firstname': 'First Name',
-            'middlename': 'Middle Name',
-            'birthMonth': 'Birth Month',
-            'birthDay': 'Birth Day',
-            'birthYear': 'Birth Year',
-            'gender': 'Gender',
-            'mobile': 'Mobile Number',
-            'email': 'Email Address',
-            'education_level': 'Education Level',
-            'college_degree': 'Degree',
-            'street': 'Street',
-            'city': 'City',
-            'province': 'Province',
-            'zipcode': 'Zip Code',
-            'position_applied': 'Position',
-            'experience_years': 'Years of Experience',
-            'specific_skill': 'Specialization',
-            'application_source': 'Source'
+        const labels = {
+            'surname': 'Surname', 'firstname': 'First Name', 'middlename': 'Middle Name',
+            'birthMonth': 'Birth Month', 'birthDay': 'Birth Day', 'birthYear': 'Birth Year',
+            'gender': 'Gender', 'mobile': 'Mobile', 'email': 'Email',
+            'education_level': 'Education', 'college_degree': 'Degree',
+            'street': 'Address', 'city': 'City', 'province': 'Province',
+            'position_applied': 'Position', 'experience_years': 'Experience',
+            'specific_skill': 'Skills'
         };
 
         formData.forEach((value, key) => {
-            if (fieldLabels[key] && value) {
-                let displayValue = value;
-                if(key === 'birthMonth') displayValue = months[value - 1];
-                if(key === 'experience_years') {
-                    const expMap = {'0':'Entry Level', '1':'< 1 Year', '2':'1-2 Years', '3':'3-5 Years', '5':'> 5 Years'};
-                    displayValue = expMap[value];
-                }
-
+            if (labels[key] && value) {
+                let displayVal = value;
+                if(key === 'birthMonth' && months[value-1]) displayVal = months[value-1];
                 const div = document.createElement('div');
                 div.className = 'border-b border-gray-100 pb-2';
-                div.innerHTML = `<dt class="font-semibold text-gray-600">${fieldLabels[key]}</dt><dd class="text-gray-900">${displayValue}</dd>`;
+                div.innerHTML = `<dt class="font-semibold text-gray-600 text-xs uppercase">${labels[key]}</dt><dd class="text-gray-900">${displayVal}</dd>`;
                 reviewDataList.appendChild(div);
             }
         });
     }
 
-    // --- NEW: Close Review Listener ---
-    if (closeReviewBtn) {
-        closeReviewBtn.addEventListener('click', () => {
-            reviewModal.classList.add('hidden');
-        });
-    }
-
-    // --- Form Submission Logic ---
-    if (form) {
+    // Only attach Review Modal listeners if elements exist (Public Form)
+    if (form && reviewModal) {
         form.addEventListener('submit', function(event) {
-            event.preventDefault(); 
-            
-            if (!form.checkValidity()) {
-                form.reportValidity();
-                return;
+            // Only intercept if we are on the public page (reviewModal exists)
+            // If in dashboard, let the dashboard script handle submission
+            if (reviewModal) {
+                event.preventDefault(); 
+                if (!form.checkValidity()) { form.reportValidity(); return; }
+                populateReview();
+                reviewModal.classList.remove('hidden');
             }
-
-            populateReview();
-            reviewModal.classList.remove('hidden');
         });
-    }
 
-    // --- NEW: Actual Submission Logic ---
-    if (confirmSubmitBtn) {
-        confirmSubmitBtn.addEventListener('click', async function() {
-            reviewModal.classList.add('hidden');
+        if (closeReviewBtn) closeReviewBtn.addEventListener('click', () => reviewModal.classList.add('hidden'));
 
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.textContent = 'Submitting...';
-            }
+        if (confirmSubmitBtn) {
+            confirmSubmitBtn.addEventListener('click', async function() {
+                reviewModal.classList.add('hidden');
+                if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting...'; }
 
-            const formData = new FormData(form);
+                const formData = new FormData(form);
 
-            // Pre-screening calculation
-            const screening = calculatePrescreening();
-            formData.append('screening_score', screening.score);
-            formData.append('screening_status', screening.status);
+                // 1. Calculate Score & Status (Calls your updated function)
+                const screening = calculatePrescreening();
+                formData.append('screening_score', screening.score);
+                formData.append('screening_status', screening.status);
+    
+                // 2. SAFETY CHECK: Explicitly add the skills string
+                // (This ensures the skills tags are sent even if the form behavior is quirky)
+                const hiddenSkillInput = document.getElementById('hidden_specific_skill');
+                if (hiddenSkillInput) {
+                    formData.set('specific_skill', hiddenSkillInput.value);
+                }
+    
+                // 3. Handle "Other" Degree
+                if (collegeDegreeSelect && collegeDegreeSelect.value === 'Other' && otherDegreeInput && otherDegreeInput.value) {
+                    formData.set('college_degree', otherDegreeInput.value);
+                }
+                formData.delete('college_degree_other');
 
-            if (collegeDegreeSelect.value === 'Other' && otherDegreeInput.value) {
-                formData.set('college_degree', otherDegreeInput.value);
-            }
-            formData.delete('college_degree_other');
-
-            try {
-                const response = await fetch('../recruitment_applicants.php', {
-                    method: 'POST',
-                    body: formData
-                });
-                const result = await response.json();
-                if (result.status === 'success') {
-                    modalTitle.textContent = 'Thank You!';
-                    modalTitle.className = 'text-2xl font-bold text-green-600 mb-4';
-                    modalMessage.textContent = result.message;
-                    responseModal.classList.remove('hidden');
+                try {
+                    const response = await fetch('../recruitment_applicants.php', { method: 'POST', body: formData });
+                    const result = await response.json();
                     
-                    setTimeout(() => {
-                        responseModal.classList.add('hidden');
-                        form.reset();
-                        collegeDegreeContainer.classList.add('hidden');
-                        otherDegreeContainer.classList.add('hidden');
-                        factorContainer.classList.add('hidden'); // Reset Pre-screening UI
-                    }, 3000);
-                } else {
-                    throw new Error(result.message || 'An unknown error occurred.');
+                    if (result.status === 'success') {
+                        if (responseModal) {
+                            modalTitle.textContent = 'Success!';
+                            modalTitle.className = 'text-2xl font-bold text-green-600 mb-4';
+                            modalMessage.textContent = result.message;
+                            responseModal.classList.remove('hidden');
+                            
+                            setTimeout(() => {
+                                responseModal.classList.add('hidden');
+                                form.reset();
+                                selectedSkills = [];
+                                renderTags();
+                                if(collegeDegreeContainer) collegeDegreeContainer.classList.add('hidden');
+                                if(skillsContainer) skillsContainer.classList.add('hidden');
+                            }, 3000);
+                        } else {
+                            alert('Success: ' + result.message);
+                            form.reset();
+                        }
+                    } else {
+                        throw new Error(result.message);
+                    }
+                } catch (error) {
+                    if (responseModal) {
+                        modalTitle.textContent = 'Error';
+                        modalTitle.className = 'text-2xl font-bold text-red-600 mb-4';
+                        modalMessage.textContent = error.message;
+                        responseModal.classList.remove('hidden');
+                    } else {
+                        alert('Error: ' + error.message);
+                    }
+                } finally {
+                    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit Application'; }
                 }
-            } catch (error) {
-                modalTitle.textContent = 'Submission Failed';
-                modalTitle.className = 'text-2xl font-bold text-red-600 mb-4';
-                modalMessage.textContent = error.message;
-                responseModal.classList.remove('hidden');
-                setTimeout(() => responseModal.classList.add('hidden'), 5000);
-            } finally {
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = 'Submit Application';
-                }
-            }
-        });
+            });
+        }
     }
 });

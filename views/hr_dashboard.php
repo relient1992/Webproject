@@ -305,16 +305,17 @@ if (!isset($_SESSION['employee_id'])) {
                 </div>
             </div>
             <div id="logsTableContainer" class="overflow-y-auto flex-1">
-                <table class="w-full text-sm text-left">
-                    <thead>
+                <table class="w-full text-sm text-left border-collapse">
+                    <thead class="bg-gray-100 sticky top-0">
                         <tr>
-                            <th class="px-4 py-2">Date/Time</th>
-                            <th class="px-4 py-2">User</th>
-                            <th class="px-4 py-2">Action</th>
-                            <th class="px-4 py-2">Details</th>
+                            <th class="px-6 py-3 font-semibold text-gray-600">Date/Time</th>
+                            <th class="px-6 py-3 font-semibold text-gray-600">User</th>
+                            <th class="px-6 py-3 font-semibold text-gray-600">Action</th>
+                            <th class="px-6 py-3 font-semibold text-gray-600">Target Applicant</th>
+                            <th class="px-6 py-3 font-semibold text-gray-600">Details</th>
                         </tr>
                     </thead>
-                    <tbody id="logsTableBody"></tbody>
+                    <tbody id="logsTableBody" class="divide-y divide-gray-200"></tbody>
                 </table>
             </div>
         </div>

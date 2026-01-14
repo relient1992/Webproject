@@ -164,14 +164,14 @@ function getAllApplicants($conn) {
     // UPDATED SELECT: Included the new pre-screening and experience columns
     $sql = "
         SELECT 
-            application_id, surname, firstname, middlename, birthday, gender,
+            application_id, surname, firstname, middlename, birthday, age, gender,
             mobile_number, email, street_address, city, province, postcode,
             position_applied, recruiter_name, status_date, application_source,
             application_date, interview_dates, interviewers, feedback_comments,
             offer_status, offer_date, joining_date, employee_id, Project,
             facebook_account, instagram_account, twitter_account, viber_account,
             education_level, college_degree,
-            experience_years, specific_skill, screening_score, screening_status,
+            experience_years, specific_skill, screening_score, screening_status, requirements_checklist,
             CASE recruitment_status
                 WHEN 1 THEN 'Applied' WHEN 2 THEN 'Failed Speedtest' WHEN 3 THEN 'Initial Interview'
                 WHEN 4 THEN 'Failed L1 Interview' WHEN 5 THEN 'Final Interview' WHEN 6 THEN 'Failed L2 Interview'
@@ -308,12 +308,12 @@ function updateApplicant($conn, $userIdentifier) {
     $setClauses = []; $params = []; $types = '';
     // UPDATED: Added new screening and experience columns to the allowed list for updates
     $allowedColumns = [ 
-        'surname', 'firstname', 'middlename', 'birthday', 'gender', 'mobile_number', 'email', 
+        'surname', 'firstname', 'middlename', 'birthday', 'age', 'gender', 'mobile_number', 'email', 
         'street_address', 'city', 'province', 'postcode', 'position_applied', 'recruiter_name', 
         'recruitment_status', 'status_date', 'application_source', 'interview_dates', 'interviewers', 
         'feedback_comments', 'offer_status', 'offer_date', 'joining_date', 'employee_id', 'Project',
         'facebook_account', 'instagram_account', 'twitter_account', 'viber_account', 
-        'education_level', 'college_degree', 'experience_years', 'specific_skill', 'screening_score', 'screening_status' 
+        'education_level', 'college_degree', 'experience_years', 'specific_skill', 'screening_score', 'screening_status' , 'requirements_checklist'
     ];
 
     foreach ($data as $key => $value) { 
@@ -553,7 +553,7 @@ function bulkInsertApplicants($conn, $userIdentifier) {
 
     // UPDATED: Added the new screening columns to the bulk insert template
     $columns = [
-        "surname", "firstname", "middlename", "birthday", "gender", "mobile_number", "email",
+        "surname", "firstname", "middlename", "birthday", "age", "gender", "mobile_number", "email",
         "street_address", "city", "province", "postcode", "position_applied", "recruiter_name",
         "recruitment_status", "status_date", "application_source", "interview_dates", "interviewers",
         "feedback_comments", "offer_status", "offer_date", "joining_date", "employee_id", "Project",

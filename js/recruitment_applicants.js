@@ -189,6 +189,38 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    function calculateAge() {
+        // Smart selector for dashboard vs public form
+        const m = document.getElementById('birthMonth') || document.getElementById('add_birthMonth');
+        const d = document.getElementById('birthDay') || document.getElementById('add_birthDay');
+        const y = document.getElementById('birthYear') || document.getElementById('add_birthYear');
+        const ageInput = document.getElementById('age') || document.getElementById('add_age'); // Ensure ID exists in modal too
+
+        if (m && d && y && ageInput) {
+            const month = parseInt(m.value);
+            const day = parseInt(d.value);
+            const year = parseInt(y.value);
+
+            if (month && day && year) {
+                const today = new Date();
+                let age = today.getFullYear() - year;
+                const mDiff = today.getMonth() + 1 - month; // JS months are 0-11
+                
+                if (mDiff < 0 || (mDiff === 0 && today.getDate() < day)) {
+                    age--;
+                }
+                ageInput.value = age;
+            } else {
+                ageInput.value = "";
+            }
+        }
+    }
+
+    // Attach listeners to all birth dropdowns
+    [monthSelect, daySelect, yearSelect].forEach(el => {
+        if(el) el.addEventListener('change', calculateAge);
+    });
+
     // --- 6. PRE-SCREENING CALCULATION (FIXED) ---
     function calculatePrescreening() {
         // 1. Re-fetch elements dynamically to ensure we get the active form's inputs

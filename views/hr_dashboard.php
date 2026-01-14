@@ -278,6 +278,119 @@ if (!isset($_SESSION['employee_id'])) {
         </div>
     </div>
 
+    <div id="requirementsModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl flex flex-col max-h-[90vh]">
+            
+            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-blue-50 rounded-t-lg">
+                <div>
+                    <h3 class="text-xl font-bold text-gray-800">Requirements Checklist</h3>
+                    <p class="text-sm text-gray-600">Mark the documents submitted by <span id="reqApplicantName" class="font-bold text-blue-700">the applicant</span>.</p>
+                </div>
+                <button id="closeRequirementsModal" class="text-gray-400 hover:text-gray-600 transition-colors">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <div class="p-6 overflow-y-auto">
+                <form id="requirementsForm">
+                    <input type="hidden" id="req_application_id">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <label class="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition">
+                            <input type="checkbox" name="req_item" value="Resume" class="mt-1 h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <span class="text-sm text-gray-700">Resumé with 2x2 picture with signature and 3 character reference</span>
+                        </label>
+
+                        <label class="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition">
+                            <input type="checkbox" name="req_item" value="NBI Clearance" class="mt-1 h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <span class="text-sm text-gray-700">5 photocopy of updated NBI clearance</span>
+                        </label>
+
+                        <label class="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition">
+                            <input type="checkbox" name="req_item" value="Birth Certificate" class="mt-1 h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <span class="text-sm text-gray-700">5 photocopy of PSA or NSO Birth Certificate</span>
+                        </label>
+
+                        <label class="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition">
+                            <input type="checkbox" name="req_item" value="Marriage Certificate" class="mt-1 h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <span class="text-sm text-gray-700">Marriage Certificate (if married)</span>
+                        </label>
+
+                        <label class="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition">
+                            <input type="checkbox" name="req_item" value="School Records" class="mt-1 h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <span class="text-sm text-gray-700">School Records (TOR & DIPLOMA or School Certification)</span>
+                        </label>
+
+                        <label class="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition">
+                            <input type="checkbox" name="req_item" value="2x2 Picture" class="mt-1 h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <span class="text-sm text-gray-700">2x2 picture – 1 pc</span>
+                        </label>
+
+                        <label class="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition">
+                            <input type="checkbox" name="req_item" value="Valid IDs" class="mt-1 h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <span class="text-sm text-gray-700">2 valid government IDs</span>
+                        </label>
+
+                        <label class="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition">
+                            <input type="checkbox" name="req_item" value="SSS Form" class="mt-1 h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <span class="text-sm text-gray-700">SSS E1 Form or any proof of SSS number with full name</span>
+                        </label>
+
+                        <label class="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition">
+                            <input type="checkbox" name="req_item" value="TIN ID" class="mt-1 h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <span class="text-sm text-gray-700">TIN ID or any proof of TIN with full name</span>
+                        </label>
+
+                        <label class="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition">
+                            <input type="checkbox" name="req_item" value="PhilHealth ID" class="mt-1 h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <span class="text-sm text-gray-700">PHILHEALTH ID or any proof of PHILHEALTH number with full name</span>
+                        </label>
+
+                        <label class="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition">
+                            <input type="checkbox" name="req_item" value="Pag-IBIG" class="mt-1 h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <span class="text-sm text-gray-700">PAG IBIG NUMBER (MID Number)</span>
+                        </label>
+
+                        <label class="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition">
+                            <input type="checkbox" name="req_item" value="BIR Form" class="mt-1 h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <span class="text-sm text-gray-700">BIR Form (if any)</span>
+                        </label>
+
+                        <label class="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition">
+                            <input type="checkbox" name="req_item" value="2316 Form" class="mt-1 h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <span class="text-sm text-gray-700">2316 Form of current year</span>
+                        </label>
+
+                        <label class="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition">
+                            <input type="checkbox" name="req_item" value="Medical Result" class="mt-1 h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <span class="text-sm text-gray-700">Medical and Drug Test result</span>
+                        </label>
+                    </div>
+
+                    <div class="mt-6">
+                        <div class="flex justify-between text-sm font-medium text-gray-700 mb-1">
+                            <span>Completion Status</span>
+                            <span id="reqProgressText">0 / 14</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2.5">
+                            <div id="reqProgressBar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-lg flex justify-end space-x-3">
+                <button type="button" id="cancelRequirementsBtn" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-white font-medium transition">
+                    Cancel
+                </button>
+                <button type="button" id="saveRequirementsBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold shadow-md transition flex items-center">
+                    <i class="fas fa-save mr-2"></i> Save Checklist
+                </button>
+            </div>
+        </div>
+    </div>
+
+
     <div id="addApplicantModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center">
         <div class="bg-white p-8 rounded-lg shadow-xl max-w-4xl w-full max-h-screen overflow-y-auto">
             <h2 class="text-2xl font-bold mb-6">Add New Applicant</h2>

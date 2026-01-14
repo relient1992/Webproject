@@ -52,6 +52,7 @@ document.addEventListener('DOMContentLoaded', function () {
         { key: 'screening_status', label: 'Pre-Screen', editable: true, type: 'text' },
         { key: 'position_applied', label: 'Position', editable: true, type: 'select', options: Object.keys(positionLogic), required: true },
         { key: 'experience_years', label: 'Experience', editable: true, type: 'select', options: ['0','1','2','3','5'] },
+        { key: 'age', label: 'age', editable: true, type: 'number'},
         { key: 'specific_skill', label: 'Expertise', editable: true, type: 'select' },
         { key: 'birthday', label: 'Birthday', editable: true, type: 'date', required: true },
         { key: 'gender', label: 'Gender', editable: true, type: 'select', options: ['Male', 'Female'], required: true },
@@ -73,7 +74,7 @@ document.addEventListener('DOMContentLoaded', function () {
         { key: 'viber_account', label: 'Viber', editable: true, type: 'tel' },
         { key: 'education_level', label: 'Education Level', editable: true, type: 'select', options: ['High School Graduate', 'Vocational Graduate', 'Some College', 'College Graduate', "Post Graduate (Master's/Doctorate)"], required: true },
         { key: 'college_degree', label: 'Degree', editable: true, type: 'select', options: collegeDegrees },
-        { key: 'interview_dates', label: 'Interview Dates', editable: true, type: 'textarea' },
+        { key: 'interview_dates', label: 'Interview Date', editable: true, type: 'datetime-local' },
         { key: 'interviewers', label: 'Interviewers', editable: true, type: 'textarea' },
         { key: 'feedback_comments', label: 'Feedback', editable: true, type: 'textarea' },
         { key: 'offer_status', label: 'Offer', editable: true, type: 'select', options: ['Pending', 'Accepted', 'Declined'] },
@@ -108,6 +109,15 @@ document.addEventListener('DOMContentLoaded', function () {
     const chartContainer = getEl('chartContainer'), mainChartCanvas = getEl('mainChart'), chartMetricSelect = getEl('chartMetricSelect'), toggleChartBtn = getEl('toggleChartBtn'), sidebarChartCanvas = getEl('sidebarChart');
     const mainDisplayArea = getEl('mainDisplayArea'), recruiterPerformanceArea = getEl('recruiterPerformanceArea');
     const logDateRangePickerEl = getEl('logDateRangePicker'), exportLogsBtn = getEl('exportLogsBtn');
+
+    // --Applicant Requirement Selector
+    const requirementsModal = getEl('requirementsModal');
+    const requirementsForm = getEl('requirementsForm');
+    const saveRequirementsBtn = getEl('saveRequirementsBtn');
+    const closeRequirementsModal = getEl('closeRequirementsModal');
+    const cancelRequirementsBtn = getEl('cancelRequirementsBtn');
+    const reqProgressBar = getEl('reqProgressBar');
+    const reqProgressText = getEl('reqProgressText');
     
     // --- HELPER FUNCTIONS ---
     function getStatusColorClass(statusText) { 
@@ -319,16 +329,17 @@ document.addEventListener('DOMContentLoaded', function () {
             // Create Remove Button (Small X)
             let removeBtn = '';
             if (colKey !== 'select' && colKey !== 'actions') {
-                removeBtn = `<span class="remove-col-btn ml-2 text-gray-400 hover:text-red-500 cursor-pointer" title="Hide Column" data-key="${colKey}"><i class="fas fa-times"></i></span>`;
+                removeBtn = `<span class="remove-col-btn ml-1 text-gray-400 hover:text-red-500 cursor-pointer" title="Hide Column" data-key="${colKey}"><i class="fas fa-times"></i></span>`;
             }
 
             if (colKey === 'select') {
-                headerHTML += `<th scope="col" class="px-6 py-3 w-10">${colConfig.label}</th>`;
+                // Compact header for checkbox
+                headerHTML += `<th scope="col" class="px-2 py-2 w-8 text-center sticky left-0 bg-gray-50 z-10">${colConfig.label}</th>`;
             } else {
-                // Add removeBtn to the header
-                headerHTML += `<th scope="col" class="px-6 py-3 sortable ${sortClass} ${dragClass}" ${isDraggable} data-key="${colKey}" data-index="${index}">
-                    <div class="flex items-center justify-between">
-                        <span>${colConfig.label}</span>
+                // UPDATED: Reduced padding (px-2), smaller font (text-xs), and added max-width constraints
+                headerHTML += `<th scope="col" class="px-2 py-2 text-xs font-bold uppercase tracking-wider text-gray-700 sortable ${sortClass} ${dragClass}" ${isDraggable} data-key="${colKey}" data-index="${index}" style="min-width: 100px; max-width: 200px;">
+                    <div class="flex items-center justify-between truncate">
+                        <span class="truncate" title="${colConfig.label}">${colConfig.label}</span>
                         ${removeBtn}
                     </div>
                 </th>`; 
@@ -337,7 +348,7 @@ document.addEventListener('DOMContentLoaded', function () {
         headerHTML += '</tr>'; 
         tableHead.innerHTML = headerHTML;
         
-        // --- ADD DRAG LISTENERS ---
+        // --- ADD DRAG LISTENERS (Unchanged) ---
         const ths = tableHead.querySelectorAll('th[draggable="true"]');
         ths.forEach(th => {
             th.addEventListener('dragstart', handleDragStart);
@@ -347,20 +358,13 @@ document.addEventListener('DOMContentLoaded', function () {
             th.addEventListener('dragleave', handleDragLeave);
         });
 
-        // --- ADD REMOVE COLUMN LISTENER ---
+        // --- ADD REMOVE COLUMN LISTENER (Unchanged) ---
         tableHead.querySelectorAll('.remove-col-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent sorting/dragging
+                e.stopPropagation(); 
                 const keyToRemove = btn.dataset.key;
-                
-                // Update visible columns
                 visibleColumns = visibleColumns.filter(c => c !== keyToRemove);
-                
-                // Re-render table and analytics
                 renderAll();
-                
-                // Optionally save preference immediately (uncomment if desired)
-                // saveViewBtn.click(); 
             });
         });
 
@@ -368,7 +372,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (applicants.length > 0) {
             applicants.forEach(applicant => {
                 const isSelected = selectedApplicants.includes(parseInt(applicant.application_id));
-                bodyHTML += `<tr class="bg-white border-b hover:bg-gray-50">`;
+                bodyHTML += `<tr class="bg-white border-b hover:bg-gray-50 transition duration-150 ease-in-out">`;
                 
                 visibleColumns.forEach(colKey => { 
                     const colConfig = ALL_COLUMNS.find(c => c.key === colKey);
@@ -376,45 +380,179 @@ document.addEventListener('DOMContentLoaded', function () {
                 
                     let content = applicant[colKey] === null || applicant[colKey] === undefined ? '' : applicant[colKey];
                     
-                    // --- START OF NEW CODE ---
-                    // Check if the column is a name field and format it to Title Case
-                    if (['surname', 'firstname', 'middlename', 'email','street_address','city','province','facebook_account','instagram_account','twitter_account'].includes(colKey) && typeof content === 'string') {
+                    // Format Names to Title Case
+                    if (['surname', 'firstname', 'middlename', 'email','street_address','city','province'].includes(colKey) && typeof content === 'string') {
                         content = content.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
                     }
-                    // --- END OF NEW CODE ---
+
+                    if (colKey === 'surname') {
+                        let completedItems = [];
+                        try { completedItems = JSON.parse(applicant.requirements_checklist || '[]'); } catch(e) { completedItems = []; }
+                        const isComplete = completedItems.length >= 14;
+                        const colorClass = isComplete ? 'text-green-600 font-bold' : 'text-blue-600 font-semibold';
+                        const icon = isComplete ? '<i class="fas fa-check-circle ml-1 text-xs"></i>' : '';
+                        content = `<button class="req-btn hover:underline text-left truncate w-full ${colorClass}" data-id="${applicant.application_id}" title="Click to view requirements">${content} ${icon}</button>`;
+                    }
+
                     
                     if (colKey === 'select') {
-                        content = (currentView === 'active') ? `<input type="checkbox" class="applicant-checkbox" data-id="${applicant.application_id}" ${isSelected ? 'checked' : ''}>` : '';
+                        content = (currentView === 'active') ? `<div class="flex justify-center"><input type="checkbox" class="applicant-checkbox h-4 w-4 text-blue-600 rounded" data-id="${applicant.application_id}" ${isSelected ? 'checked' : ''}></div>` : '';
                     }
                     else if (colKey === 'screening_score') {
-                        content = `<span class="${getScoreColorClass(content)}">${content}</span>`;
+                        content = `<span class="${getScoreColorClass(content)} px-2 py-0.5 rounded text-xs font-semibold">${content}</span>`;
                     }
                     else if (colKey === 'recruitment_status_text') { 
                         if (currentView === 'active') {
                             const fullColorClass = getStatusColorClass(content);
                             const bgColor = fullColorClass.split(' ').find(c => c.startsWith('bg-')) || 'bg-gray-100';
                             let options = Object.entries(dropdownData.statuses).map(([id, name]) => `<option value="${id}" ${id == applicant.recruitment_status_id ? 'selected' : ''}>${name}</option>`).join('');
-                            content = `<div class="${bgColor} rounded-full px-1"><select class="table-select bg-transparent border-none w-full focus:ring-0 p-1 font-semibold" data-id="${applicant.application_id}" data-field="recruitment_status">${options}</select></div>`;
+                            // Compact Select
+                            content = `<div class="${bgColor} rounded-md px-1"><select class="table-select bg-transparent border-none w-full focus:ring-0 p-0 text-xs font-semibold cursor-pointer" data-id="${applicant.application_id}" data-field="recruitment_status">${options}</select></div>`;
                         } else {
                             const fullColorClass = getStatusColorClass(content);
-                            content = `<span class="px-2 py-1 font-semibold leading-tight ${fullColorClass} rounded-full text-xs">${content}</span>`;
+                            content = `<span class="px-2 py-0.5 font-semibold leading-tight ${fullColorClass} rounded-full text-[10px]">${content}</span>`;
                         }
                     } 
                     else if (colKey === 'actions') { 
-                        content = currentView === 'active' ? `<button class="text-blue-600 hover:underline edit-btn" data-id="${applicant.application_id}">Edit</button>` : `<button class="text-green-600 hover:underline restore-btn" data-id="${applicant.application_id}">Restore</button>`; 
+                        content = currentView === 'active' 
+                            ? `<button class="text-white bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded text-xs edit-btn" data-id="${applicant.application_id}">Edit</button>` 
+                            : `<button class="text-white bg-green-600 hover:bg-green-700 px-2 py-1 rounded text-xs restore-btn" data-id="${applicant.application_id}">Restore</button>`; 
                     }
-                    else if (colKey.includes('date')) { content = formatDate(content); }
-                    else if (colKey === 'recruiter_name' && currentView === 'active') {
-                         let options = `<option value="">- Assign -</option>` + dropdownData.recruiters.map(r => `<option value="${r}" ${r === content ? 'selected' : ''}>${r}</option>`).join(''); 
-                         content = `<select class="table-select" data-id="${applicant.application_id}" data-field="recruiter_name">${options}</select>`; 
+                    
+                    else if (colKey === 'interview_dates') {
+                        if (content) {
+                            const dateObj = new Date(content);
+                            // Formats to: "Oct 24, 2025, 10:30 AM"
+                            content = `<span class="whitespace-nowrap font-medium text-blue-700">
+                                ${dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} 
+                                <span class="text-gray-500 text-[10px] ml-1">${dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+                            </span>`;
+                        } else {
+                            content = '-';
+                        }
                     }
 
-                    bodyHTML += `<td class="px-6 py-4">${content}</td>`;
+                    // Generic Date Format (Date Only)
+                    else if (colKey.includes('date')) { 
+                        content = `<span class="whitespace-nowrap">${formatDate(content)}</span>`; 
+                    }
+                    else if (colKey === 'recruiter_name' && currentView === 'active') {
+                         let options = `<option value="">-</option>` + dropdownData.recruiters.map(r => `<option value="${r}" ${r === content ? 'selected' : ''}>${r.split(',')[0]}</option>`).join(''); 
+                         content = `<select class="table-select text-xs p-1 border border-gray-200 rounded w-full" data-id="${applicant.application_id}" data-field="recruiter_name">${options}</select>`; 
+                    }
+
+                    // --- CRITICAL UPDATE FOR COMPRESSION ---
+                    // 1. px-2 py-2: Reduces padding significantly
+                    // 2. text-xs: Makes font smaller
+                    // 3. whitespace-normal: Allows text to wrap to the next line (vertical growth)
+                    // 4. break-words: Breaks long emails so they don't widen the column
+                    // 5. max-w-[150px]: Hard limit on width
+                    
+                    let cellClass = "px-2 py-2 text-xs text-gray-700 whitespace-normal break-words align-middle";
+                    let style = "max-width: 150px;"; 
+
+                    if (colKey === 'select') { 
+                        cellClass = "px-2 py-2 w-8 sticky left-0 bg-white z-0"; // Keep checkbox sticky
+                        style = "";
+                    } else if (colKey === 'email') {
+                         style = "max-width: 180px; word-break: break-all;"; // Special handling for emails
+                    }
+
+                    bodyHTML += `<td class="${cellClass}" style="${style}">${content}</td>`;
                 });
                 bodyHTML += '</tr>';
             });
         } else { bodyHTML = `<tr><td colspan="${visibleColumns.length}" class="text-center p-8 text-gray-500">No applicants found for this filter.</td></tr>`; }
         tableBody.innerHTML = bodyHTML;
+    }
+
+    // --- REQUIREMENTS MODAL LOGIC ---
+    
+    function updateReqProgress() {
+        const checkboxes = requirementsForm.querySelectorAll('input[name="req_item"]');
+        const checked = requirementsForm.querySelectorAll('input[name="req_item"]:checked');
+        const total = checkboxes.length; // Should be 14
+        const count = checked.length;
+        
+        // Update Text & Bar
+        reqProgressText.textContent = `${count} / ${total}`;
+        const pct = Math.round((count / total) * 100);
+        reqProgressBar.style.width = `${pct}%`;
+        
+        // Change bar color based on completeness
+        if(pct === 100) {
+            reqProgressBar.classList.remove('bg-blue-600');
+            reqProgressBar.classList.add('bg-green-500');
+        } else {
+            reqProgressBar.classList.add('bg-blue-600');
+            reqProgressBar.classList.remove('bg-green-500');
+        }
+    }
+
+    function openRequirementsModal(applicant) {
+        // 1. Reset Form & Set IDs
+        requirementsForm.reset();
+        getEl('req_application_id').value = applicant.application_id;
+        getEl('reqApplicantName').textContent = `${applicant.surname}, ${applicant.firstname}`;
+
+        // 2. Load Saved Data
+        let savedReqs = [];
+        try { 
+            savedReqs = JSON.parse(applicant.requirements_checklist || '[]'); 
+        } catch(e) { console.error('JSON Parse error', e); }
+
+        // 3. Check the boxes
+        const checkboxes = requirementsForm.querySelectorAll('input[name="req_item"]');
+        checkboxes.forEach(cb => {
+            if (savedReqs.includes(cb.value)) cb.checked = true;
+        });
+
+        // 4. Update UI & Show
+        updateReqProgress();
+        requirementsModal.classList.remove('hidden');
+    }
+
+    async function saveRequirements() {
+        const id = getEl('req_application_id').value;
+        const checkboxes = requirementsForm.querySelectorAll('input[name="req_item"]:checked');
+        
+        // Convert checked items to Array -> JSON String
+        const checkedValues = Array.from(checkboxes).map(cb => cb.value);
+        const jsonString = JSON.stringify(checkedValues);
+
+        // Show Loading
+        saveRequirementsBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saving...';
+        saveRequirementsBtn.disabled = true;
+
+        try {
+            const response = await fetch(`${API_URL}?action=updateApplicant`, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify({ 
+                    application_id: id, 
+                    requirements_checklist: jsonString 
+                }) 
+            });
+            const result = await response.json();
+            
+            if(result.status !== 'success') throw new Error(result.message);
+
+            // Update Local Data immediately to reflect color change
+            const applicant = allApplicants.find(a => a.application_id == id);
+            if(applicant) {
+                applicant.requirements_checklist = jsonString;
+            }
+
+            renderAll(); // Re-render table to show Green/Blue color
+            requirementsModal.classList.add('hidden');
+            Swal.fire({ icon: 'success', title: 'Saved', text: 'Requirements checklist updated.', timer: 1000, showConfirmButton: false });
+
+        } catch (error) {
+            alert('Save failed: ' + error.message);
+        } finally {
+            saveRequirementsBtn.innerHTML = '<i class="fas fa-save mr-2"></i> Save Checklist';
+            saveRequirementsBtn.disabled = false;
+        }
     }
 
     // --- DRAG & DROP HANDLERS ---
@@ -1223,6 +1361,32 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         chartMetricSelect.addEventListener('change', fetchChartData);
         exportDataBtn.addEventListener('click', exportVisibleData);
+
+        // --- REQUIREMENTS MODAL LISTENERS ---
+        
+        // 1. Click on Surname (Delegated from Table Body)
+        tableBody.addEventListener('click', e => {
+            const btn = e.target.closest('.req-btn');
+            if (btn) {
+                const id = btn.dataset.id;
+                const applicant = allApplicants.find(a => a.application_id == id);
+                if (applicant) openRequirementsModal(applicant);
+            }
+        });
+
+        // 2. Modal Buttons
+        if(saveRequirementsBtn) saveRequirementsBtn.addEventListener('click', saveRequirements);
+        
+        const closeReqs = () => requirementsModal.classList.add('hidden');
+        if(closeRequirementsModal) closeRequirementsModal.addEventListener('click', closeReqs);
+        if(cancelRequirementsBtn) cancelRequirementsBtn.addEventListener('click', closeReqs);
+
+        // 3. Live Progress Bar Update
+        if(requirementsForm) {
+            requirementsForm.addEventListener('change', (e) => {
+                if(e.target.name === 'req_item') updateReqProgress();
+            });
+        }
     }
     
     initializeDashboard();

@@ -39,6 +39,7 @@ try {
     $firstname = $_POST['firstname'] ?? '';
     $middlename = $_POST['middlename'] ?? null;
     $gender = $_POST['gender'] ?? '';
+    $age = !empty($_POST['age']) ? intval($_POST['age']) : null;
     $mobile_number = $_POST['mobile'] ?? '';
     $email = $_POST['email'] ?? '';
     $street_address = $_POST['street'] ?? '';
@@ -70,13 +71,13 @@ try {
     $birthday = "{$birthYear}-{$birthMonth}-{$birthDay}";
 
     // 3. SQL INSERT
-    $sql = "INSERT INTO applicants (
-            surname, firstname, middlename, birthday, gender, mobile_number, email, 
+        $sql = "INSERT INTO applicants (
+            surname, firstname, middlename, birthday, age, gender, mobile_number, email, 
             street_address, city, province, postcode, position_applied, application_source,
             facebook_account, instagram_account, twitter_account, viber_account,
             education_level, college_degree, 
             experience_years, specific_skill, screening_score, screening_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     $stmt = $conn->prepare($sql);
 
@@ -89,8 +90,8 @@ try {
     // Changed pattern to 's' for experience_years (safer for dropdown values)
     // s = string, i = integer
     $stmt->bind_param(
-        "sssssssssssssssssssssis", 
-        $surname, $firstname, $middlename, $birthday, $gender, $mobile_number, $email, 
+        "ssssisssssssssssssssssis", 
+        $surname, $firstname, $middlename, $birthday, $age, $gender, $mobile_number, $email, 
         $street_address, $city, $province, $postcode, $position_applied, $application_source,
         $facebook_account, $instagram_account, $twitter_account, $viber_account,
         $education_level, $college_degree,

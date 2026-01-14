@@ -46,6 +46,7 @@
                         <h2 class="text-xl font-semibold text-gray-800 border-b border-gray-200 pb-3 mb-6 flex items-center">
                             <i class="fas fa-user-circle mr-2 text-blue-600"></i> Personal Information
                         </h2>
+                        
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Surname <span class="text-red-500">*</span></label>
@@ -60,8 +61,9 @@
                                 <input type="text" name="middlename" class="form-input w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="(OPTIONAL)">
                             </div>
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                            <div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-12 gap-6 mt-6">
+                            <div class="md:col-span-6">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Birthday <span class="text-red-500">*</span></label>
                                 <div class="grid grid-cols-3 gap-2">
                                     <select id="birthMonth" name="birthMonth" required class="form-select w-full px-3 py-2 border border-gray-300 rounded-lg bg-white"></select>
@@ -69,14 +71,22 @@
                                     <select id="birthYear" name="birthYear" required class="form-select w-full px-3 py-2 border border-gray-300 rounded-lg bg-white"></select>
                                 </div>
                             </div>
-                            <div>
+
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Age</label>
+                                <input type="text" id="age" name="age" readonly class="form-input w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-center font-bold text-gray-600" placeholder="-">
+                            </div>
+
+                            <div class="md:col-span-4">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Gender <span class="text-red-500">*</span></label>
-                                <div class="flex items-center space-x-8 h-[42px] px-2">
-                                    <label class="flex items-center cursor-pointer group">
-                                        <input type="radio" name="gender" value="Male" required class="h-5 w-5 text-blue-600"> <span class="ml-2 text-gray-700 group-hover:text-blue-600">MALE</span>
+                                <div class="flex items-center space-x-6 h-[42px] px-2 bg-gray-50 rounded-lg border border-gray-200">
+                                    <label class="flex items-center cursor-pointer">
+                                        <input type="radio" name="gender" value="Male" required class="h-4 w-4 text-blue-600 focus:ring-blue-500">
+                                        <span class="ml-2 text-sm text-gray-700">Male</span>
                                     </label>
-                                    <label class="flex items-center cursor-pointer group">
-                                        <input type="radio" name="gender" value="Female" required class="h-5 w-5 text-blue-600"> <span class="ml-2 text-gray-700 group-hover:text-blue-600">FEMALE</span>
+                                    <label class="flex items-center cursor-pointer">
+                                        <input type="radio" name="gender" value="Female" required class="h-4 w-4 text-blue-600 focus:ring-blue-500">
+                                        <span class="ml-2 text-sm text-gray-700">Female</span>
                                     </label>
                                 </div>
                             </div>

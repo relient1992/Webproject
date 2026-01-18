@@ -130,6 +130,14 @@ document.addEventListener('DOMContentLoaded', function () {
         return 'bg-gray-100 text-gray-800'; 
     }
 
+    function getLocalDateString(dateObj) {
+        if (!dateObj) return null;
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0'); // Months are 0-11
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
     function getScoreColorClass(score) {
         const val = parseInt(score);
         if (val >= 70) return 'score-high';
@@ -152,6 +160,27 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!userRes.ok) throw new Error("Authentication failed");
             const userInfo = await userRes.json();
             USER_ROLE = userInfo.role || 'hr_staff'; 
+
+            // ============================================================
+            // --- NEW: RESTRICT RECRUITER SCORES TO MANAGERS ONLY ---
+            // ============================================================
+            if (viewRecruiterBtn) {
+                if (USER_ROLE === 'hr_manager' || USER_ROLE === 'super_user') {
+                    // Show button for Managers
+                    viewRecruiterBtn.classList.remove('hidden');
+                    viewRecruiterBtn.style.display = 'inline-block'; 
+                } else {
+                    // Hide button for everyone else (Staff)
+                    viewRecruiterBtn.classList.add('hidden');
+                    viewRecruiterBtn.style.display = 'none';
+                    
+                    // Safety: If they are somehow on the recruiters view, kick them back to active
+                    if (currentView === 'recruiters') {
+                        currentView = 'active';
+                        viewActiveBtn.click();
+                    }
+                }
+            }
             
             // --- LOAD SAVED COLUMN PREFERENCES ---
             if (userInfo.preferences && userInfo.preferences.visibleColumns) {
@@ -200,17 +229,25 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // --- DATA FETCHING ---
     async function refreshAllData() { 
+        updateHeaderDates();
         await fetchDropdownAndStatusData();
-        await Promise.all([fetchData(), fetchChartData(), fetchRecruiterPerformance()]); 
+        await Promise.all([fetchData(), fetchChartData(), fetchRecruiterPerformance()]);
     }
 
     async function fetchDropdownAndStatusData() { 
         try { 
-            const startDate = dateRangePicker.getStartDate()?.toJSDate().toISOString().slice(0, 10); 
-            const endDate = dateRangePicker.getEndDate()?.toJSDate().toISOString().slice(0, 10);
-            let statusUrl = `${API_URL}?action=getStatusCounts&view=${currentView}`;
+            // FIXED: Use Local Date String
+            const startDate = getLocalDateString(dateRangePicker.getStartDate()?.toJSDate()); 
+            const endDate = getLocalDateString(dateRangePicker.getEndDate()?.toJSDate());
+            
+            let statusUrl = `${API_URL}?action=getStatusCounts&view=${currentView}&_t=${new Date().getTime()}`;
             if (startDate && endDate) { statusUrl += `&start_date=${startDate}&end_date=${endDate}`; }
-            const [statusRes, dropdownRes] = await Promise.all([fetch(statusUrl), fetch(`${API_URL}?action=getDropdownData`)]); 
+            
+            const [statusRes, dropdownRes] = await Promise.all([
+                fetch(statusUrl), 
+                fetch(`${API_URL}?action=getDropdownData`)
+            ]); 
+            
             const statusCounts = await statusRes.json(); 
             dropdownData = await dropdownRes.json(); 
             renderSidebar(statusCounts); 
@@ -223,7 +260,15 @@ document.addEventListener('DOMContentLoaded', function () {
     async function fetchData() { 
         tableBody.innerHTML = '<tr><td colspan="99" class="text-center p-8">Loading...</td></tr>'; 
         try { 
-            const response = await fetch(`${API_URL}?action=readAll&status=${currentStatusFilter}&view=${currentView}`); 
+            // FIXED: Use Local Date String
+            const startDate = getLocalDateString(dateRangePicker.getStartDate()?.toJSDate()); 
+            const endDate = getLocalDateString(dateRangePicker.getEndDate()?.toJSDate());
+
+            let url = `${API_URL}?action=readAll&status=${currentStatusFilter}&view=${currentView}&_t=${new Date().getTime()}`;
+            // IMPORTANT: Pass dates to readAll API too if you want server-side filtering
+            // For now, client-side filtering handles it, but this keeps variables consistent.
+            
+            const response = await fetch(url); 
             if (!response.ok) throw new Error('Network response was not ok.'); 
             allApplicants = await response.json(); 
             currentPage = 1; 
@@ -231,19 +276,25 @@ document.addEventListener('DOMContentLoaded', function () {
             const selectAll = document.getElementById('selectAllCheckbox');
             if (selectAll) selectAll.checked = false;
             renderAll(); 
-        } catch (error) { tableBody.innerHTML = `<tr><td colspan="99" class="text-center p-8 text-red-500">Failed to load data: ${error.message}</td></tr>`; } 
+        } catch (error) { 
+            tableBody.innerHTML = `<tr><td colspan="99" class="text-center p-8 text-red-500">Failed to load data: ${error.message}</td></tr>`; 
+        } 
     }
 
     async function fetchChartData() { 
         try { 
             const metric = chartMetricSelect.value;
-            const startDate = dateRangePicker.getStartDate()?.toJSDate().toISOString().slice(0, 10);
-            const endDate = dateRangePicker.getEndDate()?.toJSDate().toISOString().slice(0, 10);
-            let chartUrl = `${API_URL}?action=getChartData&metric=${metric}`;
+            // FIXED: Use Local Date String
+            const startDate = getLocalDateString(dateRangePicker.getStartDate()?.toJSDate()); 
+            const endDate = getLocalDateString(dateRangePicker.getEndDate()?.toJSDate());
+            
+            let chartUrl = `${API_URL}?action=getChartData&metric=${metric}&_t=${new Date().getTime()}`;
             if (startDate && endDate) { chartUrl += `&start_date=${startDate}&end_date=${endDate}`; }
+            
             const response = await fetch(chartUrl);
             const chartData = await response.json();
             renderMainChart(chartData, metric);
+            
             const sidebarResponse = await fetch(`${API_URL}?action=getChartData&metric=deploymentTrend&days=7`);
             const sidebarData = await sidebarResponse.json();
             renderSidebarChart(sidebarData);
@@ -252,16 +303,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function fetchRecruiterPerformance() { 
         try { 
-            const startDate = dateRangePicker.getStartDate()?.toJSDate().toISOString().slice(0, 10); 
-            const endDate = dateRangePicker.getEndDate()?.toJSDate().toISOString().slice(0, 10);
+            // FIXED: Use Local Date String
+            const startDate = getLocalDateString(dateRangePicker.getStartDate()?.toJSDate()); 
+            const endDate = getLocalDateString(dateRangePicker.getEndDate()?.toJSDate());
+
             let perfUrl = `${API_URL}?action=getRecruiterPerformance`;
             if (startDate && endDate) { perfUrl += `&start_date=${startDate}&end_date=${endDate}`; }
+            
             const response = await fetch(perfUrl);
             allRecruiterData = await response.json();
             renderRecruiterPerformance();
         } catch (error) { console.error('Failed to load recruiter performance:', error); } 
     }
-
     // --- RENDERING ---
     function renderAll() {
         const dataToDisplay = getFilteredAndSortedData();
@@ -621,46 +674,80 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     function renderMainChart(data, metric) {
+        // Helper to parse "YYYY-MM-DD" into a Local Date Object
         function parseLocalDate(dateStr) {
             if (!dateStr) return null;
             const [year, month, day] = dateStr.split('-').map(Number);
             return new Date(year, month - 1, day);
         }
+
         const chartContainer = mainChartCanvas.parentElement;
-        // Set fixed height for consistency
         chartContainer.style.height = '350px'; 
         mainChartCanvas.style.height = '100%';
         mainChartCanvas.style.width = '100%';
         
         let labels = [], counts = [];
+        // Use Litepicker dates directly
         let startDate = dateRangePicker?.getStartDate()?.toJSDate();
         let endDate = dateRangePicker?.getEndDate()?.toJSDate();
         
+        // Default to current month if no range selected
         if (!startDate || !endDate) {
             const today = new Date();
             startDate = new Date(today.getFullYear(), today.getMonth(), 1); 
             endDate = today; 
+        } else {
+            // Ensure times are normalized to prevent infinite loops or partial day issues
+            startDate.setHours(0,0,0,0);
+            endDate.setHours(23,59,59,999);
         }
     
         if (metric === 'applicantTrend' || metric === 'deploymentTrend') {
-            // --- LINE CHART LOGIC (unchanged) ---
+            // --- LINE CHART LOGIC ---
             const dataMap = new Map(data.map(d => [d.date, d.count]));
             const fullLabels = [], fullCounts = [];
+            
+            // Clone start date to iterate
             let currentDate = new Date(startDate);
+
             while (currentDate <= endDate) {
-                const dateString = currentDate.toISOString().slice(0, 10);
-                fullLabels.push(parseLocalDate(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+                // --- FIX: Use getLocalDateString instead of toISOString ---
+                // This prevents "Jan 1" from turning into "Dec 31"
+                const dateString = getLocalDateString(currentDate); 
+                
+                // Create Label (e.g., "Jan 1")
+                fullLabels.push(currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+                
+                // Match with API Data
                 fullCounts.push(dataMap.get(dateString) || 0);
+                
+                // Move to next day
                 currentDate.setDate(currentDate.getDate() + 1);
             }
-            labels = fullLabels; counts = fullCounts;
+
+            labels = fullLabels; 
+            counts = fullCounts;
+            
             const datasetLabel = metric === 'applicantTrend' ? 'New Applicants' : 'Deployments';
             const borderColor = metric === 'applicantTrend' ? '#3b82f6' : '#10b981';
             const backgroundColor = metric === 'applicantTrend' ? 'rgba(59,130,246,0.1)' : 'rgba(16,185,129,0.1)';
     
             const chartConfig = {
                 type: 'line',
-                data: { labels: labels, datasets: [{ label: datasetLabel, data: counts, fill: true, backgroundColor: backgroundColor, borderColor: borderColor, borderWidth: 2, tension: 0.4, pointRadius: 3, pointHoverRadius: 5 }] },
+                data: { 
+                    labels: labels, 
+                    datasets: [{ 
+                        label: datasetLabel, 
+                        data: counts, 
+                        fill: true, 
+                        backgroundColor: backgroundColor, 
+                        borderColor: borderColor, 
+                        borderWidth: 2, 
+                        tension: 0.4, 
+                        pointRadius: 3, 
+                        pointHoverRadius: 5 
+                    }] 
+                },
                 options: { 
                     responsive: true, 
                     maintainAspectRatio: false, 
@@ -668,14 +755,16 @@ document.addEventListener('DOMContentLoaded', function () {
                         y: { beginAtZero: true, grid: { borderDash: [2, 4], color: '#e5e7eb' }, ticks: { precision: 0 } },
                         x: { grid: { display: false } }
                     },
-                    plugins: { legend: { display: false } } // Hide legend for cleaner trend lines
+                    plugins: { legend: { display: false } } 
                 }
             };
             if (mainChartInstance) mainChartInstance.destroy();
             mainChartInstance = new Chart(mainChartCanvas, chartConfig);
 
         } else if (metric === 'topSources' || metric === 'screeningPerformance') {
-            // --- PROFESSIONAL PIE/DOUGHNUT CHART LOGIC ---
+            // ... (Keep existing Pie/Doughnut Chart Logic unchanged) ...
+            // Just copy your existing 'else if' block for pie charts here.
+             // --- PROFESSIONAL PIE/DOUGHNUT CHART LOGIC ---
             labels = data.map(d => d.label || d.source);
             counts = data.map(d => d.count);
             
@@ -859,7 +948,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     // --- FORM & MODAL LOGIC ---
-    function buildFormFields(container, applicantData = {}, formType) {
+function buildFormFields(container, applicantData = {}, formType) {
         container.innerHTML = '';
         ALL_COLUMNS.forEach(col => {
             if (!col.editable) return;
@@ -867,7 +956,26 @@ document.addEventListener('DOMContentLoaded', function () {
             const keyForEdit = col.key === 'recruitment_status_text' ? 'recruitment_status_id' : col.key;
             let required = col.required ? 'required' : '';
             let requiredSpan = col.required ? ' <span class="text-red-500">*</span>' : '';
-            const label = `<label for="${formType}_${keyForEdit}" class="block text-sm font-medium text-gray-700">${col.label}${requiredSpan}</label>`;
+            
+            // --- NEW: Edit Button Logic & Styling ---
+            let labelHTML = `<label for="${formType}_${keyForEdit}" class="block text-sm font-medium text-gray-700">${col.label}${requiredSpan}</label>`;
+            
+            if (formType === 'edit') {
+                labelHTML = `
+                    <div class="flex justify-between items-end">
+                        ${labelHTML}
+                        <button type="button" class="text-xs text-blue-600 hover:text-blue-800 unlock-btn mb-1" data-target="${formType}_${keyForEdit}">
+                            <i class="fas fa-pencil-alt"></i> Edit
+                        </button>
+                    </div>
+                `;
+            }
+
+            // --- NEW: Grayed Out Logic ---
+            // If editing, add disabled attribute and gray styling
+            const disabledAttr = formType === 'edit' ? 'disabled' : '';
+            const bgClass = formType === 'edit' ? 'bg-gray-100 cursor-not-allowed text-gray-600' : 'bg-white';
+
             let inputHTML = '';
             
             if (formType === 'add' && col.key === 'recruitment_status_id') return;
@@ -891,23 +999,40 @@ document.addEventListener('DOMContentLoaded', function () {
                         options = col.options || dropdownData[col.options_key] || [];
                         optionsHTML += options.map(opt => `<option value="${opt}" ${opt === value ? 'selected' : ''}>${opt}</option>`).join('');
                     }
-                    inputHTML = `<select id="${formType}_${keyForEdit}" name="${keyForEdit === 'recruitment_status_id' ? 'recruitment_status' : keyForEdit}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" ${required}>${optionsHTML}</select>`;
+                    // Apply disabled and class
+                    inputHTML = `<select id="${formType}_${keyForEdit}" name="${keyForEdit === 'recruitment_status_id' ? 'recruitment_status' : keyForEdit}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm ${bgClass}" ${required} ${disabledAttr}>${optionsHTML}</select>`;
                     break;
-                case 'textarea': inputHTML = `<textarea id="${formType}_${keyForEdit}" name="${keyForEdit}" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" ${required}>${value}</textarea>`; break;
-                default: inputHTML = `<input type="${col.type}" id="${formType}_${keyForEdit}" name="${keyForEdit}" value="${value}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" ${required}>`;
+                case 'textarea': 
+                    inputHTML = `<textarea id="${formType}_${keyForEdit}" name="${keyForEdit}" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm ${bgClass}" ${required} ${disabledAttr}>${value}</textarea>`; 
+                    break;
+                default: 
+                    inputHTML = `<input type="${col.type}" id="${formType}_${keyForEdit}" name="${keyForEdit}" value="${value}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm ${bgClass}" ${required} ${disabledAttr}>`;
             }
-            fieldWrapper.innerHTML = label + inputHTML;
+            fieldWrapper.innerHTML = labelHTML + inputHTML;
             container.appendChild(fieldWrapper);
 
+            // Handle "Other" degree field visibility and locking
             if (col.key === 'college_degree') {
                 let otherWrapper = document.createElement('div');
                 otherWrapper.id = `${formType}_otherDegreeContainer`;
                 otherWrapper.className = 'hidden mt-2'; 
-                otherWrapper.innerHTML = `<label for="${formType}_college_degree_other" class="block text-sm font-medium text-gray-700">If "Other", please specify</label><input type="text" id="${formType}_college_degree_other" name="college_degree_other" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">`;
+                
+                // Show "Other" field if value is "Other"
+                if (value === 'Other') {
+                    otherWrapper.classList.remove('hidden');
+                }
+
+                otherWrapper.innerHTML = `
+                    <div class="flex justify-between items-end">
+                        <label for="${formType}_college_degree_other" class="block text-sm font-medium text-gray-700">If "Other", please specify</label>
+                        ${formType === 'edit' ? `<button type="button" class="text-xs text-blue-600 hover:text-blue-800 unlock-btn mb-1" data-target="${formType}_college_degree_other"><i class="fas fa-pencil-alt"></i> Edit</button>` : ''}
+                    </div>
+                    <input type="text" id="${formType}_college_degree_other" name="college_degree_other" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm ${bgClass}" ${disabledAttr}>
+                `;
                 container.appendChild(otherWrapper);
             }
         });
-
+        
         const eduSelect = document.getElementById(`${formType}_education_level`);
         const degreeContainer = document.getElementById(`${formType}_collegeDegreeContainer`);
         if(eduSelect && degreeContainer) {
@@ -959,6 +1084,37 @@ document.addEventListener('DOMContentLoaded', function () {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+    }
+
+    function updateHeaderDates() {
+        const start = dateRangePicker.getStartDate();
+        const end = dateRangePicker.getEndDate();
+        
+        let label = "All Time";
+        
+        if (start && end) {
+            // UPDATED: Changed year to 'numeric'
+            const options = { month: 'short', day: 'numeric', year: 'numeric' };
+            
+            const startStr = start.toJSDate().toLocaleDateString('en-US', options);
+            const endStr = end.toJSDate().toLocaleDateString('en-US', options);
+            
+            // Result: "Oct 24, 2025 - Nov 24, 2025"
+            label = `${startStr} - ${endStr}`;
+        }
+
+        // Update all badges
+        const badges = [
+            'dateBadge_total', 
+            'dateBadge_qualified', 
+            'dateBadge_interviewing', 
+            'dateBadge_deployed'
+        ];
+
+        badges.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = label;
+        });
     }
     
     // --- EVENT LISTENERS ---
@@ -1216,17 +1372,32 @@ document.addEventListener('DOMContentLoaded', function () {
 
         editForm.addEventListener('submit', async e => {
             e.preventDefault();
-            if (!editForm.checkValidity()) { editForm.reportValidity(); return; }
+            
+            // 1. TEMPORARILY ENABLE ALL FIELDS SO FORM DATA CAPTURES THEM
+            const disabledInputs = editForm.querySelectorAll(':disabled');
+            disabledInputs.forEach(el => el.disabled = false);
+
+            if (!editForm.checkValidity()) { 
+                editForm.reportValidity(); 
+                // If invalid, leave them enabled so user can fix
+                return; 
+            }
+            
             const formData = new FormData(editForm);
             const dataFromForm = Object.fromEntries(formData.entries());
+            
             try {
                 const response = await fetch(`${API_URL}?action=updateApplicant`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dataFromForm) });
                 const result = await response.json();
                 if(result.status !== 'success') throw new Error(result.message);
+                
                 alert('Applicant saved successfully!'); 
                 editModal.classList.add('hidden');
                 refreshAllData();
-            } catch (error) { alert('Save failed: ' + error.message); }
+            } catch (error) { 
+                alert('Save failed: ' + error.message); 
+                // Re-disable inputs if save failed (optional, usually better to leave open for retry)
+            }
         });
 
         addApplicantForm.addEventListener('submit', async e => {
@@ -1387,6 +1558,35 @@ document.addEventListener('DOMContentLoaded', function () {
                 if(e.target.name === 'req_item') updateReqProgress();
             });
         }
+
+        if(editFormContent) {
+            editFormContent.addEventListener('click', (e) => {
+                const btn = e.target.closest('.unlock-btn');
+                if (btn) {
+                    const targetId = btn.dataset.target;
+                    const input = document.getElementById(targetId);
+                    if (input) {
+                        const isDisabled = input.disabled;
+                        input.disabled = !isDisabled;
+                        
+                        if (!isDisabled) { // Locked
+                            input.classList.add('bg-gray-100', 'cursor-not-allowed', 'text-gray-600');
+                            input.classList.remove('bg-white');
+                            btn.innerHTML = '<i class="fas fa-pencil-alt"></i> Edit';
+                            btn.classList.remove('text-gray-500');
+                            btn.classList.add('text-blue-600');
+                        } else { // Unlocked
+                            input.classList.remove('bg-gray-100', 'cursor-not-allowed', 'text-gray-600');
+                            input.classList.add('bg-white');
+                            btn.innerHTML = '<i class="fas fa-check"></i> Done';
+                            btn.classList.remove('text-blue-600');
+                            btn.classList.add('text-gray-500');
+                            input.focus();
+                        }
+                    }
+                }
+            });
+        }
     }
     
     initializeDashboard();
@@ -1412,3 +1612,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     startTimer();
 })();
+
+
+
+

@@ -10,10 +10,15 @@ session_start();
 header('Content-Type: application/json');
 
 // --- DATABASE CONNECTION ---
-$servername = "10.200.168.89";
-$username   = "supersu";
-$password   = "H110mds2!";
-$database   = "database_rda";
+// $servername = "10.200.168.89";
+// $username   = "supersu";
+// $password   = "H110mds2!";
+// $database   = "database_rda";
+
+$servername = "localhost";
+$username = "root";
+$password = "";
+$database = "database_rda";
 
 $conn = new mysqli($servername, $username, $password, $database);
 
@@ -224,7 +229,11 @@ function getStatusCounts($conn) {
     $types = 'i';
 
     if ($startDate && $endDate) {
-        $sql .= " AND DATE(application_date) BETWEEN ? AND ?";
+        // --- FIXED SQL LOGIC ---
+        // Nested NULLIF ensures that both '' AND '0000-00-00' turn into NULL
+        // This forces COALESCE to correctly fall back to status_date
+        $sql .= " AND DATE(COALESCE(NULLIF(NULLIF(application_date, ''), '0000-00-00'), status_date)) BETWEEN ? AND ?";
+        
         $params[] = $startDate;
         $params[] = $endDate;
         $types .= 'ss';

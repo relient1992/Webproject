@@ -83,23 +83,37 @@ if (!isset($_SESSION['employee_id'])) {
 
             <div class="flex-1 p-6 overflow-y-auto">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                    <div class="bg-white p-6 rounded-2xl shadow-md border-l-4 border-blue-500">
-                        <p class="text-gray-500 text-sm">Total Applicants</p>
-                        <p id="totalApplicants" class="text-3xl font-bold">0</p>
+                    <div class="bg-white p-6 rounded-2xl shadow-md border-l-4 border-blue-500 hover:shadow-lg transition-shadow">
+                        <div class="flex justify-between items-center mb-1">
+                            <p class="text-gray-500 text-sm font-medium">Total Applicants</p>
+                            <span id="dateBadge_total" class="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">All Time</span>
+                        </div>
+                        <p id="totalApplicants" class="text-3xl font-bold text-gray-800">0</p>
                     </div>
-                    <div class="bg-white p-6 rounded-2xl shadow-md border-l-4 border-green-500">
-                        <p class="text-gray-500 text-sm">Qualified (Score 70+)</p>
+
+                    <div class="bg-white p-6 rounded-2xl shadow-md border-l-4 border-green-500 hover:shadow-lg transition-shadow">
+                        <div class="flex justify-between items-center mb-1">
+                            <p class="text-gray-500 text-sm font-medium">Qualified (Score 70+)</p>
+                            <span id="dateBadge_qualified" class="text-[10px] font-bold uppercase tracking-wider text-green-600 bg-green-50 px-2 py-0.5 rounded-full">All Time</span>
+                        </div>
                         <p id="qualifiedCount" class="text-3xl font-bold text-green-600">0</p>
                     </div>
-                    <div class="bg-white p-6 rounded-2xl shadow-md border-l-4 border-purple-500">
-                        <p class="text-gray-500 text-sm">Interviewing</p>
-                        <p id="interviewingCount" class="text-3xl font-bold">0</p>
+
+                    <div class="bg-white p-6 rounded-2xl shadow-md border-l-4 border-purple-500 hover:shadow-lg transition-shadow">
+                        <div class="flex justify-between items-center mb-1">
+                            <p class="text-gray-500 text-sm font-medium">Interviewing</p>
+                            <span id="dateBadge_interviewing" class="text-[10px] font-bold uppercase tracking-wider text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">All Time</span>
+                        </div>
+                        <p id="interviewingCount" class="text-3xl font-bold text-gray-800">0</p>
                     </div>
-                    <div class="bg-white p-6 rounded-2xl shadow-md border-l-4 border-orange-500">
-                        <p class="text-gray-500 text-sm">Deployed (This Month)</p>
-                        <p id="deployedThisMonth" class="text-3xl font-bold">0</p>
+
+                    <div class="bg-white p-6 rounded-2xl shadow-md border-l-4 border-orange-500 hover:shadow-lg transition-shadow">
+                        <div class="flex justify-between items-center mb-1">
+                            <p class="text-gray-500 text-sm font-medium">Deployed</p> <span id="dateBadge_deployed" class="text-[10px] font-bold uppercase tracking-wider text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">All Time</span>
+                        </div>
+                        <p id="deployedThisMonth" class="text-3xl font-bold text-gray-800">0</p>
                     </div>
-                    </div>
+                </div>
 
                 <div class="bg-white p-4 rounded-2xl shadow-md mb-6">
                     <div class="flex justify-between items-center mb-4">
@@ -167,7 +181,7 @@ if (!isset($_SESSION['employee_id'])) {
                     <div class="flex items-center gap-4 flex-wrap">
                         <div class="relative">
                             <i class="fas fa-calendar-alt absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                            <input type="text" id="dateRangePicker" class="p-2 pl-10 border rounded-lg w-64" placeholder="Select date range...">
+                            <input type="text" id="dateRangePicker" class="p-2 pl-10 border rounded-lg w-64" placeholder="(Applied) Select date range...">
                         </div>
                         <div class="flex items-center bg-gray-200 rounded-lg p-1">
                             <button id="viewActiveBtn" class="view-toggle-btn px-4 py-1 text-sm font-semibold rounded-md active">Active</button>

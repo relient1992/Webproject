@@ -327,34 +327,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    const allSkillsData = [
-        // Accounting
-        { name: 'Payroll Processing', category: 'Accounting' }, 
-        { name: 'Taxation/Compliance', category: 'Accounting' },
-        { name: 'Accounts Payable', category: 'Accounting' },
-        { name: 'Audit', category: 'Accounting' },
-        // Call Center
-        { name: 'International Voice', category: 'Call Center Agent' }, 
-        { name: 'Technical Support', category: 'Call Center Agent' },
-        { name: 'Sales/Telemarketing', category: 'Call Center Agent' },
-        // Data Entry
-        { name: 'High Speed Typing', category: 'Data Entry Operator' }, 
-        { name: 'Transcription', category: 'Data Entry Operator' },
-        { name: 'Excel Advanced', category: 'Data Entry Operator' },
-        // IT
-        { name: 'Network Admin', category: 'IT' }, 
-        { name: 'System Security', category: 'IT' },
-        { name: 'Software Troubleshooting', category: 'IT' },
-        { name: 'Java Programming', category: 'IT' },
-        { name: 'Python', category: 'IT' },
-        // HR
-        { name: 'Recruitment', category: 'Human Resource' },
-        { name: 'Employee Relations', category: 'Human Resource' },
-        // Medical
-        { name: 'Medical Coding (ICD-10)', category: 'Medcoder' },
-        { name: 'Medical Billing', category: 'Medcoder' }
-        // ... Add more as needed
-    ];
 
     const skillDropdown = document.getElementById('skill_dropdown');
     const addSkillBtn = document.getElementById('addSkillBtn');

@@ -1,20 +1,24 @@
 <?php
-// --- ERROR REPORTING ---
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+// --- ERROR REPORTING (FIXED) ---
+// Turn OFF display_errors to prevent text/warnings from breaking the JSON response
+// This is the #1 cause of "stuck" loading spinners.
+ini_set('display_errors', 0); 
+ini_set('display_startup_errors', 0);
+error_reporting(E_ALL); // Keep logging errors to file, but don't show them
 
-// Start session to access variables set by login
+// Start session
 session_start();
 
 header('Content-Type: application/json');
 
 // --- DATABASE CONNECTION ---
+// Live Server
 // $servername = "10.200.168.89";
 // $username   = "supersu";
 // $password   = "H110mds2!";
 // $database   = "database_rda";
 
+// Localhost
 $servername = "localhost";
 $username = "root";
 $password = "";
@@ -28,9 +32,30 @@ if ($conn->connect_error) {
     exit();
 }
 
-// --- FIX FOR Ñ (Set encoding to UTF-8) ---
-// This ensures that special characters like Ñ and ñ are handled correctly.
+// --- UTF-8 SUPPORT ---
 $conn->set_charset("utf8mb4");
+
+// --- PUBLIC API ENDPOINTS (No Login Required) ---
+$action = $_REQUEST['action'] ?? ''; // Safe check for action
+
+if ($action === 'getSkills') {
+    $sql = "SELECT * FROM ref_skills ORDER BY category ASC, skill_name ASC";
+    $result = $conn->query($sql);
+    
+    $skills = [];
+    if ($result) {
+        while ($row = $result->fetch_assoc()) {
+            $skills[] = [
+                'name' => $row['skill_name'],
+                'category' => $row['category']
+            ];
+        }
+    }
+    
+    echo json_encode($skills);
+    $conn->close();
+    exit(); // STOP here
+}
 
 // --- ROLE-BASED ACCESS CONTROL ---
 if (!isset($_SESSION['employee_id'])) {
@@ -38,6 +63,7 @@ if (!isset($_SESSION['employee_id'])) {
     echo json_encode(['status' => 'error', 'message' => 'Authentication required. Please log in first.']);
     exit();
 }
+
 $loggedInUser = $_SESSION['employee_id'];
 $userRole = 'hr_staff'; 
 
@@ -48,24 +74,17 @@ $stmt_role = $conn->prepare(
      WHERE ur.employee_id = ?"
 );
 
-if ($stmt_role === false) {
-    http_response_code(500);
-    echo json_encode(['status' => 'error', 'message' => 'Role check query failed: ' . $conn->error]);
-    exit();
+if ($stmt_role) {
+    $stmt_role->bind_param("s", $loggedInUser);
+    $stmt_role->execute();
+    $result_role = $stmt_role->get_result();
+    if ($row_role = $result_role->fetch_assoc()) {
+        $userRole = strtolower(str_replace(' ', '_', $row_role['role_name']));
+    }
+    $stmt_role->close();
 }
-
-$stmt_role->bind_param("s", $loggedInUser);
-$stmt_role->execute();
-$result_role = $stmt_role->get_result();
-if ($row_role = $result_role->fetch_assoc()) {
-    $userRole = strtolower(str_replace(' ', '_', $row_role['role_name']));
-}
-$stmt_role->close();
-
 
 // --- API ROUTER ---
-$action = $_REQUEST['action'] ?? '';
-
 switch ($action) {
     case 'getUserInfo':
         getUserInfo($conn, $loggedInUser, $userRole);
@@ -112,38 +131,22 @@ switch ($action) {
     default:
         http_response_code(400);
         echo json_encode(['status' => 'error', 'message' => 'Invalid action specified.']);
-        break;
-    case 'getSkills':
-        // Fetch all skills sorted by Category then Name
-        $sql = "SELECT * FROM ref_skills ORDER BY category ASC, skill_name ASC";
-        $result = $conn->query($sql);
-        
-        $skills = [];
-        while ($row = $result->fetch_assoc()) {
-            $skills[] = [
-                'name' => $row['skill_name'],
-                'category' => $row['category']
-            ];
-        }
-        
-        echo json_encode($skills);
-        break;    
+        break; 
 }
 $conn->close();
 
 // --- LOGGING FUNCTION ---
 function logAction($conn, $userIdentifier, $actionType, $description) {
-    $stmt = $conn->prepare("INSERT INTO hr_system_logs (username, action_type, action_description) VALUES (?, ?, ?)");
-    $stmt->bind_param("sss", $userIdentifier, $actionType, $description);
-    $stmt->execute();
-    $stmt->close();
+    if ($stmt = $conn->prepare("INSERT INTO hr_system_logs (username, action_type, action_description) VALUES (?, ?, ?)")) {
+        $stmt->bind_param("sss", $userIdentifier, $actionType, $description);
+        $stmt->execute();
+        $stmt->close();
+    }
 }
-
 
 // --- CORE FUNCTIONS ---
 
 function getUserInfo($conn, $employeeId, $role) {
-    // UPDATED query to fetch preferences
     $stmt = $conn->prepare("SELECT dashboard_preferences FROM user_accounts WHERE employee_id = ?");
     $stmt->bind_param("s", $employeeId);
     $stmt->execute();
@@ -157,7 +160,7 @@ function getUserInfo($conn, $employeeId, $role) {
     echo json_encode([
         'employee_id' => $employeeId, 
         'role' => $role,
-        'preferences' => $prefs ? json_decode($prefs, true) : null // Return JSON object or null
+        'preferences' => $prefs ? json_decode($prefs, true) : null
     ]);
 }
 
@@ -166,7 +169,6 @@ function getAllApplicants($conn) {
     $statusFilter = $_GET['status'] ?? 'all';
     $is_archived = ($view === 'archived') ? 1 : 0;
 
-    // UPDATED SELECT: Included the new pre-screening and experience columns
     $sql = "
         SELECT 
             application_id, surname, firstname, middlename, birthday, age, gender,
@@ -229,11 +231,7 @@ function getStatusCounts($conn) {
     $types = 'i';
 
     if ($startDate && $endDate) {
-        // --- FIXED SQL LOGIC ---
-        // Nested NULLIF ensures that both '' AND '0000-00-00' turn into NULL
-        // This forces COALESCE to correctly fall back to status_date
         $sql .= " AND DATE(COALESCE(NULLIF(NULLIF(application_date, ''), '0000-00-00'), status_date)) BETWEEN ? AND ?";
-        
         $params[] = $startDate;
         $params[] = $endDate;
         $types .= 'ss';
@@ -254,7 +252,7 @@ function getStatusCounts($conn) {
     
     $counts = ['all' => 0];
 
-    // NEW: Count Qualified Applicants (Score >= 70) for the Dashboard Card
+    // Qualified Count
     $q_res = $conn->query("SELECT COUNT(*) as qcount FROM applicants WHERE screening_score >= 70 AND is_archived = 0");
     $counts['qualified_total'] = ($q_res) ? $q_res->fetch_assoc()['qcount'] : 0;
 
@@ -295,27 +293,20 @@ function getDropdownData($conn) {
 function updateApplicant($conn, $userIdentifier) {
     $data = json_decode(file_get_contents('php://input'), true);
     $applicationId = $data['application_id'] ?? 0;
+    
     if ($applicationId <= 0) { 
         http_response_code(400); 
         echo json_encode(['status' => 'error', 'message' => 'Invalid Application ID.']); 
         exit(); 
     }
 
-    $stmt_select = $conn->prepare("SELECT * FROM applicants WHERE application_id = ?");
-    $stmt_select->bind_param("i", $applicationId);
-    $stmt_select->execute();
-    $result = $stmt_select->get_result();
-    $oldData = $result->fetch_assoc();
-    $stmt_select->close();
-
-    if (!$oldData) { 
-        http_response_code(404); 
-        echo json_encode(['status' => 'error', 'message' => 'Applicant not found.']); 
-        exit(); 
+    // --- FIX FOR "OTHER" DEGREE ---
+    // If the frontend sent a custom "college_degree_other" value, overwrite the "college_degree" field
+    if (isset($data['college_degree']) && $data['college_degree'] === 'Other' && !empty($data['college_degree_other'])) {
+        $data['college_degree'] = $data['college_degree_other'];
     }
 
     $setClauses = []; $params = []; $types = '';
-    // UPDATED: Added new screening and experience columns to the allowed list for updates
     $allowedColumns = [ 
         'surname', 'firstname', 'middlename', 'birthday', 'age', 'gender', 'mobile_number', 'email', 
         'street_address', 'city', 'province', 'postcode', 'position_applied', 'recruiter_name', 
@@ -330,7 +321,6 @@ function updateApplicant($conn, $userIdentifier) {
         if(in_array($key, $allowedColumns)) { 
             $setClauses[] = "`{$key}` = ?"; 
             $params[] = ($value === '') ? null : $value; 
-            // Use 'i' for screening_score if it's numeric
             $types .= (is_numeric($value) && $key === 'screening_score') ? 'i' : 's'; 
         } 
     }
@@ -363,7 +353,6 @@ function updateApplicant($conn, $userIdentifier) {
     }
     $stmt->close();
 }
-
 
 function archiveApplicant($conn, $userIdentifier, $userRole) {
     if ($userRole !== 'hr_manager' && $userRole !== 'super_user') { 
@@ -487,7 +476,6 @@ function getChartData($conn) {
             $sql = "SELECT application_source as label, COUNT(*) as count FROM applicants $whereClause GROUP BY application_source ORDER BY count DESC";
             break;
         case 'screeningPerformance':
-            // NEW CHART METRIC: Breakdown of Screening Statuses
             $sql = "SELECT screening_status as label, COUNT(*) as count FROM applicants $whereClause GROUP BY screening_status ORDER BY count DESC";
             break;
         case 'applicantTrend':
@@ -560,7 +548,6 @@ function bulkInsertApplicants($conn, $userIdentifier) {
         exit();
     }
 
-    // UPDATED: Added the new screening columns to the bulk insert template
     $columns = [
         "surname", "firstname", "middlename", "birthday", "age", "gender", "mobile_number", "email",
         "street_address", "city", "province", "postcode", "position_applied", "recruiter_name",
@@ -636,7 +623,6 @@ function saveColumnPreferences($conn, $userIdentifier) {
         exit();
     }
 
-    // Save as JSON
     $jsonPrefs = json_encode(['visibleColumns' => $columns]);
     
     $stmt = $conn->prepare("UPDATE user_accounts SET dashboard_preferences = ? WHERE employee_id = ?");
@@ -657,5 +643,4 @@ function resetColumnPreferences($conn, $userIdentifier) {
         echo json_encode(['status' => 'error', 'message' => 'Failed to reset preferences.']);
     }
 }
-
 ?>

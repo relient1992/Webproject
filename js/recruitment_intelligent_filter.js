@@ -330,63 +330,100 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const skillDropdown = document.getElementById('skill_dropdown');
     const addSkillBtn = document.getElementById('addSkillBtn');
-    const skillsDisplay = document.getElementById('selectedSkillsContainer');
-    const hiddenInput = document.getElementById('hidden_specific_skill');
+    const selectedSkillsContainer = document.getElementById('selectedSkillsContainer');
+    const hiddenSkillInput = document.getElementById('hidden_specific_skill');
     
-    let selectedSkills = [];
+    // Global array to store selected skills
+    let selectedSkills = []; 
 
-    // Group skills by category for the dropdown
-    const groupedSkills = allSkillsData.reduce((acc, skill) => {
-        if (!acc[skill.category]) acc[skill.category] = [];
-        acc[skill.category].push(skill.name);
-        return acc;
-    }, {});
-
-    // Populate Dropdown with OPTGROUPS
-    Object.keys(groupedSkills).sort().forEach(category => {
-        const group = document.createElement('optgroup');
-        group.label = category;
-        groupedSkills[category].forEach(skillName => {
-            const opt = document.createElement('option');
-            opt.value = skillName;
-            opt.textContent = skillName;
-            group.appendChild(opt);
-        });
-        skillDropdown.appendChild(group);
-    });
-
-    // Add Skill Logic
-    addSkillBtn.addEventListener('click', function() {
-        const val = skillDropdown.value;
-        if (val && !selectedSkills.includes(val)) {
-            selectedSkills.push(val);
-            renderTags();
-            skillDropdown.value = ""; // Reset
+    // --- FETCH SKILLS FROM DATABASE ---
+    async function loadSkillsFromDB() {
+        try {
+            const response = await fetch('../hr_dashboard_api.php?action=getSkills');
+            if (!response.ok) throw new Error('Failed to load skills');
+            
+            // SAVE GLOBALLY so the scoring function can access categories later
+            window.allSkillsData = await response.json(); 
+            
+            populateSkillDropdown(window.allSkillsData);
+        } catch (error) {
+            console.error('Error loading skills:', error);
+            if(skillDropdown) skillDropdown.innerHTML = '<option value="">Error loading skills</option>';
         }
-    });
+    }
 
-    // Render Tags Function
-    function renderTags() {
-        skillsDisplay.innerHTML = '';
-        selectedSkills.forEach(skill => {
-            const tag = document.createElement('span');
-            tag.className = 'skill-tag';
-            tag.innerHTML = `${skill} <span class="remove-skill" data-skill="${skill}">&times;</span>`;
-            skillsDisplay.appendChild(tag);
-        });
+    // --- POPULATE DROPDOWN ---
+    function populateSkillDropdown(skills) {
+        if(!skillDropdown) return;
+
+        skillDropdown.innerHTML = '<option value="">Search or select a skill...</option>';
         
-        // Update hidden input for DB submission
-        hiddenInput.value = selectedSkills.join(', ');
-        
-        // Add Delete Listeners
-        document.querySelectorAll('.remove-skill').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const skillToRemove = this.getAttribute('data-skill');
-                selectedSkills = selectedSkills.filter(s => s !== skillToRemove);
-                renderTags();
-            });
+        skills.forEach(skill => {
+            const skillName = skill.name || skill; 
+            const option = document.createElement('option');
+            option.value = skillName;
+            option.textContent = skillName;
+            skillDropdown.appendChild(option);
         });
     }
 
+    // --- ADD SKILL LOGIC ---
+    function addSkill() {
+        if(!skillDropdown) return;
+        
+        const skill = skillDropdown.value;
+        if (skill && !selectedSkills.includes(skill)) {
+            selectedSkills.push(skill);
+            renderSkills();
+            updateHiddenInput();
+            skillDropdown.value = ''; // Reset dropdown
+        }
+    }
+
+    // --- RENDER TAGS ---
+    function renderSkills() {
+        if(!selectedSkillsContainer) return;
+
+        selectedSkillsContainer.innerHTML = '';
+        selectedSkills.forEach(skill => {
+            const tag = document.createElement('span');
+            tag.className = 'skill-tag'; // Uses your CSS class
+            tag.innerHTML = `
+                ${skill}
+                <i class="fas fa-times remove-skill" onclick="removeSkill('${skill}')"></i>
+            `;
+            selectedSkillsContainer.appendChild(tag);
+        });
+    }
+
+    // --- REMOVE SKILL LOGIC (Global Scope) ---
+    window.removeSkill = function(skill) { 
+        selectedSkills = selectedSkills.filter(s => s !== skill);
+        renderSkills();
+        updateHiddenInput();
+    };
+
+    // --- UPDATE HIDDEN INPUT ---
+    function updateHiddenInput() {
+        if(hiddenSkillInput) {
+            hiddenSkillInput.value = selectedSkills.join(', '); 
+        }
+        
+        // Trigger scoring update if the function exists (for the recruitment form)
+        if (typeof calculatePrescreening === 'function') {
+            calculatePrescreening(); 
+        }
+    }
+
+    // --- EVENT LISTENERS ---
+    if (addSkillBtn) {
+        addSkillBtn.addEventListener('click', function(e) {
+            e.preventDefault(); // Prevent form submit
+            addSkill();
+        });
+    }
+    
+    // Initialize Skills
+    loadSkillsFromDB();
 
 });

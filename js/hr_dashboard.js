@@ -206,8 +206,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function initializePlugins() {
         const today = new Date();
-        const last7 = new Date(); last7.setDate(today.getDate() - 6);
-        const last30 = new Date(); last30.setDate(today.getDate() - 29);
+        const last7 = new Date(); 
+        last7.setDate(today.getDate() - 6);
+        
+        const last30 = new Date(); 
+        last30.setDate(today.getDate() - 29);
     
         dateRangePicker = new Litepicker({
             element: document.getElementById('dateRangePicker'),
@@ -215,6 +218,10 @@ document.addEventListener('DOMContentLoaded', function () {
             allowRepick: true,
             autoApply: false,
             resetButton: true,
+            
+            startDate: last7,
+            endDate: today,
+
             plugins: ['ranges'],
             ranges: {
                 'Last 7 Days': [last7, today],
@@ -439,12 +446,35 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
 
                     if (colKey === 'surname') {
+                        // 1. Get Count of Completed Items
                         let completedItems = [];
                         try { completedItems = JSON.parse(applicant.requirements_checklist || '[]'); } catch(e) { completedItems = []; }
-                        const isComplete = completedItems.length >= 14;
-                        const colorClass = isComplete ? 'text-green-600 font-bold' : 'text-blue-600 font-semibold';
-                        const icon = isComplete ? '<i class="fas fa-check-circle ml-1 text-xs"></i>' : '';
-                        content = `<button class="req-btn hover:underline text-left truncate w-full ${colorClass}" data-id="${applicant.application_id}" title="Click to view requirements">${content} ${icon}</button>`;
+                        const count = completedItems.length;
+                        const total = 14; // Your total requirements count
+
+                        // 2. Determine State (Default: Not Started / Blue)
+                        let colorClass = 'text-blue-600 font-semibold'; 
+                        let icon = '';
+                        let tooltip = 'Click to view requirements';
+
+                        if (count >= total) {
+                            // CASE A: COMPLETED (Green + Check)
+                            colorClass = 'text-green-600 font-bold';
+                            icon = '<i class="fas fa-check-circle ml-1 text-xs" title="Complete"></i>';
+                            tooltip = 'Requirements Complete';
+                        } 
+                        else if (count > 0) {
+                            // CASE B: ONGOING (Orange + Hourglass)
+                            // This visualizes that they have started but aren't done yet
+                            colorClass = 'text-orange-600 font-semibold';
+                            icon = `<i class="fas fa-hourglass-half ml-1 text-xs" title="${count}/${total} Completed"></i>`;
+                            tooltip = `In Progress: ${count}/${total} items submitted`;
+                        }
+
+                        // 3. Render Button
+                        content = `<button class="req-btn hover:underline text-left truncate w-full ${colorClass}" data-id="${applicant.application_id}" title="${tooltip}">
+                            ${content} ${icon}
+                        </button>`;
                     }
 
                     

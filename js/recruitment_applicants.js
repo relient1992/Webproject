@@ -47,21 +47,16 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to fetch skills from Database
     async function fetchSkillsFromDB() {
         try {
-            // Adjust path if your PHP file is in a different folder
             const response = await fetch('../hr_dashboard_api.php?action=getSkills');
             const data = await response.json();
             
             if (Array.isArray(data)) {
                 allSkillsData = data;
+                window.allSkillsData = data; // <--- ADD THIS LINE (Makes it available for scoring)
                 console.log("Skills loaded from DB:", allSkillsData.length);
             }
         } catch (error) {
             console.error("Failed to load skills:", error);
-            // Optional: Fallback data if DB fails
-            allSkillsData = [
-                { name: 'Payroll Processing', category: 'Accounting' },
-                { name: 'Technical Support', category: 'Call Center Agent' }
-            ];
         }
     }
 
@@ -223,12 +218,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- 6. PRE-SCREENING CALCULATION (FIXED) ---
     function calculatePrescreening() {
-        // 1. Re-fetch elements dynamically to ensure we get the active form's inputs
+        // 1. Re-fetch elements dynamically
         const eduEl = document.getElementById('education_level') || document.getElementById('add_education_level');
         const expEl = document.getElementById('experience_years') || document.getElementById('add_experience_years');
-        const posEl = document.getElementById('position_applied') || document.getElementById('add_position_applied'); // Need Position for logic
+        const posEl = document.getElementById('position_applied') || document.getElementById('add_position_applied');
+        const degreeEl = document.getElementById('college_degree') || document.getElementById('add_college_degree');
 
-        // Safety: If elements are missing, return 0
+        // Safety: If elements are missing, return 0 to prevent crash
         if (!eduEl || !expEl || !posEl) {
             console.error("Scoring Error: Could not find required dropdowns.");
             return { score: 0, status: 'Pending' };
@@ -237,75 +233,109 @@ document.addEventListener('DOMContentLoaded', function() {
         const edu = eduEl.value;
         const exp = expEl.value;
         const pos = posEl.value;
+        const degree = degreeEl ? degreeEl.value : ""; 
         let score = 0;
 
-        console.log(`Calculating for Position: "${pos}" | Edu: "${edu}" | Exp: "${exp}"`);
-
         // --- 1. EDUCATION SCORING (Max 30) ---
-        // Logic: Data Entry & Call Center accept HS Grads, so we boost their base score.
-        
         const isEntryLevelRole = (pos === "Data Entry Operator" || pos === "Call Center Agent");
 
         if (edu === "Post Graduate") {
             score += 30;
-        } 
-        else if (edu === "College Graduate") {
-            // Full marks for College in entry roles
+        } else if (edu === "College Graduate") {
             score += isEntryLevelRole ? 30 : 25; 
-        } 
-        else if (edu === "Vocational Graduate") {
-            // Vocational is very strong for practical roles like Data Entry
+        } else if (edu === "Vocational Graduate") {
             score += isEntryLevelRole ? 28 : 20; 
-        } 
-        else if (edu === "Some College") {
-            // Undergrads are often hired for Call Centers
+        } else if (edu === "Some College") {
             score += isEntryLevelRole ? 25 : 15; 
-        } 
-        else if (edu === "High School Graduate") {
-            // CRITICAL CHANGE: 
-            // For standard roles: 5 points (Likely underqualified)
-            // For Entry Level roles: 20 points (Meets requirement)
+        } else if (edu === "High School Graduate") {
             score += isEntryLevelRole ? 20 : 5; 
         }
 
         // --- 2. EXPERIENCE SCORING (Max 50) ---
-        if (exp === "5") score += 50;       // 5+ Years
-        else if (exp === "3") score += 40;  // 3-5 Years
-        else if (exp === "2") score += 30;  // 1-2 Years
-        else if (exp === "1") score += 15;  // Less than 1 Year
-        else if (exp === "0") score += 5;   // Entry Level
+        if (exp === "5") score += 50;
+        else if (exp === "3") score += 40;
+        else if (exp === "2") score += 30;
+        else if (exp === "1") score += 15;
+        else if (exp === "0") score += 5;
 
-        // --- 3. SKILLS BONUS (Max 20) ---
-        if (selectedSkills && selectedSkills.length > 0) {
-            score += Math.min(selectedSkills.length * 2, 20);
+        // --- 3. SKILLS BONUS (Max 25) ---
+        let skillScore = 0;
+        // Check for global skills data to apply intelligent scoring
+        if (selectedSkills && selectedSkills.length > 0 && window.allSkillsData && Array.isArray(window.allSkillsData)) {
+            selectedSkills.forEach(skillName => {
+                const skillObj = window.allSkillsData.find(s => s.name === skillName);
+                if (skillObj && skillObj.category === pos) {
+                    skillScore += 5; // Premium points
+                } else {
+                    skillScore += 1; // Standard points
+                }
+            });
+        } else if (selectedSkills && selectedSkills.length > 0) {
+            skillScore = selectedSkills.length * 2; // Fallback logic
         }
+        score += Math.min(skillScore, 25);
 
-        // --- 4. STATUS DETERMINATION ---
+        // --- 4. STATUS DETERMINATION & HARD GATES ---
         let status = "Low Match";
+        let hardGateReason = null;
 
-        // Hard Gates (Auto-Fail Conditions)
-        if (pos === "Nurse" && (edu !== "College Graduate" && edu !== "Post Graduate")) {
-            status = "Underqualified (Education)";
-        } 
-        else if (pos === "Manager Level" && (exp === "0" || exp === "1")) {
-            status = "Underqualified (Experience)";
+        // NURSE
+        if (pos === "Nurse") {
+            if (edu !== "College Graduate" && edu !== "Post Graduate") hardGateReason = "Education (Degree Required)";
+            else if (!degree.includes("Nursing")) hardGateReason = "Degree Mismatch (BS Nursing Required)";
         }
-        else {
-            // Standard Scoring Thresholds
-            if (score >= 90) {
-                status = "Highly Recommended";
-            } else if (score >= 70) {
-                status = "Qualified";
-            } else if (score >= 40) {
-                // With the boost, a HS Grad (20) + 1 Yr Exp (15) + Skills (6) = 41
-                // This correctly places them in "Review Required" instead of "Low Match"
-                status = "Review Required";
-            }
+        // ACCOUNTING
+        else if (pos === "Accounting") {
+            if (edu !== "College Graduate" && edu !== "Post Graduate") hardGateReason = "Education (Degree Required)";
+            else if (!degree.includes("Accountancy")) hardGateReason = "Degree Mismatch (BS Accountancy Required)";
+        }
+        // HUMAN RESOURCE
+        else if (pos === "Human Resource") {
+            if (edu !== "College Graduate" && edu !== "Post Graduate") hardGateReason = "Education (Degree Required)";
+            else if (!degree.includes("Psychology") && !degree.includes("Human Resource") && degree !== "Other") hardGateReason = "Degree Mismatch (Psychology/HR Preferred)";
+        }
+        // IT
+        else if (pos === "IT") {
+            if (edu === "High School Graduate") hardGateReason = "Education (Minimum Vocational/College)";
+            else if (!degree.includes("Technology") && !degree.includes("Computer") && !degree.includes("Engineering") && degree !== "Other") hardGateReason = "Degree Mismatch (IT/CS/Eng Required)";
+        }
+        // MEDCODER
+        else if (pos === "Medcoder") {
+            const hasCodingSkill = selectedSkills.some(s => s.includes("Medical Coding") || s.includes("ICD-10"));
+            const hasMedicalDegree = degree.includes("Nursing") || degree.includes("Biology");
+            if (!hasCodingSkill && !hasMedicalDegree) hardGateReason = "Qualification (Needs Medical Degree or Coding Skill)";
+        }
+        // MANAGER
+        else if (pos === "Manager Level" && (exp === "0" || exp === "1")) {
+            hardGateReason = "Experience (Management requires tenure)";
+        }
+        // QUALITY ANALYST
+        else if (pos === "Quality Analyst" && exp === "0") {
+            hardGateReason = "Experience (QA requires prior experience)";
+        }
+        // PROCUREMENT
+        else if (pos === "Procurement" && (edu !== "College Graduate" && edu !== "Post Graduate")) {
+            hardGateReason = "Education (Degree Required)";
+        }
+        // REPORTS ANALYST
+        else if (pos === "Reports Analyst" && exp === "0") {
+            hardGateReason = "Experience (Analyst requires tenure)";
+        }
+
+        // --- APPLY FINAL STATUS ---
+        if (hardGateReason) {
+            status = `Underqualified - ${hardGateReason}`;
+            score = 0; 
+        } else {
+            if (score >= 90) status = "Highly Recommended";
+            else if (score >= 70) status = "Qualified";
+            else if (score >= 40) status = "Review Required";
         }
 
         console.log(`Final Result: Score = ${score}, Status = ${status}`);
         
-        return { score, status };
+        // --- IMPORTANT: THIS LINE WAS MISSING ---
+        return { score: score, status: status }; 
     }
 
     // --- 7. PUBLIC FORM SUBMISSION (With Review Modal) ---
@@ -358,55 +388,50 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 const formData = new FormData(form);
 
-                // 1. Calculate Score & Status (Calls your updated function)
-                const screening = calculatePrescreening();
-                formData.append('screening_score', screening.score);
-                formData.append('screening_status', screening.status);
-    
-                // 2. SAFETY CHECK: Explicitly add the skills string
-                // (This ensures the skills tags are sent even if the form behavior is quirky)
-                const hiddenSkillInput = document.getElementById('hidden_specific_skill');
-                if (hiddenSkillInput) {
-                    formData.set('specific_skill', hiddenSkillInput.value);
-                }
-    
-                // 3. Handle "Other" Degree
-                if (collegeDegreeSelect && collegeDegreeSelect.value === 'Other' && otherDegreeInput && otherDegreeInput.value) {
-                    formData.set('college_degree', otherDegreeInput.value);
-                }
-                formData.delete('college_degree_other');
-
                 try {
+                    // --- SAFETY WRAPPER START ---
+                    // Calculate Score inside try block. If this crashes, it goes to catch() instead of freezing.
+                    const screening = calculatePrescreening();
+                    formData.append('screening_score', screening.score);
+                    formData.append('screening_status', screening.status);
+                    // --- SAFETY WRAPPER END ---
+        
+                    // ... (Keep your existing skills/degree handling logic here) ...
+                    // 2. SAFETY CHECK...
+                    const hiddenSkillInput = document.getElementById('hidden_specific_skill');
+                    if (hiddenSkillInput) formData.set('specific_skill', hiddenSkillInput.value);
+        
+                    // 3. Handle "Other" Degree...
+                    if (collegeDegreeSelect && collegeDegreeSelect.value === 'Other' && otherDegreeInput) {
+                        formData.set('college_degree', otherDegreeInput.value);
+                    }
+                    formData.delete('college_degree_other');
+
+                    // Submit
                     const response = await fetch('../recruitment_applicants.php', { method: 'POST', body: formData });
                     const result = await response.json();
                     
                     if (result.status === 'success') {
-                        if (responseModal) {
-                            modalTitle.textContent = 'Success!';
-                            modalTitle.className = 'text-2xl font-bold text-green-600 mb-4';
-                            modalMessage.textContent = result.message;
-                            responseModal.classList.remove('hidden');
-                            
-                            setTimeout(() => {
-                                responseModal.classList.add('hidden');
-                                form.reset();
-                                selectedSkills = [];
-                                renderTags();
-                                if(collegeDegreeContainer) collegeDegreeContainer.classList.add('hidden');
-                                if(skillsContainer) skillsContainer.classList.add('hidden');
-                            }, 3000);
+                        // ... (Keep your success logic) ...
+                        if(responseModal) {
+                             modalTitle.textContent = 'Success!';
+                             modalTitle.className = 'text-2xl font-bold text-green-600 mb-4';
+                             modalMessage.textContent = result.message;
+                             responseModal.classList.remove('hidden');
+                             setTimeout(() => { location.reload(); }, 3000); // Reload to clear forms cleanly
                         } else {
-                            alert('Success: ' + result.message);
-                            form.reset();
+                             alert('Success: ' + result.message);
+                             location.reload();
                         }
                     } else {
                         throw new Error(result.message);
                     }
                 } catch (error) {
+                    console.error("Submission Error:", error); // Log exact error to console
                     if (responseModal) {
                         modalTitle.textContent = 'Error';
                         modalTitle.className = 'text-2xl font-bold text-red-600 mb-4';
-                        modalMessage.textContent = error.message;
+                        modalMessage.textContent = "Submission Failed: " + error.message;
                         responseModal.classList.remove('hidden');
                     } else {
                         alert('Error: ' + error.message);

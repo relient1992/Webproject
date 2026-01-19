@@ -351,7 +351,12 @@ document.addEventListener('DOMContentLoaded', function() {
             'education_level': 'Education', 'college_degree': 'Degree',
             'street': 'Address', 'city': 'City', 'province': 'Province',
             'position_applied': 'Position', 'experience_years': 'Experience',
-            'specific_skill': 'Skills'
+            'specific_skill': 'Skills',
+            'entity': 'Entity',
+            'sss_no': 'SSS Number',
+            'tin_no': 'TIN',
+            'philhealth_no': 'PhilHealth',
+            'hdmf_id': 'HDMF / Pag-IBIG',
         };
 
         formData.forEach((value, key) => {

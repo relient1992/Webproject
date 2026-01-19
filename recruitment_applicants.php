@@ -11,15 +11,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 header('Content-Type: application/json');
 
 // --- DATABASE CONNECTION ---
-// $servername = "10.200.168.89";
-// $username   = "supersu";
-// $password   = "H110mds2!";
-// $database   = "database_rda";
+$servername = "10.200.168.89";
+$username   = "supersu";
+$password   = "H110mds2!";
+$database   = "database_rda";
 
-$servername = "localhost";
-$username = "root";
-$password = "";
-$database = "database_rda";
+// $servername = "localhost";
+// $username = "root";
+// $password = "";
+// $database = "database_rda";
 
 $conn = new mysqli($servername, $username, $password, $database);
 
@@ -46,6 +46,11 @@ try {
     $gender = $_POST['gender'] ?? '';
     $age = !empty($_POST['age']) ? intval($_POST['age']) : null;
     $mobile_number = $_POST['mobile'] ?? '';
+    $entity = $_POST['entity'] ?? null;
+    $sss_no = $_POST['sss_no'] ?? null;
+    $tin_no = $_POST['tin_no'] ?? null;
+    $philhealth_no = $_POST['philhealth_no'] ?? null;
+    $hdmf_id = $_POST['hdmf_id'] ?? null;
     $email = $_POST['email'] ?? '';
     $street_address = $_POST['street'] ?? '';
     $city = $_POST['city'] ?? '';
@@ -81,8 +86,9 @@ try {
             street_address, city, province, postcode, position_applied, application_source,
             facebook_account, instagram_account, twitter_account, viber_account,
             education_level, college_degree, 
-            experience_years, specific_skill, screening_score, screening_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            experience_years, specific_skill, screening_score, screening_status,
+            entity, sss_no, tin_no, philhealth_no, hdmf_id, requisition_status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Open')";
 
     $stmt = $conn->prepare($sql);
 
@@ -95,12 +101,13 @@ try {
     // Changed pattern to 's' for experience_years (safer for dropdown values)
     // s = string, i = integer
     $stmt->bind_param(
-        "ssssisssssssssssssssssis", 
+        "ssssisssssssssssssssssissssss", 
         $surname, $firstname, $middlename, $birthday, $age, $gender, $mobile_number, $email, 
         $street_address, $city, $province, $postcode, $position_applied, $application_source,
         $facebook_account, $instagram_account, $twitter_account, $viber_account,
         $education_level, $college_degree,
-        $experience_years, $specific_skill, $screening_score, $screening_status
+        $experience_years, $specific_skill, $screening_score, $screening_status,
+        $entity, $sss_no, $tin_no, $philhealth_no, $hdmf_id
     );
 
     // 5. Execute

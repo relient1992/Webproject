@@ -163,6 +163,7 @@ if (!isset($_SESSION['employee_id'])) {
                     <select id="searchFieldSelector" class="p-2 border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="firstname">Firstname</option>
                         <option value="surname">Surname</option>
+                        <option value="entity">Entity</option>
                         <option value="position_applied">Position Applied</option>
                         <option value="screening_status">Screening Status</option>
                         <option value="specific_skill">Expertise</option>

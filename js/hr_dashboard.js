@@ -45,6 +45,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const ALL_COLUMNS = [
         { key: 'select', label: '<input type="checkbox" id="selectAllCheckbox" />', editable: false },
         { key: 'application_id', label: 'ID', editable: false },
+        { key: 'entity', label: 'Entity', editable: true, type: 'select', options: ['Scorp', 'Lexicode'] },
+        { key: 'talento_id', label: 'Talento ID', editable: true, type: 'text' },
+        { key: 'requisition_status', label: 'Req Status', editable: true, type: 'select', options: ['Open', 'Approved', 'Closed', 'Hold'] },
+        { key: 'hdmf_id', label: 'HDMF (Pag-IBIG)', editable: true, type: 'text' },
+        { key: 'sss_no', label: 'SSS No.', editable: true, type: 'text' },
+        { key: 'philhealth_no', label: 'PhilHealth', editable: true, type: 'text' },
+        { key: 'tin_no', label: 'TIN', editable: true, type: 'text' },
         { key: 'surname', label: 'Surname', editable: true, type: 'text', required: true },
         { key: 'firstname', label: 'First Name', editable: true, type: 'text', required: true },
         { key: 'middlename', label: 'Middle Name', editable: true, type: 'text' },
@@ -66,7 +73,7 @@ document.addEventListener('DOMContentLoaded', function () {
         { key: 'recruitment_status_text', label: 'Status', editable: false },
         { key: 'recruitment_status_id', label: 'Status', editable: true, type: 'select', options_key: 'statuses' },
         { key: 'status_date', label: 'Status Date', editable: true, type: 'date' },
-        { key: 'application_source', label: 'Source', editable: true, type: 'select', options: ['Job Portal', 'Employee Referral', 'Career Page', 'Recruitment Agency', 'Walk-in'], required: true },
+        { key: 'application_source', label: 'Source', editable: true, type: 'select', options: ['Job Portal', 'Employee Referral', 'Career Page', 'Recruitment Agency', 'Walk-in', 'Facebook', 'Indeed', 'Linked-in','Job Fair'], required: true },
         { key: 'application_date', label: 'Applied On', editable: false },
         { key: 'facebook_account', label: 'Facebook', editable: true, type: 'url' },
         { key: 'instagram_account', label: 'Instagram', editable: true, type: 'text' },
@@ -712,7 +719,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         const chartContainer = mainChartCanvas.parentElement;
-        chartContainer.style.height = '350px'; 
+        chartContainer.style.height = '250px'; 
         mainChartCanvas.style.height = '100%';
         mainChartCanvas.style.width = '100%';
         

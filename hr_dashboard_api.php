@@ -13,16 +13,16 @@ header('Content-Type: application/json');
 
 // --- DATABASE CONNECTION ---
 // Live Server
-// $servername = "10.200.168.89";
-// $username   = "supersu";
-// $password   = "H110mds2!";
-// $database   = "database_rda";
+$servername = "10.200.168.89";
+$username   = "supersu";
+$password   = "H110mds2!";
+$database   = "database_rda";
 
 // Localhost
-$servername = "localhost";
-$username = "root";
-$password = "";
-$database = "database_rda";
+// $servername = "localhost";
+// $username = "root";
+// $password = "";
+// $database = "database_rda";
 
 $conn = new mysqli($servername, $username, $password, $database);
 
@@ -179,6 +179,7 @@ function getAllApplicants($conn) {
             facebook_account, instagram_account, twitter_account, viber_account,
             education_level, college_degree,
             experience_years, specific_skill, screening_score, screening_status, requirements_checklist,
+            entity, hdmf_id, sss_no, philhealth_no, tin_no, talento_id, requisition_status,
             CASE recruitment_status
                 WHEN 1 THEN 'Applied' WHEN 2 THEN 'Failed Speedtest' WHEN 3 THEN 'Initial Interview'
                 WHEN 4 THEN 'Failed L1 Interview' WHEN 5 THEN 'Final Interview' WHEN 6 THEN 'Failed L2 Interview'
@@ -313,7 +314,8 @@ function updateApplicant($conn, $userIdentifier) {
         'recruitment_status', 'status_date', 'application_source', 'interview_dates', 'interviewers', 
         'feedback_comments', 'offer_status', 'offer_date', 'joining_date', 'employee_id', 'Project',
         'facebook_account', 'instagram_account', 'twitter_account', 'viber_account', 
-        'education_level', 'college_degree', 'experience_years', 'specific_skill', 'screening_score', 'screening_status' , 'requirements_checklist'
+        'education_level', 'college_degree', 'experience_years', 'specific_skill', 'screening_score', 'screening_status' , 'requirements_checklist',
+        'entity', 'hdmf_id', 'sss_no', 'philhealth_no', 'tin_no', 'talento_id', 'requisition_status'
     ];
 
     foreach ($data as $key => $value) { 
@@ -554,7 +556,8 @@ function bulkInsertApplicants($conn, $userIdentifier) {
         "recruitment_status", "status_date", "application_source", "interview_dates", "interviewers",
         "feedback_comments", "offer_status", "offer_date", "joining_date", "employee_id", "Project",
         "facebook_account", "instagram_account", "twitter_account", "viber_account",
-        "education_level", "college_degree", "experience_years", "specific_skill", "screening_score", "screening_status"
+        "education_level", "college_degree", "experience_years", "specific_skill", "screening_score", "screening_status",
+        "entity", "hdmf_id", "sss_no", "philhealth_no", "tin_no", "talento_id", "requisition_status"
     ];
     
     $placeholders = rtrim(str_repeat('?,', count($columns)), ',');

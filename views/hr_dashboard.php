@@ -53,6 +53,32 @@ if (!isset($_SESSION['employee_id'])) {
         .score-high { color: #059669; font-weight: bold; background: #ecfdf5; padding: 2px 8px; border-radius: 12px; }
         .score-mid { color: #d97706; font-weight: bold; background: #fffbeb; padding: 2px 8px; border-radius: 12px; }
         .score-low { color: #dc2626; font-weight: bold; background: #fef2f2; padding: 2px 8px; border-radius: 12px; }
+
+        /* --- COLUMN RESIZER STYLES --- */
+        th {
+            position: relative; /* Required for resizer positioning */
+        }
+
+        .resizer {
+            /* The clickable area on the right edge */
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 5px;
+            height: 100%;
+            cursor: col-resize;
+            user-select: none;
+            touch-action: none;
+            z-index: 20;
+        }
+
+        .resizer:hover, 
+        .resizing {
+            /* Highlight blue when hovering or dragging */
+            background-color: #3b82f6; 
+            border-right: 2px solid #3b82f6;
+        }
+
     </style>
 </head>
 <body class="bg-gray-100 font-sans text-gray-800">
@@ -72,8 +98,13 @@ if (!isset($_SESSION['employee_id'])) {
             <header class="bg-white shadow-sm p-4 flex justify-between items-center">
                 <h1 class="text-2xl font-semibold text-gray-800">Applicant Dashboard</h1>
                 <div class="flex items-center gap-2 flex-wrap">
+                    <button id="btnOpenRequisition" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-150 ease-in-out flex items-center"><i class="fas fa-clipboard-list mr-2"></i> Requisitions</button>
                      <button id="downloadTemplateBtn" class="bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600"><i class="fas fa-download mr-2"></i>Template</button>
                      <button id="bulkUploadBtn" class="bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600"><i class="fas fa-upload mr-2"></i>Bulk Upload</button>
+                     <div class="relative mr-4 cursor-pointer" id="btnNotification">
+                        <i class="fas fa-bell text-gray-600 text-2xl hover:text-purple-600 transition"></i>
+                        <span id="notifBadge" class="absolute -top-1 -right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full hidden">0</span>
+                     </div>
                      <button id="viewLogsBtn" class="bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300"><i class="fas fa-history mr-2"></i>Logs</button>
                      <button id="newApplicantBtn" class="bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700"><i class="fas fa-plus mr-2"></i>New</button>
                      <button id="logoutBtn" class="bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600 border border-red-600 shadow-sm ml-2">
@@ -461,6 +492,142 @@ if (!isset($_SESSION['employee_id'])) {
             </form>
         </div>
     </div>
+
+    <div id="requisitionModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+        <div class="relative w-11/12 xl:w-4/5 bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col" style="max-height: 90vh;">
+            
+            <div class="flex justify-between items-center p-5 border-b bg-gray-50 rounded-t-xl">
+                <div>
+                    <h3 class="text-xl font-bold text-gray-800"><i class="fas fa-briefcase text-purple-600 mr-2"></i>Requisition Management</h3>
+                    <p class="text-xs text-gray-500 mt-1">Manage job orders, headcount, and status.</p>
+                </div>
+                <button id="closeRequisitionModal" class="text-gray-400 hover:text-red-500 transition-colors">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+
+            <div class="flex flex-col lg:flex-row h-full overflow-hidden">
+                
+                <div class="w-full lg:w-1/4 bg-gray-50 p-5 border-r border-gray-200 overflow-y-auto">
+                    <h4 id="reqFormTitle" class="font-bold text-sm uppercase text-gray-700 mb-4 border-b pb-2">Create New Requisition</h4>
+                    
+                    <form id="requisitionForm" class="space-y-4">
+                        <input type="hidden" name="id" id="req_db_id"> <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Requisition ID</label>
+                            <input type="text" name="requisition_id" id="req_id_input" required class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-purple-500 outline-none uppercase" placeholder="REQ-2025-001">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Project Name</label>
+                            <input type="text" name="project_name" id="req_project_input" required class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g. CSR Wave 1">
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Headcount</label>
+                                <input type="number" name="headcount_approved" id="req_headcount_input" required class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-purple-500 outline-none" placeholder="0">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Status</label>
+                                <select name="status" id="req_status_input" class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-purple-500 outline-none">
+                                    <option value="Open">Open</option>
+                                    <option value="Closed">Closed</option>
+                                    <option value="Hold">Hold</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Date Approved</label>
+                            <input type="date" name="date_approved" id="req_date_input" required class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-purple-500 outline-none">
+                        </div>
+
+                        <div class="flex gap-2 mt-4">
+                            <button type="submit" id="btnSaveReq" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded text-sm transition shadow-md">
+                                <i class="fas fa-plus-circle mr-1"></i> <span id="btnSaveReqText">Add</span>
+                            </button>
+                            <button type="button" id="btnCancelReqEdit" class="hidden flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 font-bold py-2 px-4 rounded text-sm transition">
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="w-full lg:w-3/4 p-5 flex flex-col h-full">
+                    
+                    <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-3">
+                        <div class="flex space-x-1 bg-gray-100 p-1 rounded-lg" id="reqStatusTabs">
+                            <button class="px-4 py-1.5 text-xs font-bold rounded-md bg-white shadow text-purple-700" data-status="All">All</button>
+                            <button class="px-4 py-1.5 text-xs font-bold rounded-md text-gray-500 hover:text-gray-700" data-status="Open">Open</button>
+                            <button class="px-4 py-1.5 text-xs font-bold rounded-md text-gray-500 hover:text-gray-700" data-status="Closed">Closed</button>
+                            <button class="px-4 py-1.5 text-xs font-bold rounded-md text-gray-500 hover:text-gray-700" data-status="Hold">Hold</button>
+                        </div>
+
+                        <div class="relative w-full md:w-64">
+                            <input type="text" id="reqSearchInput" class="w-full pl-9 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Search ID or Project...">
+                            <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 overflow-auto border rounded-lg shadow-inner relative">
+                        <table class="min-w-full leading-normal">
+                            <thead class="bg-gray-100 sticky top-0 z-10">
+                                <tr class="text-xs font-bold text-gray-600 uppercase tracking-wider">
+                                    <th class="px-4 py-3 text-left cursor-pointer hover:bg-gray-200 req-sort" data-key="requisition_id">Req ID <i class="fas fa-sort ml-1"></i></th>
+                                    <th class="px-4 py-3 text-left cursor-pointer hover:bg-gray-200 req-sort" data-key="project_name">Project <i class="fas fa-sort ml-1"></i></th>
+                                    <th class="px-4 py-3 text-center cursor-pointer hover:bg-gray-200 req-sort" data-key="status">Status <i class="fas fa-sort ml-1"></i></th>
+                                    <th class="px-4 py-3 text-center cursor-pointer hover:bg-gray-200 req-sort" data-key="headcount_approved">Approved <i class="fas fa-sort ml-1"></i></th>
+                                    <th class="px-4 py-3 text-center text-blue-600 cursor-pointer hover:bg-gray-200 req-sort" data-key="joined_count">Joined <i class="fas fa-sort ml-1"></i></th>
+                                    
+                                    <th class="px-4 py-3 text-center text-red-600 cursor-pointer hover:bg-gray-200 req-sort" data-key="balance">Balance <i class="fas fa-sort ml-1"></i></th>
+                                    
+                                    <th class="px-4 py-3 text-center cursor-pointer hover:bg-gray-200 req-sort" data-key="aging_days">Aging <i class="fas fa-sort ml-1"></i></th>
+                                    
+                                    <th class="px-4 py-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="requisitionTableBody" class="bg-white text-sm">
+                                </tbody>
+                        </table>
+                    </div>
+
+                    <div class="flex justify-between items-center mt-4 pt-2 border-t text-sm text-gray-600">
+                        <span id="reqPageInfo">Showing 0 to 0 of 0 entries</span>
+                        <div class="flex space-x-2">
+                            <button id="reqPrevBtn" class="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-50">Previous</button>
+                            <button id="reqNextBtn" class="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-50">Next</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="notificationModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl w-11/12 xl:w-2/3 max-h-[90vh] flex flex-col">
+            
+            <div class="flex justify-between items-center p-5 border-b bg-purple-50 rounded-t-xl">
+                <div>
+                    <h3 class="text-xl font-bold text-gray-800"><i class="fas fa-calendar-check text-purple-600 mr-2"></i>Interview Reminders</h3>
+                    <p class="text-xs text-gray-500 mt-1">Upcoming and Due Interviews requiring action.</p>
+                </div>
+                <button id="closeNotifModal" class="text-gray-400 hover:text-red-500">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+
+            <div class="overflow-y-auto p-5 space-y-4" id="notificationList">
+                <p class="text-center text-gray-400 py-10">No pending interviews found.</p>
+            </div>
+            
+            <div class="p-4 border-t bg-gray-50 text-right rounded-b-xl">
+                <button id="dismissNotifBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-6 rounded transition">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+    
 
     <script src="../js/hr_dashboard.js"></script>
     <script src="../js/hr_bulk_upload.js"></script>

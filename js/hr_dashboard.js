@@ -45,8 +45,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const ALL_COLUMNS = [
         { key: 'select', label: '<input type="checkbox" id="selectAllCheckbox" />', editable: false },
         { key: 'application_id', label: 'ID', editable: false },
+        { key: 'requisition_id', label: 'Requisition ID', editable: true, type: 'text' },
         { key: 'entity', label: 'Entity', editable: true, type: 'select', options: ['Scorp', 'Lexicode'] },
-        { key: 'talento_id', label: 'Talento ID', editable: true, type: 'text' },
+        // { key: 'talento_id', label: 'Talento ID', editable: true, type: 'text' },
         { key: 'requisition_status', label: 'Req Status', editable: true, type: 'select', options: ['Open', 'Approved', 'Closed', 'Hold'] },
         { key: 'hdmf_id', label: 'HDMF (Pag-IBIG)', editable: true, type: 'text' },
         { key: 'sss_no', label: 'SSS No.', editable: true, type: 'text' },
@@ -88,8 +89,11 @@ document.addEventListener('DOMContentLoaded', function () {
         { key: 'offer_date', label: 'Offer Date', editable: true, type: 'date' },
         { key: 'joining_date', label: 'Joining Date', editable: true, type: 'date' },
         { key: 'employee_id', label: 'Employee ID', editable: true, type: 'text' },
+        { key: 'initial_interviewer_id', label: 'Initial Interviewer ID', editable: true, type: 'text' },
+        { key: 'final_interviewer_id', label: 'Final Interviewer ID', editable: true, type: 'text' },
         { key: 'Project', label: 'Project', editable: true, type: 'text' },
         { key: 'actions', label: 'Actions', editable: false },
+        
     ];
 
     // IMPORTANT: Defined as a separate constant so Reset can use it
@@ -125,6 +129,242 @@ document.addEventListener('DOMContentLoaded', function () {
     const cancelRequirementsBtn = getEl('cancelRequirementsBtn');
     const reqProgressBar = getEl('reqProgressBar');
     const reqProgressText = getEl('reqProgressText');
+
+        // ==========================================
+    // --- NOTIFICATION SYSTEM (INTERVIEWS) ---
+    // ==========================================
+
+    const btnNotification = document.getElementById('btnNotification');
+    const notifModal = document.getElementById('notificationModal');
+    const notifList = document.getElementById('notificationList');
+    const notifBadge = document.getElementById('notifBadge');
+    
+    // 1. Fetch & Check
+    async function checkNotifications() {
+        try {
+            const response = await fetch(`${API_URL}?action=getNotifications`);
+            const data = await response.json();
+            
+            // --- ERROR CATCHING ---
+            if (data.error) {
+                console.error("Notification SQL Error:", data.error);
+                return; // Stop here if DB failed
+            }
+            // ----------------------
+
+            if (Array.isArray(data) && data.length > 0) {
+                notifBadge.textContent = data.length;
+                notifBadge.classList.remove('hidden');
+                
+                renderNotifications(data);
+
+                // Check session storage
+                if (!sessionStorage.getItem('notifSeen')) {
+                    notifModal.classList.remove('hidden');
+                    sessionStorage.setItem('notifSeen', 'true');
+                }
+            } else {
+                notifBadge.classList.add('hidden');
+                notifList.innerHTML = '<div class="text-center py-10 text-gray-400 flex flex-col items-center"><i class="fas fa-check-circle text-4xl mb-3 text-green-200"></i><p>No pending interviews.</p></div>';
+            }
+        } catch (error) {
+            console.error("Notif Fetch Error:", error);
+        }
+    }
+
+    // 2. Render Cards
+    function renderNotifications(applicants) {
+        notifList.innerHTML = '';
+        
+        applicants.forEach(app => {
+            // Style logic based on "Due" vs "Upcoming"
+            const isDue = app.time_status === 'Due';
+            const borderClass = isDue ? 'border-l-4 border-red-500' : 'border-l-4 border-blue-500';
+            const badgeClass = isDue ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800';
+            const icon = isDue ? '<i class="fas fa-exclamation-circle text-red-500"></i>' : '<i class="fas fa-clock text-blue-500"></i>';
+            
+            // Format Date
+            const dateObj = new Date(app.interview_dates);
+            const dateStr = dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+            const card = document.createElement('div');
+            card.className = `bg-white border rounded-lg shadow-sm p-4 hover:shadow-md transition ${borderClass}`;
+            
+            card.innerHTML = `
+                <div class="flex flex-col lg:flex-row justify-between gap-4">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1">
+                            ${icon}
+                            <h4 class="font-bold text-gray-800 text-lg">${app.surname}, ${app.firstname}</h4>
+                            <span class="${badgeClass} text-xs px-2 py-0.5 rounded-full font-bold uppercase">${app.time_status}</span>
+                            <span class="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full border">${app.interview_type}</span>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 text-sm text-gray-600 mt-2">
+                            <p><i class="fas fa-phone w-4"></i> ${app.mobile_number}</p>
+                            <p><i class="fas fa-envelope w-4"></i> ${app.email}</p>
+                            <p><i class="fas fa-graduation-cap w-4"></i> ${app.education_level} (${app.college_degree || 'N/A'})</p>
+                            <p><i class="fas fa-briefcase w-4"></i> ${app.position_applied}</p>
+                            <p><i class="fas fa-star w-4"></i> Pre-Screen: ${app.screening_score} (${app.screening_status})</p>
+                        </div>
+
+                        <div class="mt-3 bg-gray-50 p-2 rounded text-sm">
+                            <p class="font-semibold text-gray-700">Interviewer:</p>
+                            <p class="text-gray-900">
+                                ${app.interviewer_name || '<span class="text-red-400 italic">Not Assigned</span>'} 
+                                <span class="text-gray-400 text-xs">(${app.interviewer_id || 'No ID'})</span>
+                            </p>
+                            <p class="font-semibold text-gray-700 mt-1">Schedule:</p>
+                            <p class="text-blue-700 font-bold">${dateStr}</p>
+                        </div>
+                    </div>
+
+                    <div class="w-full lg:w-1/3 flex flex-col justify-center border-t lg:border-t-0 lg:border-l pt-4 lg:pt-0 lg:pl-4 gap-2">
+                        <label class="text-xs font-bold text-gray-500 uppercase">Update Outcome</label>
+                        
+                        <select class="notif-status-select w-full border rounded p-2 text-sm focus:ring-purple-500" id="status_${app.application_id}">
+                            <option value="">Select Outcome...</option>
+                            <option value="Passed">Passed (Next Stage)</option>
+                            <option value="Failed">Failed</option>
+                            <option value="Reschedule">Reschedule</option>
+                        </select>
+                        
+                        <textarea class="w-full border rounded p-2 text-sm focus:ring-purple-500 h-20" placeholder="Enter feedback here..." id="feedback_${app.application_id}">${app.feedback_comments || ''}</textarea>
+                        
+                        <button class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 rounded text-sm btn-update-interview" 
+                            data-id="${app.application_id}" 
+                            data-current-stage="${app.recruitment_status}">
+                            <i class="fas fa-save mr-1"></i> Save Update
+                        </button>
+                    </div>
+                </div>
+            `;
+            notifList.appendChild(card);
+        });
+    }
+
+    // 3. Handle Update Button Click
+    notifList.addEventListener('click', async (e) => {
+        if (e.target.classList.contains('btn-update-interview') || e.target.closest('.btn-update-interview')) {
+            const btn = e.target.classList.contains('btn-update-interview') ? e.target : e.target.closest('.btn-update-interview');
+            const id = btn.dataset.id;
+            const currentStage = parseInt(btn.dataset.currentStage); // 3 or 5
+            
+            const statusSelect = document.getElementById(`status_${id}`);
+            const feedbackInput = document.getElementById(`feedback_${id}`);
+            const outcome = statusSelect.value;
+            const feedback = feedbackInput.value;
+
+            if (!outcome) {
+                Swal.fire('Required', 'Please select an outcome (Passed/Failed).', 'warning');
+                return;
+            }
+
+            // Determine New Status ID based on outcome
+            let newStatusId = currentStage; 
+            
+            if (outcome === 'Failed') {
+                newStatusId = (currentStage === 3) ? 4 : 6; // 4=Failed L1, 6=Failed L2
+            } else if (outcome === 'Passed') {
+                newStatusId = (currentStage === 3) ? 5 : 7; // 5=Final Interview, 7=For BGV
+            }
+            // If Reschedule, we keep the status ID but user should update date in edit modal (out of scope for quick action, but good to have option)
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+            try {
+                // Update API Call
+                const response = await fetch(`${API_URL}?action=updateApplicant`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        application_id: id,
+                        recruitment_status: newStatusId,
+                        feedback_comments: feedback,
+                        status_date: new Date().toISOString().slice(0, 10)
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.status === 'success') {
+                    Swal.fire({ icon: 'success', title: 'Updated', text: 'Interview status updated.', timer: 1000, showConfirmButton: false });
+                    checkNotifications(); // Refresh list
+                    refreshAllData();     // Refresh main dashboard table
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (err) {
+                Swal.fire('Error', err.message, 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-save mr-1"></i> Save Update';
+            }
+        }
+    });
+
+    // 4. Listeners
+    if (btnNotification) {
+        btnNotification.addEventListener('click', () => {
+            checkNotifications(); // Refresh on click
+            notifModal.classList.remove('hidden');
+        });
+    }
+
+    document.getElementById('closeNotifModal')?.addEventListener('click', () => notifModal.classList.add('hidden'));
+    document.getElementById('dismissNotifBtn')?.addEventListener('click', () => notifModal.classList.add('hidden'));
+
+    // 5. Init Call
+    checkNotifications();
+
+    // --- COLUMN RESIZING LOGIC ---
+    function enableColumnResizing() {
+        const table = document.querySelector('table');
+        const ths = table.querySelectorAll('th');
+
+        ths.forEach(th => {
+            // 1. Create the resizer element
+            const resizer = document.createElement('div');
+            resizer.classList.add('resizer');
+            th.appendChild(resizer);
+
+            // 2. Track State
+            let x = 0;
+            let w = 0;
+
+            const mouseDownHandler = function (e) {
+                // Stop the sort/drag logic from firing
+                e.stopPropagation(); 
+                e.preventDefault();
+
+                x = e.clientX;
+                
+                // Get current width (computed style is safer)
+                const styles = window.getComputedStyle(th);
+                w = parseInt(styles.width, 10);
+
+                resizer.classList.add('resizing');
+
+                // Attach listeners to document (so you can drag outside the header)
+                document.addEventListener('mousemove', mouseMoveHandler);
+                document.addEventListener('mouseup', mouseUpHandler);
+            };
+
+            const mouseMoveHandler = function (e) {
+                const dx = e.clientX - x;
+                th.style.width = `${w + dx}px`;
+                th.style.minWidth = `${w + dx}px`; // Force min-width to override previous styles
+                th.style.maxWidth = 'none'; // Remove the hard restriction we had before
+            };
+
+            const mouseUpHandler = function () {
+                resizer.classList.remove('resizing');
+                document.removeEventListener('mousemove', mouseMoveHandler);
+                document.removeEventListener('mouseup', mouseUpHandler);
+            };
+
+            resizer.addEventListener('mousedown', mouseDownHandler);
+        });
+    }
     
     // --- HELPER FUNCTIONS ---
     function getStatusColorClass(statusText) { 
@@ -414,6 +654,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         headerHTML += '</tr>'; 
         tableHead.innerHTML = headerHTML;
+        enableColumnResizing();
         
         // --- ADD DRAG LISTENERS (Unchanged) ---
         const ths = tableHead.querySelectorAll('th[draggable="true"]');
@@ -983,9 +1224,289 @@ document.addEventListener('DOMContentLoaded', function () {
             fetchData(); 
         } 
     }
+
+        // --- REQUISITION MODAL LOGIC ---
+        let allRequisitions = []; // Stores the full raw data from API
+        let reqState = {
+            currentPage: 1,
+            rowsPerPage: 5,         // Requirement: Limit into 5
+            filterStatus: 'All',    // Requirement: Separate Open/Closed/Hold
+            searchTerm: '',         // Requirement: Search Menu
+            sortKey: 'created_at',  // Requirement: Sortable Headers
+            sortDirection: 'desc'
+        };
+    
+        const reqModal = document.getElementById('requisitionModal');
+        const reqForm = document.getElementById('requisitionForm');
+        const reqTableBody = document.getElementById('requisitionTableBody');
+    
+        // DOM Elements for Controls
+        const reqSearchInput = document.getElementById('reqSearchInput');
+        const reqStatusTabs = document.getElementById('reqStatusTabs');
+        const reqPrevBtn = document.getElementById('reqPrevBtn');
+        const reqNextBtn = document.getElementById('reqNextBtn');
+        const reqPageInfo = document.getElementById('reqPageInfo');
+        const btnSaveReq = document.getElementById('btnSaveReq');
+        const btnCancelReqEdit = document.getElementById('btnCancelReqEdit');
+        const btnSaveReqText = document.getElementById('btnSaveReqText');
+        const reqFormTitle = document.getElementById('reqFormTitle');
+    
+        // --- 1. OPEN & LOAD ---
+        document.getElementById('btnOpenRequisition')?.addEventListener('click', () => {
+            reqModal.classList.remove('hidden');
+            loadRequisitions(); // Fetch fresh data
+            resetReqForm();     // Clear form
+        });
+    
+        document.getElementById('closeRequisitionModal')?.addEventListener('click', () => {
+            reqModal.classList.add('hidden');
+        });
+    
+        // --- 2. FETCH DATA FROM API ---
+        async function loadRequisitions() {
+            reqTableBody.innerHTML = '<tr><td colspan="7" class="text-center py-6 text-gray-500"><i class="fas fa-spinner fa-spin fa-2x"></i><br>Loading data...</td></tr>';
+            
+            try {
+                const response = await fetch(`${API_URL}?action=getRequisitions`);
+                const text = await response.text();
+                
+                // Error Handling for Empty/Invalid JSON
+                try {
+                    const data = JSON.parse(text);
+                    if (data.error) throw new Error(data.error);
+                    if (!Array.isArray(data)) throw new Error("Invalid data format.");
+                    
+                    allRequisitions = data; // Store globally
+                    renderRequisitionTable(); // Render based on current state
+    
+                } catch (e) {
+                    console.error("Parse Error:", text);
+                    throw new Error("Server Error: " + text.substring(0, 50));
+                }
+            } catch (error) {
+                reqTableBody.innerHTML = `<tr><td colspan="7" class="text-center text-red-500 py-4 font-bold">Error: ${error.message}</td></tr>`;
+            }
+        }
+    
+        // --- 3. RENDER TABLE (Filter -> Search -> Sort -> Paginate) ---
+        function renderRequisitionTable() {
+            // A. FILTER & SEARCH
+            let filtered = allRequisitions.filter(req => {
+                // Status Filter
+                if (reqState.filterStatus !== 'All' && req.status !== reqState.filterStatus) return false;
+                
+                // Search Filter
+                const search = reqState.searchTerm.toLowerCase();
+                if (search && !req.requisition_id.toLowerCase().includes(search) && !req.project_name.toLowerCase().includes(search)) return false;
+                
+                return true;
+            });
+    
+            // B. SORT
+            filtered.sort((a, b) => {
+                let valA = a[reqState.sortKey];
+                let valB = b[reqState.sortKey];
+                
+                // Handle numeric sorting
+                if (!isNaN(valA) && !isNaN(valB)) { valA = Number(valA); valB = Number(valB); }
+                else { valA = String(valA).toLowerCase(); valB = String(valB).toLowerCase(); }
+    
+                if (valA < valB) return reqState.sortDirection === 'asc' ? -1 : 1;
+                if (valA > valB) return reqState.sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+    
+            // C. PAGINATE
+            const totalItems = filtered.length;
+            const totalPages = Math.ceil(totalItems / reqState.rowsPerPage) || 1;
+            
+            // Ensure page is valid
+            if (reqState.currentPage > totalPages) reqState.currentPage = totalPages;
+            if (reqState.currentPage < 1) reqState.currentPage = 1;
+    
+            const start = (reqState.currentPage - 1) * reqState.rowsPerPage;
+            const pageData = filtered.slice(start, start + reqState.rowsPerPage);
+    
+            // D. GENERATE HTML
+            reqTableBody.innerHTML = '';
+            if (pageData.length === 0) {
+                reqTableBody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-gray-400">No records found.</td></tr>`;
+            } else {
+                pageData.forEach(req => {
+                    const balColor = req.balance > 0 ? 'text-red-600 font-bold' : 'text-green-600 font-bold';
+                    
+                    // Status Badge Color
+                    let statusBadge = '';
+                    if(req.status === 'Open') statusBadge = '<span class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-xs font-bold">Open</span>';
+                    if(req.status === 'Closed') statusBadge = '<span class="bg-gray-200 text-gray-800 px-2 py-0.5 rounded-full text-xs font-bold">Closed</span>';
+                    if(req.status === 'Hold') statusBadge = '<span class="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full text-xs font-bold">Hold</span>';
+    
+                    reqTableBody.innerHTML += `
+                    <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+                        <td class="px-4 py-3 font-medium text-gray-800">${req.requisition_id}</td>
+                        <td class="px-4 py-3 text-gray-600">${req.project_name}</td>
+                        <td class="px-4 py-3 text-center">${statusBadge}</td>
+                        <td class="px-4 py-3 text-center font-semibold text-gray-700">${req.headcount_approved}</td>
+                        <td class="px-4 py-3 text-center text-blue-600 font-bold">${req.joined_count}</td>
+                        
+                        <td class="px-4 py-3 text-center ${balColor}">${req.balance}</td>
+                        
+                        <td class="px-4 py-3 text-center text-xs text-gray-500">
+                            <span class="font-bold text-gray-700">${req.aging_days} Days</span><br>
+                            <span class="text-[10px]">${req.date_approved}</span>
+                        </td>
+
+                        <td class="px-4 py-3 text-right">
+                            <button class="text-blue-500 hover:text-blue-700 mx-1 btn-edit-req" data-id="${req.id}" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    `;
+                });
+            }
+    
+            // E. UPDATE CONTROLS
+            reqPageInfo.textContent = `Showing ${pageData.length > 0 ? start + 1 : 0} to ${Math.min(start + reqState.rowsPerPage, totalItems)} of ${totalItems} entries`;
+            reqPrevBtn.disabled = reqState.currentPage === 1;
+            reqNextBtn.disabled = reqState.currentPage === totalPages;
+        }
+    
+        // --- 4. EVENT LISTENERS (Search, Tabs, Sort, Page) ---
+        
+        // Status Tabs
+        reqStatusTabs.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                // Update UI
+                reqStatusTabs.querySelectorAll('button').forEach(b => {
+                    b.classList.remove('bg-white', 'shadow', 'text-purple-700');
+                    b.classList.add('text-gray-500');
+                });
+                e.target.classList.add('bg-white', 'shadow', 'text-purple-700');
+                e.target.classList.remove('text-gray-500');
+    
+                // Update State
+                reqState.filterStatus = e.target.dataset.status;
+                reqState.currentPage = 1; // Reset to page 1
+                renderRequisitionTable();
+            }
+        });
+    
+        // Search
+        reqSearchInput.addEventListener('input', (e) => {
+            reqState.searchTerm = e.target.value;
+            reqState.currentPage = 1;
+            renderRequisitionTable();
+        });
+    
+        // Sorting
+        document.querySelectorAll('.req-sort').forEach(th => {
+            th.addEventListener('click', () => {
+                const key = th.dataset.key;
+                if (reqState.sortKey === key) {
+                    reqState.sortDirection = reqState.sortDirection === 'asc' ? 'desc' : 'asc';
+                } else {
+                    reqState.sortKey = key;
+                    reqState.sortDirection = 'asc';
+                }
+                renderRequisitionTable();
+            });
+        });
+    
+        // Pagination
+        reqPrevBtn.addEventListener('click', () => {
+            if (reqState.currentPage > 1) { reqState.currentPage--; renderRequisitionTable(); }
+        });
+        reqNextBtn.addEventListener('click', () => {
+            reqState.currentPage++; renderRequisitionTable();
+        });
+    
+        // --- 5. EDIT LOGIC (Requirement: Allow user to Edit) ---
+        reqTableBody.addEventListener('click', (e) => {
+            const btn = e.target.closest('.btn-edit-req');
+            if (btn) {
+                const id = btn.dataset.id;
+                const req = allRequisitions.find(r => r.id == id);
+                
+                if (req) {
+                    // Populate Form
+                    document.getElementById('req_db_id').value = req.id;
+                    document.getElementById('req_id_input').value = req.requisition_id;
+                    document.getElementById('req_project_input').value = req.project_name;
+                    document.getElementById('req_headcount_input').value = req.headcount_approved;
+                    document.getElementById('req_date_input').value = req.date_approved;
+                    document.getElementById('req_status_input').value = req.status;
+    
+                    // Change Mode to Edit
+                    reqFormTitle.textContent = "Edit Requisition";
+                    reqFormTitle.classList.add("text-blue-600");
+                    btnSaveReq.classList.remove("bg-purple-600", "hover:bg-purple-700");
+                    btnSaveReq.classList.add("bg-blue-600", "hover:bg-blue-700");
+                    btnSaveReqText.textContent = "Update";
+                    btnSaveReq.innerHTML = '<i class="fas fa-save mr-1"></i> Update';
+                    btnCancelReqEdit.classList.remove("hidden");
+                }
+            }
+        });
+    
+        function resetReqForm() {
+            reqForm.reset();
+            document.getElementById('req_db_id').value = '';
+            
+            // Reset Visuals
+            reqFormTitle.textContent = "Create New Requisition";
+            reqFormTitle.classList.remove("text-blue-600");
+            btnSaveReq.classList.add("bg-purple-600", "hover:bg-purple-700");
+            btnSaveReq.classList.remove("bg-blue-600", "hover:bg-blue-700");
+            btnSaveReqText.textContent = "Add";
+            btnSaveReq.innerHTML = '<i class="fas fa-plus-circle mr-1"></i> Add';
+            btnCancelReqEdit.classList.add("hidden");
+        }
+    
+        btnCancelReqEdit.addEventListener('click', resetReqForm);
+    
+        // --- 6. SAVE / UPDATE SUBMIT ---
+        reqForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Check if Add or Update
+            const dbId = document.getElementById('req_db_id').value;
+            const action = dbId ? 'updateRequisition' : 'addRequisition';
+            
+            // Get Data
+            const formData = new FormData(reqForm);
+            const data = Object.fromEntries(formData.entries());
+    
+            // UI Feedback
+            const originalBtnHTML = btnSaveReq.innerHTML;
+            btnSaveReq.disabled = true;
+            btnSaveReq.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    
+            try {
+                const response = await fetch(`${API_URL}?action=${action}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+    
+                if (result.status === 'success') {
+                    Swal.fire({ icon: 'success', title: 'Saved!', text: result.message, timer: 1500, showConfirmButton: false });
+                    loadRequisitions(); // Reload table
+                    resetReqForm();     // Reset form
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                Swal.fire({ icon: 'error', title: 'Error', text: error.message });
+            } finally {
+                btnSaveReq.disabled = false;
+                btnSaveReq.innerHTML = originalBtnHTML;
+            }
+        });
     
     // --- FORM & MODAL LOGIC ---
-function buildFormFields(container, applicantData = {}, formType) {
+    function buildFormFields(container, applicantData = {}, formType) {
         container.innerHTML = '';
         ALL_COLUMNS.forEach(col => {
             if (!col.editable) return;
@@ -1649,6 +2170,9 @@ function buildFormFields(container, applicantData = {}, formType) {
 
     startTimer();
 })();
+
+
+
 
 
 

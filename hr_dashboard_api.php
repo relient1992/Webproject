@@ -131,7 +131,19 @@ switch ($action) {
     default:
         http_response_code(400);
         echo json_encode(['status' => 'error', 'message' => 'Invalid action specified.']);
-        break; 
+        break;
+    case 'getRequisitions':
+        getRequisitions($conn);
+        break;
+    case 'addRequisition':
+        addRequisition($conn, $loggedInUser);
+        break;
+    case 'updateRequisition':
+        updateRequisition($conn, $loggedInUser);
+        break;
+    case 'getNotifications':
+        getNotifications($conn);
+        break;             
 }
 $conn->close();
 
@@ -179,7 +191,7 @@ function getAllApplicants($conn) {
             facebook_account, instagram_account, twitter_account, viber_account,
             education_level, college_degree,
             experience_years, specific_skill, screening_score, screening_status, requirements_checklist,
-            entity, hdmf_id, sss_no, philhealth_no, tin_no, talento_id, requisition_status,
+            entity, hdmf_id, sss_no, philhealth_no, tin_no, talento_id, requisition_status, requisition_id,initial_interviewer_id,final_interviewer_id,
             CASE recruitment_status
                 WHEN 1 THEN 'Applied' WHEN 2 THEN 'Failed Speedtest' WHEN 3 THEN 'Initial Interview'
                 WHEN 4 THEN 'Failed L1 Interview' WHEN 5 THEN 'Final Interview' WHEN 6 THEN 'Failed L2 Interview'
@@ -315,7 +327,7 @@ function updateApplicant($conn, $userIdentifier) {
         'feedback_comments', 'offer_status', 'offer_date', 'joining_date', 'employee_id', 'Project',
         'facebook_account', 'instagram_account', 'twitter_account', 'viber_account', 
         'education_level', 'college_degree', 'experience_years', 'specific_skill', 'screening_score', 'screening_status' , 'requirements_checklist',
-        'entity', 'hdmf_id', 'sss_no', 'philhealth_no', 'tin_no', 'talento_id', 'requisition_status'
+        'entity', 'hdmf_id', 'sss_no', 'philhealth_no', 'tin_no', 'talento_id', 'requisition_status',"requisition_id","initial_interviewer_id","final_interviewer_id"
     ];
 
     foreach ($data as $key => $value) { 
@@ -646,4 +658,209 @@ function resetColumnPreferences($conn, $userIdentifier) {
         echo json_encode(['status' => 'error', 'message' => 'Failed to reset preferences.']);
     }
 }
-?>
+
+function getRequisitions($conn) {
+    // 1. Enable error reporting locally for debugging this specific function
+    ini_set('display_errors', 0); // Keep off for HTTP protocol safety
+    
+    $data = [];
+
+    try {
+        // 2. The Complex Query (Calculates counts)
+        $sql = "
+            SELECT 
+                r.id, 
+                r.requisition_id, 
+                r.project_name, 
+                r.headcount_approved, 
+                r.date_approved, 
+                r.status,
+                
+                -- Subquery 1: Joined Count
+                (SELECT COUNT(*) FROM applicants a WHERE a.requisition_id = r.requisition_id AND a.recruitment_status = 13) as joined_count,
+                
+                -- Subquery 2: Offer Count
+                (SELECT COUNT(*) FROM applicants a WHERE a.requisition_id = r.requisition_id AND a.recruitment_status = 8) as offer_count,
+                
+                -- Calculation: Aging
+                DATEDIFF(NOW(), r.date_approved) as aging_days
+
+            FROM requisition_form r
+            ORDER BY r.created_at DESC
+        ";
+
+        // 3. Execute Query
+        $result = $conn->query($sql);
+
+        // 4. Check for Failure (If Exception wasn't thrown but query failed)
+        if (!$result) {
+            throw new Exception($conn->error);
+        }
+
+        // 5. Process Data
+        while ($row = $result->fetch_assoc()) {
+            $approved = intval($row['headcount_approved']);
+            $joined = intval($row['joined_count']);
+            $offers = intval($row['offer_count']);
+            
+            $row['balance'] = $approved - ($joined + $offers);
+            $data[] = $row;
+        }
+        
+        // 6. Return JSON
+        echo json_encode($data);
+
+    } catch (Exception $e) {
+        // 7. CATCH THE CRASH
+        // This ensures you see the error instead of 'Empty Response'
+        http_response_code(500); // Optional: Signal server error
+        echo json_encode(['error' => 'SQL CRASH: ' . $e->getMessage()]);
+    }
+}
+
+function addRequisition($conn, $userIdentifier) {
+    // 1. Get Input Data
+    $data = json_decode(file_get_contents('php://input'), true);
+    
+    $reqId = $data['requisition_id'] ?? '';
+    $project = $data['project_name'] ?? '';
+    $headcount = intval($data['headcount_approved'] ?? 0);
+    $dateApproved = $data['date_approved'] ?? date('Y-m-d');
+
+    // 2. Validate Input
+    if (empty($reqId) || empty($project)) {
+        echo json_encode(['status' => 'error', 'message' => 'Requisition ID and Project Name are required.']);
+        exit();
+    }
+
+    // 3. Check for Duplicates
+    $check = $conn->query("SELECT id FROM requisition_form WHERE requisition_id = '$reqId'");
+    if ($check && $check->num_rows > 0) {
+        echo json_encode(['status' => 'error', 'message' => 'Requisition ID already exists.']);
+        exit();
+    }
+
+    // 4. Prepare Insert (WITH ERROR CHECKING)
+    $stmt = $conn->prepare("INSERT INTO requisition_form (requisition_id, project_name, headcount_approved, date_approved) VALUES (?, ?, ?, ?)");
+    
+    // --- THIS IS THE FIX ---
+    if ($stmt === false) {
+        // This will tell you exactly why it failed (e.g., "Table doesn't exist")
+        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $conn->error]);
+        exit();
+    }
+    // -----------------------
+
+    $stmt->bind_param("ssis", $reqId, $project, $headcount, $dateApproved);
+
+    if ($stmt->execute()) {
+        logAction($conn, $userIdentifier, 'ADD_REQ', "Added Requisition $reqId for $project");
+        echo json_encode(['status' => 'success', 'message' => 'Requisition added successfully.']);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Execute error: ' . $stmt->error]);
+    }
+    $stmt->close();
+}
+
+function updateRequisition($conn, $userIdentifier) {
+    $data = json_decode(file_get_contents('php://input'), true);
+
+    $id = $data['id'] ?? 0; // The Database Primary Key (Hidden ID)
+    $reqId = $data['requisition_id'] ?? '';
+    $project = $data['project_name'] ?? '';
+    $headcount = intval($data['headcount_approved'] ?? 0);
+    $dateApproved = $data['date_approved'] ?? date('Y-m-d');
+    $status = $data['status'] ?? 'Open';
+
+    if ($id <= 0 || empty($reqId)) {
+        echo json_encode(['status' => 'error', 'message' => 'Invalid ID or Requisition ID.']);
+        exit();
+    }
+
+    // Update Query
+    // Note: We update requisition_id too, but ensure your DB has ON UPDATE CASCADE if you want applicants to update automatically.
+    $stmt = $conn->prepare("UPDATE requisition_form SET requisition_id=?, project_name=?, headcount_approved=?, date_approved=?, status=? WHERE id=?");
+
+    if ($stmt === false) {
+        echo json_encode(['status' => 'error', 'message' => 'DB Error: ' . $conn->error]);
+        exit();
+    }
+
+    $stmt->bind_param("ssissi", $reqId, $project, $headcount, $dateApproved, $status, $id);
+
+    if ($stmt->execute()) {
+        logAction($conn, $userIdentifier, 'UPDATE_REQ', "Updated Requisition #$reqId");
+        echo json_encode(['status' => 'success', 'message' => 'Requisition updated successfully.']);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Update failed: ' . $stmt->error]);
+    }
+    $stmt->close();
+}
+
+
+function getNotifications($conn) {
+    // 1. SAFE ERROR HANDLING
+    ini_set('display_errors', 0); 
+
+    // 2. DEFINE QUERY (Corrected for your 'employee_listings' table)
+    $sql = "
+        SELECT 
+            a.application_id, a.surname, a.firstname, a.mobile_number, a.email,
+            a.education_level, a.screening_score, a.screening_status, a.college_degree,
+            a.position_applied, a.recruitment_status, a.interview_dates, a.feedback_comments,
+            a.initial_interviewer_id, a.final_interviewer_id,
+            
+            -- Lookup Names using 'FULLNAME' from employee_listings
+            e1.FULLNAME as initial_interviewer_name,
+            e2.FULLNAME as final_interviewer_name
+
+        FROM applicants a
+        
+        -- JOINING: Match 'initial_interviewer_id' with 'EDS'
+        LEFT JOIN employee_listings e1 ON a.initial_interviewer_id = e1.EDS
+        LEFT JOIN employee_listings e2 ON a.final_interviewer_id = e2.EDS
+        
+        WHERE a.is_archived = 0 
+        AND a.recruitment_status IN (3, 5) 
+        AND a.interview_dates IS NOT NULL
+        ORDER BY a.interview_dates ASC
+    ";
+
+    // 3. EXECUTE QUERY
+    $result = $conn->query($sql);
+
+    // 4. CATCH SQL ERRORS
+    if (!$result) {
+        echo json_encode(['error' => 'SQL Error: ' . $conn->error]);
+        exit();
+    }
+
+    $data = [];
+    $now = new DateTime();
+
+    while ($row = $result->fetch_assoc()) {
+        try {
+            $interviewDate = new DateTime($row['interview_dates']);
+        } catch (Exception $e) {
+            $interviewDate = $now;
+        }
+        
+        $row['time_status'] = ($interviewDate < $now) ? 'Due' : 'Upcoming';
+        $row['interview_type'] = ($row['recruitment_status'] == 3) ? 'Initial Interview' : 'Final Interview';
+        
+        // Logic to pick the correct name based on the stage
+        if ($row['recruitment_status'] == 3) {
+             // Initial Interview
+             $row['interviewer_name'] = $row['initial_interviewer_name'] ?? 'Unknown Employee';
+             $row['interviewer_id'] = $row['initial_interviewer_id'];
+        } else {
+             // Final Interview
+             $row['interviewer_name'] = $row['final_interviewer_name'] ?? 'Unknown Employee';
+             $row['interviewer_id'] = $row['final_interviewer_id'];
+        }
+
+        $data[] = $row;
+    }
+
+    echo json_encode($data);
+}

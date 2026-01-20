@@ -426,4 +426,99 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize Skills
     loadSkillsFromDB();
 
+                
+        // --- 1. SSS FORMATTER (00-0000000-0) ---
+        const sssInput = document.querySelector('input[name="sss_no"]');
+        if(sssInput) {
+            sssInput.addEventListener('input', function(e) {
+                let val = e.target.value.replace(/\D/g, ''); // Remove non-digits
+                let newVal = '';
+                
+                if(val.length > 2) {
+                    newVal += val.substring(0, 2) + '-';
+                    if(val.length > 9) {
+                        newVal += val.substring(2, 9) + '-' + val.substring(9, 10);
+                    } else {
+                        newVal += val.substring(2);
+                    }
+                } else {
+                    newVal = val;
+                }
+                e.target.value = newVal;
+            });
+        }
+
+        // --- 2. TIN FORMATTER (000-000-000) ---
+        const tinInput = document.querySelector('input[name="tin_no"]');
+        if(tinInput) {
+            tinInput.addEventListener('input', function(e) {
+                let val = e.target.value.replace(/\D/g, '');
+                let newVal = '';
+
+                // Group 1
+                if(val.length > 3) {
+                    newVal += val.substring(0, 3) + '-';
+                    // Group 2
+                    if(val.length > 6) {
+                        newVal += val.substring(3, 6) + '-';
+                        // Group 3
+                        if(val.length > 9) {
+                            newVal += val.substring(6, 9);
+                        } else {
+                            newVal += val.substring(6);
+                        }
+                    } else {
+                        newVal += val.substring(3);
+                    }
+                } else {
+                    newVal = val;
+                }
+                e.target.value = newVal;
+            });
+        }
+
+        // --- 3. PHILHEALTH FORMATTER (00-000000000-0) ---
+        const phInput = document.querySelector('input[name="philhealth_no"]');
+        if(phInput) {
+            phInput.addEventListener('input', function(e) {
+                let val = e.target.value.replace(/\D/g, '');
+                let newVal = '';
+
+                if(val.length > 2) {
+                    newVal += val.substring(0, 2) + '-';
+                    if(val.length > 11) {
+                        newVal += val.substring(2, 11) + '-' + val.substring(11, 12);
+                    } else {
+                        newVal += val.substring(2);
+                    }
+                } else {
+                    newVal = val;
+                }
+                e.target.value = newVal;
+            });
+        }
+
+        // --- 4. HDMF (PAG-IBIG) FORMATTER (0000-0000-0000) ---
+        const hdmfInput = document.querySelector('input[name="hdmf_id"]');
+        if(hdmfInput) {
+            hdmfInput.addEventListener('input', function(e) {
+                let val = e.target.value.replace(/\D/g, '');
+                let newVal = '';
+
+                if(val.length > 4) {
+                    newVal += val.substring(0, 4) + '-';
+                    if(val.length > 8) {
+                        newVal += val.substring(4, 8) + '-' + val.substring(8, 12);
+                    } else {
+                        newVal += val.substring(4);
+                    }
+                } else {
+                    newVal = val;
+                }
+                e.target.value = newVal;
+            });
+        }
+
+
+
 });

@@ -139,173 +139,305 @@ document.addEventListener('DOMContentLoaded', function () {
     const notifList = document.getElementById('notificationList');
     const notifBadge = document.getElementById('notifBadge');
     
+    // Controls
+    const notifTabs = document.getElementById('notifTabs');
+    const notifSortSelect = document.getElementById('notifSortSelect');
+    
+    // Pagination Controls
+    const notifPrevBtn = document.getElementById('notifPrevBtn');
+    const notifNextBtn = document.getElementById('notifNextBtn');
+    const notifPageInfo = document.getElementById('notifPageInfo');
+
+    // State
+    let allNotifications = [];
+    let notifFilter = 'all'; // 'all', 'initial', 'final'
+    let notifSort = 'asc';   // 'asc' (Oldest/Urgent first), 'desc'
+    let notifPage = 1;
+    const notifPerPage = 5;  // LIMIT 5 PER PAGE
+
     // 1. Fetch & Check
     async function checkNotifications() {
+        // Safety check: if the list element is missing, stop
+        if(!notifList) return;
+
         try {
-            const response = await fetch(`${API_URL}?action=getNotifications`);
+            const response = await fetch(`${API_URL}?action=getNotifications&_t=${new Date().getTime()}`);
             const data = await response.json();
             
-            // --- ERROR CATCHING ---
-            if (data.error) {
-                console.error("Notification SQL Error:", data.error);
-                return; // Stop here if DB failed
+            // ERROR HANDLING: If DB error, show it on screen instead of spinning forever
+            if (data.error) { 
+                console.error("Notif SQL:", data.error);
+                notifList.innerHTML = `<div class="text-center py-10 text-red-500"><i class="fas fa-exclamation-triangle text-2xl mb-2"></i><p>System Error: ${data.error}</p></div>`;
+                return; 
             }
-            // ----------------------
 
             if (Array.isArray(data) && data.length > 0) {
-                notifBadge.textContent = data.length;
-                notifBadge.classList.remove('hidden');
+                allNotifications = data; 
                 
-                renderNotifications(data);
+                // Update Badge (HR Dashboard only)
+                if(notifBadge) {
+                    notifBadge.textContent = data.length;
+                    notifBadge.classList.remove('hidden');
+                }
+                
+                // Render the list (This clears the spinner)
+                notifPage = 1; 
+                renderSmartNotifications();
 
-                // Check session storage
-                if (!sessionStorage.getItem('notifSeen')) {
-                    notifModal.classList.remove('hidden');
-                    sessionStorage.setItem('notifSeen', 'true');
+                // Auto-Popup Logic (HR Dashboard only)
+                if (notifModal && !window.location.pathname.includes('interview_dashboard.php')) {
+                    if (!sessionStorage.getItem('notifSeen')) {
+                        notifModal.classList.remove('hidden');
+                        sessionStorage.setItem('notifSeen', 'true');
+                    }
                 }
             } else {
-                notifBadge.classList.add('hidden');
+                // NO DATA: Clear spinner and show "No Interviews" message
+                if(notifBadge) notifBadge.classList.add('hidden');
                 notifList.innerHTML = '<div class="text-center py-10 text-gray-400 flex flex-col items-center"><i class="fas fa-check-circle text-4xl mb-3 text-green-200"></i><p>No pending interviews.</p></div>';
             }
-        } catch (error) {
-            console.error("Notif Fetch Error:", error);
+        } catch (error) { 
+            // FETCH ERROR: Clear spinner and show error
+            console.error("Notif Error:", error); 
+            notifList.innerHTML = `<div class="text-center py-10 text-red-500"><p>Connection Failed. Please refresh.</p></div>`;
         }
     }
 
-    // 2. Render Cards
-    function renderNotifications(applicants) {
+    // 2. Render Logic (Filter -> Sort -> Paginate -> HTML)
+    function renderSmartNotifications() {
         notifList.innerHTML = '';
-        
-        applicants.forEach(app => {
-            // Style logic based on "Due" vs "Upcoming"
-            const isDue = app.time_status === 'Due';
-            const borderClass = isDue ? 'border-l-4 border-red-500' : 'border-l-4 border-blue-500';
-            const badgeClass = isDue ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800';
-            const icon = isDue ? '<i class="fas fa-exclamation-circle text-red-500"></i>' : '<i class="fas fa-clock text-blue-500"></i>';
-            
-            // Format Date
-            const dateObj = new Date(app.interview_dates);
-            const dateStr = dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
+        // A. FILTER
+        let filtered = allNotifications.filter(app => {
+            if (notifFilter === 'initial') return app.recruitment_status == 3;
+            if (notifFilter === 'final') return app.recruitment_status == 5;
+            return true;
+        });
+
+        // B. SORT
+        filtered.sort((a, b) => {
+            const dateA = new Date(a.interview_dates);
+            const dateB = new Date(b.interview_dates);
+            return notifSort === 'asc' ? dateA - dateB : dateB - dateA;
+        });
+
+        // C. PAGINATION CALCULATION
+        const totalItems = filtered.length;
+        const totalPages = Math.ceil(totalItems / notifPerPage) || 1;
+        
+        // Safety check if we filtered down to 0 pages
+        if (notifPage > totalPages) notifPage = totalPages;
+        if (notifPage < 1) notifPage = 1;
+
+        const start = (notifPage - 1) * notifPerPage;
+        const pageData = filtered.slice(start, start + notifPerPage);
+
+        // Update Footer Info
+        if (notifPageInfo) {
+            notifPageInfo.textContent = `Showing ${pageData.length > 0 ? start + 1 : 0}-${Math.min(start + notifPerPage, totalItems)} of ${totalItems}`;
+        }
+        if (notifPrevBtn) notifPrevBtn.disabled = notifPage === 1;
+        if (notifNextBtn) notifNextBtn.disabled = notifPage === totalPages;
+
+        // D. RENDER CARDS
+        if (pageData.length === 0) {
+            notifList.innerHTML = `<div class="text-center py-8 text-gray-400">No ${notifFilter} interviews found.</div>`;
+            return;
+        }
+
+        const todayDate = new Date().toDateString();
+
+        pageData.forEach(app => {
+            const dateObj = new Date(app.interview_dates);
+            const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const timeStr = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            const isToday = new Date(app.interview_dates).toDateString() === todayDate;
+            const isOverdue = new Date(app.interview_dates) < new Date();
+
+            // Colors
+            let cardBorder = 'border-l-4 border-blue-500';
+            let dateColor = 'text-gray-600';
+            let statusBadge = '<span class="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded uppercase">Upcoming</span>';
+
+            if (isOverdue) {
+                cardBorder = 'border-l-4 border-red-500 bg-red-50'; 
+                dateColor = 'text-red-600 font-bold';
+                statusBadge = '<span class="bg-red-100 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded uppercase"><i class="fas fa-exclamation-circle"></i> Overdue</span>';
+            } else if (isToday) {
+                cardBorder = 'border-l-4 border-orange-400 bg-orange-50'; 
+                dateColor = 'text-orange-600 font-bold';
+                statusBadge = '<span class="bg-orange-100 text-orange-700 text-[10px] font-bold px-2 py-0.5 rounded uppercase animate-pulse">Today</span>';
+            }
+
+            // Compact Card HTML
             const card = document.createElement('div');
-            card.className = `bg-white border rounded-lg shadow-sm p-4 hover:shadow-md transition ${borderClass}`;
+            card.className = `bg-white shadow-sm rounded-lg p-3 flex flex-col md:flex-row gap-3 items-center hover:shadow-md transition ${cardBorder}`;
             
             card.innerHTML = `
-                <div class="flex flex-col lg:flex-row justify-between gap-4">
-                    <div class="flex-1">
-                        <div class="flex items-center gap-2 mb-1">
-                            ${icon}
-                            <h4 class="font-bold text-gray-800 text-lg">${app.surname}, ${app.firstname}</h4>
-                            <span class="${badgeClass} text-xs px-2 py-0.5 rounded-full font-bold uppercase">${app.time_status}</span>
-                            <span class="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full border">${app.interview_type}</span>
+                <div class="flex-1 w-full">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h4 class="font-bold text-gray-800 text-sm">${app.surname}, ${app.firstname}</h4>
+                            <p class="text-xs text-gray-500">${app.position_applied} • ${app.interview_type}</p>
                         </div>
-                        
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 text-sm text-gray-600 mt-2">
-                            <p><i class="fas fa-phone w-4"></i> ${app.mobile_number}</p>
-                            <p><i class="fas fa-envelope w-4"></i> ${app.email}</p>
-                            <p><i class="fas fa-graduation-cap w-4"></i> ${app.education_level} (${app.college_degree || 'N/A'})</p>
-                            <p><i class="fas fa-briefcase w-4"></i> ${app.position_applied}</p>
-                            <p><i class="fas fa-star w-4"></i> Pre-Screen: ${app.screening_score} (${app.screening_status})</p>
-                        </div>
-
-                        <div class="mt-3 bg-gray-50 p-2 rounded text-sm">
-                            <p class="font-semibold text-gray-700">Interviewer:</p>
-                            <p class="text-gray-900">
-                                ${app.interviewer_name || '<span class="text-red-400 italic">Not Assigned</span>'} 
-                                <span class="text-gray-400 text-xs">(${app.interviewer_id || 'No ID'})</span>
-                            </p>
-                            <p class="font-semibold text-gray-700 mt-1">Schedule:</p>
-                            <p class="text-blue-700 font-bold">${dateStr}</p>
-                        </div>
+                        ${statusBadge}
                     </div>
-
-                    <div class="w-full lg:w-1/3 flex flex-col justify-center border-t lg:border-t-0 lg:border-l pt-4 lg:pt-0 lg:pl-4 gap-2">
-                        <label class="text-xs font-bold text-gray-500 uppercase">Update Outcome</label>
-                        
-                        <select class="notif-status-select w-full border rounded p-2 text-sm focus:ring-purple-500" id="status_${app.application_id}">
-                            <option value="">Select Outcome...</option>
-                            <option value="Passed">Passed (Next Stage)</option>
-                            <option value="Failed">Failed</option>
-                            <option value="Reschedule">Reschedule</option>
-                        </select>
-                        
-                        <textarea class="w-full border rounded p-2 text-sm focus:ring-purple-500 h-20" placeholder="Enter feedback here..." id="feedback_${app.application_id}">${app.feedback_comments || ''}</textarea>
-                        
-                        <button class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 rounded text-sm btn-update-interview" 
-                            data-id="${app.application_id}" 
-                            data-current-stage="${app.recruitment_status}">
-                            <i class="fas fa-save mr-1"></i> Save Update
-                        </button>
+                    <div class="flex items-center gap-4 mt-2 text-xs text-gray-600">
+                        <div class="${dateColor} flex items-center"><i class="far fa-clock mr-1"></i> ${dateStr} @ ${timeStr}</div>
+                        <div title="Interviewer"><i class="far fa-user mr-1"></i> ${app.interviewer_name || 'N/A'}</div>
+                        <div title="Phone"><i class="fas fa-phone mr-1"></i> ${app.mobile_number}</div>
                     </div>
+                </div>
+
+                <div class="flex items-center gap-2 w-full md:w-auto mt-2 md:mt-0">
+                    <select class="text-xs border-gray-300 rounded focus:ring-blue-500 py-1" id="status_${app.application_id}">
+                        <option value="">- Decision -</option>
+                        <option value="Passed">Passed</option>
+                        <option value="Failed">Failed</option>
+                        <option value="Reschedule">Reschedule</option>
+                    </select>
+                    
+                    <button class="bg-blue-500 hover:bg-purple-700 text-white p-1.5 rounded shadow btn-update-interview" 
+                        title="Save" data-id="${app.application_id}" data-current-stage="${app.recruitment_status}">
+                        <i class="fas fa-save text-xs"></i>
+                    </button>
+                    
+                    <button class="bg-gray-200 hover:bg-gray-300 text-gray-600 p-1.5 rounded" 
+                        onclick="document.getElementById('note_${app.application_id}').classList.toggle('hidden')" title="Add Notes">
+                        <i class="fas fa-comment-alt text-xs"></i>
+                    </button>
+                </div>
+                
+                <div id="note_${app.application_id}" class="hidden w-full mt-2 border-t pt-2">
+                    <textarea id="feedback_${app.application_id}" class="w-full text-xs border-gray-300 rounded p-2" rows="2" placeholder="Interview feedback...">${app.feedback_comments || ''}</textarea>
                 </div>
             `;
             notifList.appendChild(card);
         });
     }
 
-    // 3. Handle Update Button Click
-    notifList.addEventListener('click', async (e) => {
-        if (e.target.classList.contains('btn-update-interview') || e.target.closest('.btn-update-interview')) {
-            const btn = e.target.classList.contains('btn-update-interview') ? e.target : e.target.closest('.btn-update-interview');
-            const id = btn.dataset.id;
-            const currentStage = parseInt(btn.dataset.currentStage); // 3 or 5
-            
-            const statusSelect = document.getElementById(`status_${id}`);
-            const feedbackInput = document.getElementById(`feedback_${id}`);
-            const outcome = statusSelect.value;
-            const feedback = feedbackInput.value;
-
-            if (!outcome) {
-                Swal.fire('Required', 'Please select an outcome (Passed/Failed).', 'warning');
-                return;
-            }
-
-            // Determine New Status ID based on outcome
-            let newStatusId = currentStage; 
-            
-            if (outcome === 'Failed') {
-                newStatusId = (currentStage === 3) ? 4 : 6; // 4=Failed L1, 6=Failed L2
-            } else if (outcome === 'Passed') {
-                newStatusId = (currentStage === 3) ? 5 : 7; // 5=Final Interview, 7=For BGV
-            }
-            // If Reschedule, we keep the status ID but user should update date in edit modal (out of scope for quick action, but good to have option)
-
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-
-            try {
-                // Update API Call
-                const response = await fetch(`${API_URL}?action=updateApplicant`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        application_id: id,
-                        recruitment_status: newStatusId,
-                        feedback_comments: feedback,
-                        status_date: new Date().toISOString().slice(0, 10)
-                    })
+    // 3. Events
+    if(notifTabs) {
+        notifTabs.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                notifTabs.querySelectorAll('button').forEach(b => {
+                    b.classList.remove('bg-white', 'text-purple-700', 'shadow');
+                    b.classList.add('text-gray-500');
                 });
-                
-                const result = await response.json();
-                if (result.status === 'success') {
-                    Swal.fire({ icon: 'success', title: 'Updated', text: 'Interview status updated.', timer: 1000, showConfirmButton: false });
-                    checkNotifications(); // Refresh list
-                    refreshAllData();     // Refresh main dashboard table
-                } else {
-                    throw new Error(result.message);
-                }
-            } catch (err) {
-                Swal.fire('Error', err.message, 'error');
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-save mr-1"></i> Save Update';
+                e.target.classList.add('bg-white', 'text-purple-700', 'shadow');
+                e.target.classList.remove('text-gray-500');
+
+                notifFilter = e.target.dataset.filter;
+                notifPage = 1; // Reset page on filter change
+                renderSmartNotifications();
             }
+        });
+    }
+
+    if(notifSortSelect) {
+        notifSortSelect.addEventListener('change', (e) => {
+            notifSort = e.target.value;
+            notifPage = 1; // Reset page on sort
+            renderSmartNotifications();
+        });
+    }
+
+    // Pagination Listeners
+    if(notifPrevBtn) {
+        notifPrevBtn.addEventListener('click', () => {
+            if(notifPage > 1) {
+                notifPage--;
+                renderSmartNotifications();
+            }
+        });
+    }
+
+    if(notifNextBtn) {
+        notifNextBtn.addEventListener('click', () => {
+            const filtered = allNotifications.filter(app => {
+                if (notifFilter === 'initial') return app.recruitment_status == 3;
+                if (notifFilter === 'final') return app.recruitment_status == 5;
+                return true;
+            });
+            const totalPages = Math.ceil(filtered.length / notifPerPage);
+            
+            if(notifPage < totalPages) {
+                notifPage++;
+                renderSmartNotifications();
+            }
+        });
+    }
+
+    
+    notifList.addEventListener('click', async (e) => {
+        const btn = e.target.closest('.btn-update-interview');
+        if(notifList) {
+            notifList.addEventListener('click', async (e) => {
+                // 1. Check if the clicked element is a Save Button
+                const btn = e.target.closest('.btn-update-interview');
+                
+                if (btn) {
+                    // Prevent double-clicks
+                    if(btn.disabled) return;
+    
+                    const id = btn.dataset.id;
+                    const currentStage = parseInt(btn.dataset.currentStage);
+                    const outcome = document.getElementById(`status_${id}`).value;
+                    const feedback = document.getElementById(`feedback_${id}`)?.value || '';
+    
+                    if (!outcome) { Swal.fire('Required', 'Select a decision.', 'warning'); return; }
+    
+                    // Logic: Determine new status ID based on Pass/Fail
+                    let newStatusId = currentStage;
+                    if (outcome === 'Failed') newStatusId = (currentStage === 3) ? 4 : 6;
+                    else if (outcome === 'Passed') newStatusId = (currentStage === 3) ? 5 : 7;
+                    else if (outcome === 'Reschedule') newStatusId = currentStage; // Status stays same, just update date/notes
+    
+                    // 2. UI Feedback (Spinner)
+                    const originalBtnContent = btn.innerHTML;
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                    
+                    try {
+                        const response = await fetch(`${API_URL}?action=updateApplicant`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                application_id: id, 
+                                recruitment_status: newStatusId, 
+                                feedback_comments: feedback, 
+                                status_date: new Date().toISOString().slice(0, 10) 
+                            })
+                        });
+                        
+                        const result = await response.json();
+                        if (result.status !== 'success') throw new Error(result.message || "Update failed");
+    
+                        // 3. Success & Refresh
+                        Swal.fire({ icon: 'success', title: 'Saved', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+                        
+                        // Refresh Notifications List
+                        await checkNotifications(); 
+    
+                        // If on HR Dashboard, refresh the main table too
+                        if (!window.location.pathname.includes('interview_dashboard.php')) {
+                            refreshAllData();
+                        }
+    
+                    } catch (err) { 
+                        Swal.fire('Error', err.message, 'error');
+                        // Restore button if failed
+                        btn.disabled = false;
+                        btn.innerHTML = originalBtnContent;
+                    }
+                }
+            });
         }
     });
 
-    // 4. Listeners
     if (btnNotification) {
         btnNotification.addEventListener('click', () => {
-            checkNotifications(); // Refresh on click
+            checkNotifications();
             notifModal.classList.remove('hidden');
         });
     }
@@ -313,7 +445,7 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('closeNotifModal')?.addEventListener('click', () => notifModal.classList.add('hidden'));
     document.getElementById('dismissNotifBtn')?.addEventListener('click', () => notifModal.classList.add('hidden'));
 
-    // 5. Init Call
+    // Init
     checkNotifications();
 
     // --- COLUMN RESIZING LOGIC ---
@@ -402,90 +534,139 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- INITIALIZATION ---
     async function initializeDashboard() {
         try {
-            // Anti-cache: force fresh user data
-            const userRes = await fetch(`${API_URL}?action=getUserInfo&_t=${new Date().getTime()}`);
-            if (!userRes.ok) throw new Error("Authentication failed");
-            const userInfo = await userRes.json();
-            USER_ROLE = userInfo.role || 'hr_staff'; 
+            // 1. SETUP GLOBALS & PLUGINS
+            initializePlugins(); 
 
-            // ============================================================
-            // --- NEW: RESTRICT RECRUITER SCORES TO MANAGERS ONLY ---
-            // ============================================================
+            // 2. CHECK: ARE WE ON THE INTERVIEWER PAGE?
+            const isInterviewerPage = window.location.pathname.includes('interview_dashboard.php');
+
+            // 3. GET USER INFO
+            const userRes = await fetch(`${API_URL}?action=getUserInfo&_t=${new Date().getTime()}`);
+            if (!userRes.ok) throw new Error(`Auth Error: ${userRes.status}`);
+            const userInfo = await userRes.json();
+            USER_ROLE = userInfo.role || 'hr_staff';
+
+            // --- BRANCH A: INTERVIEWER DASHBOARD ---
+            if (isInterviewerPage) {
+                console.log("Initializing Interviewer Mode...");
+                sessionStorage.removeItem('notifSeen'); 
+                checkNotifications(); 
+                return; // STOP HERE
+            }
+
+            // --- BRANCH B: HR DASHBOARD ---
+            
+            // 1. Manager Buttons
             if (viewRecruiterBtn) {
                 if (USER_ROLE === 'hr_manager' || USER_ROLE === 'super_user') {
-                    // Show button for Managers
                     viewRecruiterBtn.classList.remove('hidden');
                     viewRecruiterBtn.style.display = 'inline-block'; 
                 } else {
-                    // Hide button for everyone else (Staff)
                     viewRecruiterBtn.classList.add('hidden');
                     viewRecruiterBtn.style.display = 'none';
-                    
-                    // Safety: If they are somehow on the recruiters view, kick them back to active
                     if (currentView === 'recruiters') {
                         currentView = 'active';
-                        viewActiveBtn.click();
+                        if(viewActiveBtn) viewActiveBtn.click();
                     }
                 }
             }
             
-            // --- LOAD SAVED COLUMN PREFERENCES ---
+            // 2. Load Preferences
             if (userInfo.preferences && userInfo.preferences.visibleColumns) {
                 const savedCols = userInfo.preferences.visibleColumns;
                 const validCols = savedCols.filter(key => ALL_COLUMNS.some(c => c.key === key));
-                
-                // Safety checks for essential columns
                 if (!validCols.includes('select')) validCols.unshift('select');
                 if (!validCols.includes('actions')) validCols.push('actions');
-                
                 visibleColumns = validCols;
             }
 
-            initializePlugins(); 
+            // 3. Load Data (With improved error handling)
+            // Even if the calendar failed, we try to load data
             await refreshAllData();
+            
+            // 4. Final Setup
             setupColumnSelector();
             addEventListeners();
+            
+            
+            // 5. Initial Notification Check (HR Side)
+            if(btnNotification) checkNotifications();
+
         } catch (error) {
-            console.error("Init Error:", error);
-            document.body.innerHTML = `<div class="p-8 text-center text-red-600 font-semibold">Error: ${error.message}. Please log in.</div>`;
+            console.error("Critical Init Error:", error);
+            // Only show alert on HR dashboard
+            if (document.body && !window.location.pathname.includes('interview_dashboard.php')) {
+               Swal.fire({
+                   icon: 'error',
+                   title: 'Dashboard Error',
+                   text: 'Failed to load some data. Please check console for details.',
+                   footer: `<small style="color:red">${error.message}</small>`
+               });
+            }
         }
     }
 
-    function initializePlugins() {
-        const today = new Date();
-        const last7 = new Date(); 
-        last7.setDate(today.getDate() - 6);
-        
-        const last30 = new Date(); 
-        last30.setDate(today.getDate() - 29);
-    
-        dateRangePicker = new Litepicker({
-            element: document.getElementById('dateRangePicker'),
-            singleMode: false,
-            allowRepick: true,
-            autoApply: false,
-            resetButton: true,
-            
-            startDate: last7,
-            endDate: today,
 
-            plugins: ['ranges'],
-            ranges: {
-                'Last 7 Days': [last7, today],
-                'Last 30 Days': [last30, today],
-            },
-            setup: (picker) => {
-                picker.on('selected', () => refreshAllData());
-                picker.on('clear:selection', () => refreshAllData());
-            }
-        });
+
+
+    function initializePlugins() {
+        const dateEl = document.getElementById('dateRangePicker');
+        
+        // 1. If element is missing (e.g. Interviewer Dashboard), just stop. No error.
+        if (!dateEl) return;
+
+        // 2. Safety Check: Is Litepicker library loaded?
+        if (typeof Litepicker === 'undefined') {
+            console.warn("Litepicker library is missing. Skipping date picker init.");
+            return;
+        }
+
+        try {
+            const today = new Date();
+            const last7 = new Date(); last7.setDate(today.getDate() - 6);
+            const last30 = new Date(); last30.setDate(today.getDate() - 29);
+        
+            dateRangePicker = new Litepicker({
+                element: dateEl,
+                singleMode: false,
+                allowRepick: true,
+                autoApply: false,
+                resetButton: true,
+                startDate: last7,
+                endDate: today,
+                plugins: ['ranges'],
+                ranges: { 'Last 7 Days': [last7, today], 'Last 30 Days': [last30, today] },
+                setup: (picker) => {
+                    picker.on('selected', () => refreshAllData());
+                    picker.on('clear:selection', () => refreshAllData());
+                }
+            });
+        } catch (err) {
+            console.error("Litepicker Init Error:", err);
+            // We do NOT re-throw the error, so the rest of the dashboard can still load
+        }
     }
 
     // --- DATA FETCHING ---
     async function refreshAllData() { 
-        updateHeaderDates();
-        await fetchDropdownAndStatusData();
-        await Promise.all([fetchData(), fetchChartData(), fetchRecruiterPerformance()]);
+        if (window.location.pathname.includes('interview_dashboard.php')) return;
+        
+        // SAFETY 2: If plugins failed to load, STOP.
+        if (!dateRangePicker) return; 
+
+        try {
+            updateHeaderDates();
+            await fetchDropdownAndStatusData();
+            
+            await Promise.all([
+                fetchData(), 
+                fetchChartData(), 
+                fetchRecruiterPerformance()
+            ]);
+        } catch (e) {
+            console.error("Refresh Error:", e);
+            if(tableBody) tableBody.innerHTML = '<tr><td colspan="99" class="text-center p-8 text-red-500">Error refreshing data. <button onclick="location.reload()" class="text-blue-500 underline">Reload</button></td></tr>';
+        }
     }
 
     async function fetchDropdownAndStatusData() { 
@@ -680,7 +861,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (applicants.length > 0) {
             applicants.forEach(applicant => {
                 const isSelected = selectedApplicants.includes(parseInt(applicant.application_id));
-                bodyHTML += `<tr class="bg-white border-b hover:bg-gray-50 transition duration-150 ease-in-out">`;
+                bodyHTML += `<tr class="bg-white border-b hover:bg-gray-50 transition duration-150 ease-in-out h-8 overflow-hidden">`;
                 
                 visibleColumns.forEach(colKey => { 
                     const colConfig = ALL_COLUMNS.find(c => c.key === colKey);
@@ -772,24 +953,23 @@ document.addEventListener('DOMContentLoaded', function () {
                          content = `<select class="table-select text-xs p-1 border border-gray-200 rounded w-full" data-id="${applicant.application_id}" data-field="recruiter_name">${options}</select>`; 
                     }
 
-                    // --- CRITICAL UPDATE FOR COMPRESSION ---
-                    // 1. px-2 py-2: Reduces padding significantly
-                    // 2. text-xs: Makes font smaller
-                    // 3. whitespace-normal: Allows text to wrap to the next line (vertical growth)
-                    // 4. break-words: Breaks long emails so they don't widen the column
-                    // 5. max-w-[150px]: Hard limit on width
+                    // --- COMPACT ROW FIX ---
+                    // whitespace-nowrap: Forces text to stay on one line (prevents row expansion)
+                    // overflow-hidden + text-ellipsis: Adds "..." if text is too long
                     
-                    let cellClass = "px-2 py-2 text-xs text-gray-700 whitespace-normal break-words align-middle";
+                    let cellClass = "px-2 py-2 text-xs text-gray-700 whitespace-nowrap overflow-hidden text-ellipsis align-middle";
                     let style = "max-width: 150px;"; 
 
                     if (colKey === 'select') { 
-                        cellClass = "px-2 py-2 w-8 sticky left-0 bg-white z-0"; // Keep checkbox sticky
+                        cellClass = "px-2 py-2 w-8 sticky left-0 bg-white z-0 align-middle"; 
                         style = "";
                     } else if (colKey === 'email') {
-                         style = "max-width: 180px; word-break: break-all;"; // Special handling for emails
+                         style = "max-width: 180px;"; 
                     }
+                    // Helper to strip HTML tags for the hover tooltip
+                    let tooltipText = String(content).replace(/<[^>]*>?/gm, '');
 
-                    bodyHTML += `<td class="${cellClass}" style="${style}">${content}</td>`;
+                    bodyHTML += `<td class="${cellClass}" style="${style}" title="${tooltipText}">${content}</td>`;
                 });
                 bodyHTML += '</tr>';
             });
@@ -1777,6 +1957,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 cancelButtonText: 'Stay logged in'
             }).then((result) => {
                 if (result.isConfirmed) {
+                    sessionStorage.removeItem('notifSeen');
                     Swal.fire({
                         title: 'Logging out...',
                         text: 'Please wait.',
@@ -1952,6 +2133,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 alert('Applicant saved successfully!'); 
                 editModal.classList.add('hidden');
                 refreshAllData();
+                checkNotifications();
             } catch (error) { 
                 alert('Save failed: ' + error.message); 
                 // Re-disable inputs if save failed (optional, usually better to leave open for retry)
@@ -2170,6 +2352,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     startTimer();
 })();
+
+
 
 
 

@@ -62,7 +62,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 10 => 'bps_user',
                 11 => 'bps_quality_user',
                 12 => 'hr_staff',
-                13 => 'hr_manager'
+                13 => 'hr_manager',
+                14 => 'interviewer'
             ];
             $roleName = $roleMap[$user['role_id']] ?? 'User';
             $_SESSION['user_role'] = $roleName;
@@ -70,11 +71,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // --- UPDATED: Determine Redirect Page based on Role ---
             $redirectPage = 'main.php'; // Default for everyone else
 
-            // Check if user is HR Staff (12) or HR Manager (13)
+            // HR Staff or HR Manager
             if ($roleName === 'hr_staff' || $roleName === 'hr_manager') {
-                // IMPORTANT: Update this path if your dashboard is in a subfolder 
-                // e.g., 'views/hr_dashboard.php'
-                $redirectPage = 'views/hr_dashboard.php'; 
+                $redirectPage = 'views/hr_dashboard.php';
+            }
+            // Interviewer
+            elseif ($roleName === 'interviewer') {
+                $redirectPage = 'views/interview_dashboard.php';
             }
             // -----------------------------------------------------
 

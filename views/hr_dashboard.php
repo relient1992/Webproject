@@ -604,29 +604,46 @@ if (!isset($_SESSION['employee_id'])) {
     </div>
 
     <div id="notificationModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden z-50 flex items-center justify-center">
-        <div class="bg-white rounded-xl shadow-2xl w-11/12 xl:w-2/3 max-h-[90vh] flex flex-col">
-            
-            <div class="flex justify-between items-center p-5 border-b bg-purple-50 rounded-t-xl">
-                <div>
-                    <h3 class="text-xl font-bold text-gray-800"><i class="fas fa-calendar-check text-purple-600 mr-2"></i>Interview Reminders</h3>
-                    <p class="text-xs text-gray-500 mt-1">Upcoming and Due Interviews requiring action.</p>
-                </div>
-                <button id="closeNotifModal" class="text-gray-400 hover:text-red-500">
-                    <i class="fas fa-times text-2xl"></i>
-                </button>
+    <div class="bg-white rounded-xl shadow-2xl w-11/12 xl:w-3/4 max-h-[90vh] flex flex-col">
+        
+        <div class="p-4 border-b bg-gray-50 rounded-t-xl flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-calendar-alt text-blue-500 mr-2"></i>Interview Schedule</h3>
+                <p class="text-xs text-gray-500">Manage your upcoming and pending interviews.</p>
             </div>
 
-            <div class="overflow-y-auto p-5 space-y-4" id="notificationList">
-                <p class="text-center text-gray-400 py-10">No pending interviews found.</p>
-            </div>
-            
-            <div class="p-4 border-t bg-gray-50 text-right rounded-b-xl">
-                <button id="dismissNotifBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-6 rounded transition">
-                    Close
+            <div class="flex items-center space-x-2">
+                <div class="bg-gray-200 p-1 rounded-lg flex text-xs font-bold" id="notifTabs">
+                    <button class="px-3 py-1.5 rounded-md bg-white text-purple-700 shadow" data-filter="all">All</button>
+                    <button class="px-3 py-1.5 rounded-md text-gray-500 hover:text-gray-700" data-filter="initial">Initial</button>
+                    <button class="px-3 py-1.5 rounded-md text-gray-500 hover:text-gray-700" data-filter="final">Final</button>
+                </div>
+                
+                <select id="notifSortSelect" class="text-xs border-gray-300 rounded-lg focus:ring-purple-500">
+                    <option value="asc">📅 Oldest First (Urgent)</option>
+                    <option value="desc">📅 Newest First</option>
+                </select>
+
+                <button id="closeNotifModal" class="text-gray-400 hover:text-red-500 ml-2">
+                    <i class="fas fa-times text-xl"></i>
                 </button>
             </div>
         </div>
+
+        <div class="overflow-y-auto p-3 space-y-2 bg-gray-100 flex-1" id="notificationList">
+            </div>
+        
+        <div class="p-3 border-t bg-white rounded-b-xl flex justify-between items-center">
+            <span class="text-xs text-gray-500" id="notifPageInfo">Showing 0-0 of 0</span>
+            
+            <div class="flex items-center gap-2">
+                <button id="notifPrevBtn" class="px-3 py-1 rounded border hover:bg-gray-100 text-xs disabled:opacity-50">Previous</button>
+                <button id="notifNextBtn" class="px-3 py-1 rounded border hover:bg-gray-100 text-xs disabled:opacity-50">Next</button>
+                <button id="dismissNotifBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-1 px-4 rounded text-xs ml-4">Close</button>
+            </div>
+        </div>
     </div>
+</div>
     
 
     <script src="../js/hr_dashboard.js"></script>

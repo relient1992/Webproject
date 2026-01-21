@@ -142,8 +142,14 @@ switch ($action) {
         updateRequisition($conn, $loggedInUser);
         break;
     case 'getNotifications':
-        getNotifications($conn);
-        break;             
+        $userId = $_SESSION['employee_id']; 
+        
+        // Pass BOTH the name and the ID to be safe
+        $roleName = $_SESSION['role'] ?? '';
+        $roleId   = $_SESSION['role_id'] ?? 0;
+
+        getNotifications($conn, $userId, $roleName, $roleId); 
+        break;         
 }
 $conn->close();
 
@@ -798,11 +804,35 @@ function updateRequisition($conn, $userIdentifier) {
 }
 
 
-function getNotifications($conn) {
-    // 1. SAFE ERROR HANDLING
+function getNotifications($conn, $userIdentifier, $roleName, $roleId) {
     ini_set('display_errors', 0); 
 
-    // 2. DEFINE QUERY (Corrected for your 'employee_listings' table)
+    // 1. ROBUST PERMISSION CHECK
+    // We check BOTH the ID and the Name. If EITHER is an HR role, we grant access.
+    
+    // A. Clean the name (e.g. "HR Manager" -> "hr_manager")
+    $cleanName = str_replace(' ', '_', strtolower(trim($roleName)));
+    
+    // B. Define Allowed HR/Admin IDs (Based on your table screenshot)
+    // 1=Super, 2=Manager, 3=Admin, 5=LHI Admin, 6=LHI Mgr, 8=BPS Admin, 9=BPS Mgr, 12=HR Staff, 13=HR Mgr
+    $allowedIds = [1, 2, 3, 5, 6, 8, 9, 12, 13];
+
+    // C. Define Allowed HR/Admin Names
+    $allowedNames = [
+        'super_user', 'manager', 'admin', 'administrator',
+        'lhi_admin', 'lhi_manager', 
+        'bps_admin', 'bps_manager', 
+        'hr_staff', 'hr_manager'
+    ];
+
+    // D. The Final Check: Is ID valid? OR Is Name valid?
+    $isHrOrAdmin = in_array((int)$roleId, $allowedIds) || in_array($cleanName, $allowedNames);
+
+    // --- DEBUGGING (Uncomment this line if it STILL fails to see what the server sees) ---
+    // echo json_encode(['error' => "DEBUG: ID=[$roleId] Name=[$cleanName] Access=" . ($isHrOrAdmin ? 'FULL' : 'RESTRICTED')]); exit();
+
+    // 2. QUERY BUILDING
+    $employeeTable = 'employee_listings'; 
     $sql = "
         SELECT 
             a.application_id, a.surname, a.firstname, a.mobile_number, a.email,
@@ -810,52 +840,68 @@ function getNotifications($conn) {
             a.position_applied, a.recruitment_status, a.interview_dates, a.feedback_comments,
             a.initial_interviewer_id, a.final_interviewer_id,
             
-            -- Lookup Names using 'FULLNAME' from employee_listings
             e1.FULLNAME as initial_interviewer_name,
             e2.FULLNAME as final_interviewer_name
 
         FROM applicants a
-        
-        -- JOINING: Match 'initial_interviewer_id' with 'EDS'
-        LEFT JOIN employee_listings e1 ON a.initial_interviewer_id = e1.EDS
-        LEFT JOIN employee_listings e2 ON a.final_interviewer_id = e2.EDS
+        LEFT JOIN $employeeTable e1 ON a.initial_interviewer_id = e1.EDS
+        LEFT JOIN $employeeTable e2 ON a.final_interviewer_id = e2.EDS
         
         WHERE a.is_archived = 0 
         AND a.recruitment_status IN (3, 5) 
         AND a.interview_dates IS NOT NULL
-        ORDER BY a.interview_dates ASC
     ";
 
-    // 3. EXECUTE QUERY
-    $result = $conn->query($sql);
+    // 3. APPLY FILTER (Only if NOT HR)
+    $params = [];
+    $types = "";
 
-    // 4. CATCH SQL ERRORS
-    if (!$result) {
-        echo json_encode(['error' => 'SQL Error: ' . $conn->error]);
-        exit();
+    if ($isHrOrAdmin) {
+        // --- HR MODE: See Everything ---
+        // No extra WHERE clause needed.
+    } else {
+        // --- INTERVIEWER MODE: See Only Assigned ---
+        $sql .= " AND (
+            (a.recruitment_status = 3 AND a.initial_interviewer_id = ?) 
+            OR 
+            (a.recruitment_status = 5 AND a.final_interviewer_id = ?)
+        ) ";
+        $params[] = $userIdentifier; 
+        $params[] = $userIdentifier;
+        $types = "ss";
     }
 
+    $sql .= " ORDER BY a.interview_dates ASC";
+
+    // 4. EXECUTE
+    if (!empty($params)) {
+        $stmt = $conn->prepare($sql);
+        if(!$stmt) { echo json_encode(['error' => 'SQL Error: ' . $conn->error]); exit(); }
+        $stmt->bind_param($types, ...$params);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $stmt->close();
+    } else {
+        $result = $conn->query($sql);
+        if(!$result) { echo json_encode(['error' => 'SQL Error: ' . $conn->error]); exit(); }
+    }
+
+    // 5. PROCESS
     $data = [];
     $now = new DateTime();
 
     while ($row = $result->fetch_assoc()) {
-        try {
-            $interviewDate = new DateTime($row['interview_dates']);
-        } catch (Exception $e) {
-            $interviewDate = $now;
-        }
+        try { $interviewDate = new DateTime($row['interview_dates']); } 
+        catch (Exception $e) { $interviewDate = $now; }
         
         $row['time_status'] = ($interviewDate < $now) ? 'Due' : 'Upcoming';
         $row['interview_type'] = ($row['recruitment_status'] == 3) ? 'Initial Interview' : 'Final Interview';
         
-        // Logic to pick the correct name based on the stage
         if ($row['recruitment_status'] == 3) {
-             // Initial Interview
-             $row['interviewer_name'] = $row['initial_interviewer_name'] ?? 'Unknown Employee';
+             $row['interviewer_name'] = $row['initial_interviewer_name'] ?? 'Unassigned';
              $row['interviewer_id'] = $row['initial_interviewer_id'];
         } else {
-             // Final Interview
-             $row['interviewer_name'] = $row['final_interviewer_name'] ?? 'Unknown Employee';
+             $row['interviewer_name'] = $row['final_interviewer_name'] ?? 'Unassigned';
              $row['interviewer_id'] = $row['final_interviewer_id'];
         }
 

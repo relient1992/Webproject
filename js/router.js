@@ -161,6 +161,11 @@ const rolePages = {
         "fedex_aus_hourly_count.html",
         "web_training.php"
     ],
+
+    'interviewer': [
+        "interview_dashboard.php",
+    ],
+
     
     'super_user': [
         "active_attrition.html",

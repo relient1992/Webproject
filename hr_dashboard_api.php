@@ -65,10 +65,13 @@ if (!isset($_SESSION['employee_id'])) {
 }
 
 $loggedInUser = $_SESSION['employee_id'];
-$userRole = 'hr_staff'; 
+
+// Default values
+$detectedRoleName = 'hr_staff'; 
+$detectedRoleId = 0;
 
 $stmt_role = $conn->prepare(
-    "SELECT rt.role_name 
+    "SELECT rt.role_name, rt.role_id 
      FROM user_roles ur
      JOIN roles_table rt ON ur.role_id = rt.role_id
      WHERE ur.employee_id = ?"
@@ -79,6 +82,7 @@ if ($stmt_role) {
     $stmt_role->execute();
     $result_role = $stmt_role->get_result();
     if ($row_role = $result_role->fetch_assoc()) {
+        // Normalize the name (e.g. "HR Manager" -> "hr_manager")
         $userRole = strtolower(str_replace(' ', '_', $row_role['role_name']));
     }
     $stmt_role->close();
@@ -142,14 +146,10 @@ switch ($action) {
         updateRequisition($conn, $loggedInUser);
         break;
     case 'getNotifications':
-        $userId = $_SESSION['employee_id']; 
-        
-        // Pass BOTH the name and the ID to be safe
-        $roleName = $_SESSION['role'] ?? '';
-        $roleId   = $_SESSION['role_id'] ?? 0;
-
-        getNotifications($conn, $userId, $roleName, $roleId); 
-        break;         
+        // USE THE VALUES FETCHED FROM DB ABOVE
+        // Do not rely on $_SESSION['role'] which might be missing/stale
+        getNotifications($conn, $loggedInUser, $detectedRoleName, $detectedRoleId); 
+        break;        
 }
 $conn->close();
 
@@ -293,20 +293,58 @@ function getStatusCounts($conn) {
 }
 
 function getDropdownData($conn) {
-    $recruiters = [];
+    // 1. Initialize Default Arrays (Prevents "Undefined" errors in JS)
+    $data = [
+        'recruiters' => [],
+        'statuses' => [],
+        'interviewers' => [] 
+    ];
+
+    // 2. GET RECRUITERS
     $result = $conn->query("SHOW COLUMNS FROM applicants WHERE Field = 'recruiter_name'");
     if ($result && $result->num_rows > 0) {
         $row = $result->fetch_assoc();
         preg_match_all("/'([^']+)'/", $row['Type'], $matches);
-        $recruiters = $matches[1];
+        $data['recruiters'] = $matches[1];
     }
-    $statuses = [
+
+    // 3. GET STATUSES
+    $data['statuses'] = [
         1 => 'Applied', 2 => 'Failed Speedtest', 3 => 'Initial Interview', 4 => 'Failed L1 Interview',
         5 => 'Final Interview', 6 => 'Failed L2 Interview', 7 => 'For BGV', 8 => 'Job Offer',
         9 => 'Processing Requirements', 10 => 'Complete Requirements', 11 => 'Onboarding', 12 => 'Pooling',
         13 => 'Deployed', 14 => 'Withdrawn', 15 => 'Declined Offer'
     ];
-    echo json_encode(['recruiters' => $recruiters, 'statuses' => $statuses]);
+
+    // 4. GET INTERVIEWERS (Active Employees)
+    $empSql = "SELECT EDS, FULLNAME FROM employee_listings WHERE emp_status = 'ACTIVE' ORDER BY FULLNAME ASC";
+    $empResult = $conn->query($empSql);
+    
+    if ($empResult) {
+        while ($e = $empResult->fetch_assoc()) {
+            // SAFEGUARD: Ensure names are UTF-8 compatible to prevent JSON crash
+            $safeName = mb_convert_encoding($e['FULLNAME'], 'UTF-8', 'UTF-8');
+            
+            $data['interviewers'][] = [
+                'id' => $e['EDS'],
+                'label' => strtoupper($safeName) . ' - ' . $e['EDS']
+            ];
+        }
+    }
+
+    // 5. OUTPUT JSON (With Error Checking)
+    $json = json_encode($data);
+    if ($json === false) {
+        // If encoding fails, return an empty structure so the page doesn't crash completely
+        echo json_encode([
+            'recruiters' => [], 
+            'statuses' => $data['statuses'], 
+            'interviewers' => [],
+            'error' => 'JSON Encoding Error: ' . json_last_error_msg()
+        ]);
+    } else {
+        echo $json;
+    }
 }
 
 function updateApplicant($conn, $userIdentifier) {
@@ -808,16 +846,13 @@ function getNotifications($conn, $userIdentifier, $roleName, $roleId) {
     ini_set('display_errors', 0); 
 
     // 1. ROBUST PERMISSION CHECK
-    // We check BOTH the ID and the Name. If EITHER is an HR role, we grant access.
-    
-    // A. Clean the name (e.g. "HR Manager" -> "hr_manager")
+    // A. Clean the name
     $cleanName = str_replace(' ', '_', strtolower(trim($roleName)));
     
-    // B. Define Allowed HR/Admin IDs (Based on your table screenshot)
-    // 1=Super, 2=Manager, 3=Admin, 5=LHI Admin, 6=LHI Mgr, 8=BPS Admin, 9=BPS Mgr, 12=HR Staff, 13=HR Mgr
+    // B. Allowed IDs (12=HR Staff, 13=HR Manager, etc)
     $allowedIds = [1, 2, 3, 5, 6, 8, 9, 12, 13];
 
-    // C. Define Allowed HR/Admin Names
+    // C. Allowed Names
     $allowedNames = [
         'super_user', 'manager', 'admin', 'administrator',
         'lhi_admin', 'lhi_manager', 
@@ -825,11 +860,8 @@ function getNotifications($conn, $userIdentifier, $roleName, $roleId) {
         'hr_staff', 'hr_manager'
     ];
 
-    // D. The Final Check: Is ID valid? OR Is Name valid?
+    // D. HR/Admin Check
     $isHrOrAdmin = in_array((int)$roleId, $allowedIds) || in_array($cleanName, $allowedNames);
-
-    // --- DEBUGGING (Uncomment this line if it STILL fails to see what the server sees) ---
-    // echo json_encode(['error' => "DEBUG: ID=[$roleId] Name=[$cleanName] Access=" . ($isHrOrAdmin ? 'FULL' : 'RESTRICTED')]); exit();
 
     // 2. QUERY BUILDING
     $employeeTable = 'employee_listings'; 
@@ -858,9 +890,10 @@ function getNotifications($conn, $userIdentifier, $roleName, $roleId) {
 
     if ($isHrOrAdmin) {
         // --- HR MODE: See Everything ---
-        // No extra WHERE clause needed.
+        // (No WHERE clause added)
     } else {
         // --- INTERVIEWER MODE: See Only Assigned ---
+        // This handles your requirement: "interviewer... only see those assigned to them"
         $sql .= " AND (
             (a.recruitment_status = 3 AND a.initial_interviewer_id = ?) 
             OR 
@@ -897,6 +930,7 @@ function getNotifications($conn, $userIdentifier, $roleName, $roleId) {
         $row['time_status'] = ($interviewDate < $now) ? 'Due' : 'Upcoming';
         $row['interview_type'] = ($row['recruitment_status'] == 3) ? 'Initial Interview' : 'Final Interview';
         
+        // Name Logic
         if ($row['recruitment_status'] == 3) {
              $row['interviewer_name'] = $row['initial_interviewer_name'] ?? 'Unassigned';
              $row['interviewer_id'] = $row['initial_interviewer_id'];

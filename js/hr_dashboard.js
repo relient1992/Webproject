@@ -89,8 +89,8 @@ document.addEventListener('DOMContentLoaded', function () {
         { key: 'offer_date', label: 'Offer Date', editable: true, type: 'date' },
         { key: 'joining_date', label: 'Joining Date', editable: true, type: 'date' },
         { key: 'employee_id', label: 'Employee ID', editable: true, type: 'text' },
-        { key: 'initial_interviewer_id', label: 'Initial Interviewer ID', editable: true, type: 'text' },
-        { key: 'final_interviewer_id', label: 'Final Interviewer ID', editable: true, type: 'text' },
+        { key: 'initial_interviewer_id', label: 'Initial Interviewer', editable: true, type: 'select', options_key: 'interviewers' },
+        { key: 'final_interviewer_id', label: 'Final Interviewer', editable: true, type: 'select', options_key: 'interviewers' },
         { key: 'Project', label: 'Project', editable: true, type: 'text' },
         { key: 'actions', label: 'Actions', editable: false },
         
@@ -557,13 +557,20 @@ document.addEventListener('DOMContentLoaded', function () {
             // --- BRANCH B: HR DASHBOARD ---
             
             // 1. Manager Buttons
+            const allowedManagerRoles = [
+                'hr_manager', 'super_user', 'manager', 'admin', 
+                'lhi_manager', 'bps_manager', 'administrator'
+            ];
+
             if (viewRecruiterBtn) {
-                if (USER_ROLE === 'hr_manager' || USER_ROLE === 'super_user') {
+                if (allowedManagerRoles.includes(USER_ROLE)) {
                     viewRecruiterBtn.classList.remove('hidden');
                     viewRecruiterBtn.style.display = 'inline-block'; 
                 } else {
                     viewRecruiterBtn.classList.add('hidden');
                     viewRecruiterBtn.style.display = 'none';
+                    
+                    // If a non-manager somehow got here, kick them back to 'active' view
                     if (currentView === 'recruiters') {
                         currentView = 'active';
                         if(viewActiveBtn) viewActiveBtn.click();
@@ -905,7 +912,6 @@ document.addEventListener('DOMContentLoaded', function () {
                             ${content} ${icon}
                         </button>`;
                     }
-
                     
                     if (colKey === 'select') {
                         content = (currentView === 'active') ? `<div class="flex justify-center"><input type="checkbox" class="applicant-checkbox h-4 w-4 text-blue-600 rounded" data-id="${applicant.application_id}" ${isSelected ? 'checked' : ''}></div>` : '';
@@ -929,6 +935,25 @@ document.addEventListener('DOMContentLoaded', function () {
                         content = currentView === 'active' 
                             ? `<button class="text-white bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded text-xs edit-btn" data-id="${applicant.application_id}">Edit</button>` 
                             : `<button class="text-white bg-green-600 hover:bg-green-700 px-2 py-1 rounded text-xs restore-btn" data-id="${applicant.application_id}">Restore</button>`; 
+                    }
+
+                    else if ((colKey === 'initial_interviewer_id' || colKey === 'final_interviewer_id') && currentView === 'active') {
+                        // 1. Build Options
+                        let options = `<option value="">- Assign -</option>`;
+                        if (dropdownData.interviewers) {
+                            options += dropdownData.interviewers.map(emp => 
+                                `<option value="${emp.id}" ${emp.id == content ? 'selected' : ''}>${emp.label}</option>`
+                            ).join('');
+                        }
+                        
+                        // 2. Render Select Element
+                        // Note: data-field matches the DB column name
+                        content = `<select class="table-select text-xs p-1 border border-gray-200 rounded w-full cursor-pointer hover:border-blue-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                                    style="min-width: 160px;"
+                                    data-id="${applicant.application_id}" 
+                                    data-field="${colKey}">
+                                    ${options}
+                                   </select>`;
                     }
                     
                     else if (colKey === 'interview_dates') {
@@ -968,6 +993,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                     // Helper to strip HTML tags for the hover tooltip
                     let tooltipText = String(content).replace(/<[^>]*>?/gm, '');
+
+                    // --- FIX: REMOVE TOOLTIP FOR INTERVIEWER DROPDOWNS ---
+                    if (colKey === 'initial_interviewer_id' || colKey === 'final_interviewer_id') {
+                        tooltipText = ''; // Clear the title so no hover text appears
+                    }
 
                     bodyHTML += `<td class="${cellClass}" style="${style}" title="${tooltipText}">${content}</td>`;
                 });
@@ -1726,23 +1756,40 @@ document.addEventListener('DOMContentLoaded', function () {
                 case 'select': 
                     let optionsHTML = `<option value="">- Select -</option>`;
                     let options = [];
+
+                    // 1. Statuses Logic (Existing)
                     if (col.options_key === 'statuses') {
                         optionsHTML = Object.entries(dropdownData.statuses).map(([id, name]) => `<option value="${id}" ${id == applicantData.recruitment_status_id ? 'selected' : ''}>${name}</option>`).join('');
                     } 
+                    
+                    // 2. NEW: Interviewer Dropdown Logic (FULLNAME - EDS)
+                    else if (col.options_key === 'interviewers') {
+                        const list = dropdownData.interviewers || [];
+                        optionsHTML += list.map(emp => 
+                            `<option value="${emp.id}" ${emp.id == value ? 'selected' : ''}>${emp.label}</option>`
+                        ).join('');
+                    }
+
+                    // 3. Specific Skill Logic (Existing)
                     else if (col.key === 'specific_skill' && applicantData.position_applied) {
                         options = positionLogic[applicantData.position_applied]?.options || [];
                         optionsHTML += options.map(opt => `<option value="${opt}" ${opt === value ? 'selected' : ''}>${opt}</option>`).join('');
                     }
+                    
+                    // 4. Default Logic (Recruiters, etc.)
                     else {
                         options = col.options || dropdownData[col.options_key] || [];
                         optionsHTML += options.map(opt => `<option value="${opt}" ${opt === value ? 'selected' : ''}>${opt}</option>`).join('');
                     }
+
                     // Apply disabled and class
                     inputHTML = `<select id="${formType}_${keyForEdit}" name="${keyForEdit === 'recruitment_status_id' ? 'recruitment_status' : keyForEdit}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm ${bgClass}" ${required} ${disabledAttr}>${optionsHTML}</select>`;
                     break;
+
                 case 'textarea': 
                     inputHTML = `<textarea id="${formType}_${keyForEdit}" name="${keyForEdit}" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm ${bgClass}" ${required} ${disabledAttr}>${value}</textarea>`; 
                     break;
+                    
                 default: 
                     inputHTML = `<input type="${col.type}" id="${formType}_${keyForEdit}" name="${keyForEdit}" value="${value}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm ${bgClass}" ${required} ${disabledAttr}>`;
             }

@@ -145,6 +145,12 @@ switch ($action) {
     case 'updateRequisition':
         updateRequisition($conn, $loggedInUser);
         break;
+    case 'uploadResume':
+        uploadResume($conn, $loggedInUser);
+        break;
+    case 'saveResumeLink':
+        saveResumeLink($conn, $loggedInUser);
+        break;
     case 'getNotifications':
         // USE THE VALUES FETCHED FROM DB ABOVE
         // Do not rely on $_SESSION['role'] which might be missing/stale
@@ -197,7 +203,8 @@ function getAllApplicants($conn) {
             facebook_account, instagram_account, twitter_account, viber_account,
             education_level, college_degree,
             experience_years, specific_skill, screening_score, screening_status, requirements_checklist,
-            entity, hdmf_id, sss_no, philhealth_no, tin_no, talento_id, requisition_status, requisition_id,initial_interviewer_id,final_interviewer_id,
+            entity, hdmf_id, sss_no, philhealth_no, tin_no, talento_id, requisition_status, requisition_id,initial_interviewer_id,final_interviewer_id, 
+            resume_path,
             CASE recruitment_status
                 WHEN 1 THEN 'Applied' WHEN 2 THEN 'Failed Speedtest' WHEN 3 THEN 'Initial Interview'
                 WHEN 4 THEN 'Failed L1 Interview' WHEN 5 THEN 'Final Interview' WHEN 6 THEN 'Failed L2 Interview'
@@ -872,6 +879,8 @@ function getNotifications($conn, $userIdentifier, $roleName, $roleId) {
             a.position_applied, a.recruitment_status, a.interview_dates, a.feedback_comments,
             a.initial_interviewer_id, a.final_interviewer_id,
             
+            a.resume_path,  -- <--- ADD THIS LINE HERE
+            
             e1.FULLNAME as initial_interviewer_name,
             e2.FULLNAME as final_interviewer_name
 
@@ -943,4 +952,74 @@ function getNotifications($conn, $userIdentifier, $roleName, $roleId) {
     }
 
     echo json_encode($data);
+}
+
+function uploadResume($conn, $userIdentifier) {
+    if (!isset($_FILES['resume']) || !isset($_POST['application_id'])) {
+        echo json_encode(['status' => 'error', 'message' => 'No file or ID provided.']);
+        exit();
+    }
+
+    $appId = intval($_POST['application_id']);
+    $file = $_FILES['resume'];
+    
+    // Validation
+    $allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/png'];
+    if (!in_array($file['type'], $allowedTypes)) {
+        echo json_encode(['status' => 'error', 'message' => 'Invalid file type. Only PDF, Word, or Images allowed.']);
+        exit();
+    }
+
+    if ($file['size'] > 5 * 1024 * 1024) { // 5MB Limit
+        echo json_encode(['status' => 'error', 'message' => 'File too large. Max 5MB.']);
+        exit();
+    }
+
+    // Generate Filename: resume_101_timestamp.pdf
+    $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+    $filename = "resume_{$appId}_" . time() . "." . $ext;
+    $targetPath = "uploads/resumes/" . $filename;
+
+    if (move_uploaded_file($file['tmp_name'], $targetPath)) {
+        // Update DB
+        $stmt = $conn->prepare("UPDATE applicants SET resume_path = ? WHERE application_id = ?");
+        $stmt->bind_param("si", $targetPath, $appId);
+        
+        if ($stmt->execute()) {
+            logAction($conn, $userIdentifier, 'UPLOAD_RESUME', "Uploaded resume for ID $appId");
+            echo json_encode(['status' => 'success', 'message' => 'Resume uploaded!', 'path' => $targetPath]);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Database update failed.']);
+        }
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'File upload failed. Check folder permissions.']);
+    }
+}
+
+function saveResumeLink($conn, $userIdentifier) {
+    $data = json_decode(file_get_contents('php://input'), true);
+    $appId = intval($data['application_id'] ?? 0);
+    $link = trim($data['resume_link'] ?? '');
+
+    if ($appId <= 0 || empty($link)) {
+        echo json_encode(['status' => 'error', 'message' => 'Invalid ID or Link.']);
+        exit();
+    }
+
+    // Basic URL validation
+    if (!filter_var($link, FILTER_VALIDATE_URL)) {
+        echo json_encode(['status' => 'error', 'message' => 'Please enter a valid URL (starting with http:// or https://).']);
+        exit();
+    }
+
+    $stmt = $conn->prepare("UPDATE applicants SET resume_path = ? WHERE application_id = ?");
+    $stmt->bind_param("si", $link, $appId);
+
+    if ($stmt->execute()) {
+        logAction($conn, $userIdentifier, 'UPDATE_RESUME_LINK', "Updated resume link for ID $appId");
+        echo json_encode(['status' => 'success', 'message' => 'Link saved successfully!', 'path' => $link]);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Database update failed.']);
+    }
+    $stmt->close();
 }

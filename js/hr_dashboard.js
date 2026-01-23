@@ -306,6 +306,12 @@ document.addEventListener('DOMContentLoaded', function () {
                         onclick="document.getElementById('note_${app.application_id}').classList.toggle('hidden')" title="Add Notes">
                         <i class="fas fa-comment-alt text-xs"></i>
                     </button>
+
+                    <button class="bg-green-600 hover:bg-green-700 text-white p-1.5 rounded shadow btn-view-resume" 
+                        title="View Resume" data-id="${app.application_id}">
+                        <i class="fas fa-file-alt text-xs"></i>
+                    </button>
+
                 </div>
                 
                 <div id="note_${app.application_id}" class="hidden w-full mt-2 border-t pt-2">
@@ -369,71 +375,86 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     
-    notifList.addEventListener('click', async (e) => {
-        const btn = e.target.closest('.btn-update-interview');
-        if(notifList) {
-            notifList.addEventListener('click', async (e) => {
-                // 1. Check if the clicked element is a Save Button
-                const btn = e.target.closest('.btn-update-interview');
+    if(notifList) {
+        notifList.addEventListener('click', async (e) => {
+            
+            // -----------------------------
+            // A. HANDLER: VIEW RESUME CLICK
+            // -----------------------------
+            const resumeBtn = e.target.closest('.btn-view-resume');
+            if (resumeBtn) {
+                // Prevent bubbling if needed
+                e.preventDefault(); 
                 
-                if (btn) {
-                    // Prevent double-clicks
-                    if(btn.disabled) return;
-    
-                    const id = btn.dataset.id;
-                    const currentStage = parseInt(btn.dataset.currentStage);
-                    const outcome = document.getElementById(`status_${id}`).value;
-                    const feedback = document.getElementById(`feedback_${id}`)?.value || '';
-    
-                    if (!outcome) { Swal.fire('Required', 'Select a decision.', 'warning'); return; }
-    
-                    // Logic: Determine new status ID based on Pass/Fail
-                    let newStatusId = currentStage;
-                    if (outcome === 'Failed') newStatusId = (currentStage === 3) ? 4 : 6;
-                    else if (outcome === 'Passed') newStatusId = (currentStage === 3) ? 5 : 7;
-                    else if (outcome === 'Reschedule') newStatusId = currentStage; // Status stays same, just update date/notes
-    
-                    // 2. UI Feedback (Spinner)
-                    const originalBtnContent = btn.innerHTML;
-                    btn.disabled = true;
-                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                    
-                    try {
-                        const response = await fetch(`${API_URL}?action=updateApplicant`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ 
-                                application_id: id, 
-                                recruitment_status: newStatusId, 
-                                feedback_comments: feedback, 
-                                status_date: new Date().toISOString().slice(0, 10) 
-                            })
-                        });
-                        
-                        const result = await response.json();
-                        if (result.status !== 'success') throw new Error(result.message || "Update failed");
-    
-                        // 3. Success & Refresh
-                        Swal.fire({ icon: 'success', title: 'Saved', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
-                        
-                        // Refresh Notifications List
-                        await checkNotifications(); 
-    
-                        // If on HR Dashboard, refresh the main table too
-                        if (!window.location.pathname.includes('interview_dashboard.php')) {
-                            refreshAllData();
-                        }
-    
-                    } catch (err) { 
-                        Swal.fire('Error', err.message, 'error');
-                        // Restore button if failed
-                        btn.disabled = false;
-                        btn.innerHTML = originalBtnContent;
-                    }
+                const id = resumeBtn.dataset.id;
+                
+                // Find the applicant object in our loaded list
+                const applicant = allNotifications.find(a => a.application_id == id);
+                
+                if (applicant) {
+                    openResumeModal(applicant);
+                } else {
+                    console.error("Applicant data not found for ID:", id);
                 }
-            });
-        }
-    });
+                return; // Stop here, don't check for other buttons
+            }
+
+            // -----------------------------
+            // B. HANDLER: SAVE/UPDATE CLICK
+            // -----------------------------
+            const btn = e.target.closest('.btn-update-interview');
+            if (btn) {
+                if(btn.disabled) return; // Prevent double-clicks
+
+                const id = btn.dataset.id;
+                const currentStage = parseInt(btn.dataset.currentStage);
+                const outcome = document.getElementById(`status_${id}`).value;
+                const feedback = document.getElementById(`feedback_${id}`)?.value || '';
+
+                if (!outcome) { Swal.fire('Required', 'Select a decision.', 'warning'); return; }
+
+                // Logic: Determine new status ID based on Pass/Fail
+                let newStatusId = currentStage;
+                if (outcome === 'Failed') newStatusId = (currentStage === 3) ? 4 : 6;
+                else if (outcome === 'Passed') newStatusId = (currentStage === 3) ? 5 : 7;
+                else if (outcome === 'Reschedule') newStatusId = currentStage;
+
+                // UI Feedback (Spinner)
+                const originalBtnContent = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                
+                try {
+                    const response = await fetch(`${API_URL}?action=updateApplicant`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            application_id: id, 
+                            recruitment_status: newStatusId, 
+                            feedback_comments: feedback, 
+                            status_date: new Date().toISOString().slice(0, 10) 
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    if (result.status !== 'success') throw new Error(result.message || "Update failed");
+
+                    Swal.fire({ icon: 'success', title: 'Saved', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+                    
+                    // Refresh Lists
+                    await checkNotifications(); 
+                    if (!window.location.pathname.includes('interview_dashboard.php')) {
+                        refreshAllData();
+                    }
+
+                } catch (err) { 
+                    Swal.fire('Error', err.message, 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = originalBtnContent;
+                }
+            }
+        });
+    }
 
     if (btnNotification) {
         btnNotification.addEventListener('click', () => {
@@ -1901,6 +1922,142 @@ document.addEventListener('DOMContentLoaded', function () {
             if (el) el.textContent = label;
         });
     }
+
+    // UPLOAD RESUME
+    const resumeModal = document.getElementById('resumeModal');
+    const resumeFrame = document.getElementById('resumeFrame');
+    const noResumeState = document.getElementById('noResumeState');
+    const resumeUploadForm = document.getElementById('resumeUploadForm');
+    const resumeFile = document.getElementById('resumeFile');
+    const resumeAppId = document.getElementById('resume_app_id');
+    const downloadResumeBtn = document.getElementById('downloadResumeBtn');
+
+    // --- SMART RESUME MODAL ---
+    function openResumeModal(applicant) {
+        // 1. Populate Title & Hidden ID
+        const titleEl = document.getElementById('resumeModalTitle');
+        if (titleEl) titleEl.textContent = `${applicant.surname}, ${applicant.firstname} - Resume`;
+        
+        if (resumeAppId) resumeAppId.value = applicant.application_id;
+        
+        // 2. Reset UI (Safely)
+        const fileNameDisp = document.getElementById('fileNameDisplay');
+        if (fileNameDisp) fileNameDisp.textContent = '';
+        
+        const linkInput = document.getElementById('resumeLinkInput');
+        if (linkInput) linkInput.value = ''; // <--- SAFETY CHECK HERE
+        
+        // 3. Determine File Type
+        let rawPath = applicant.resume_path || '';
+        let isUrl = rawPath.startsWith('http'); 
+        let fileUrl = isUrl ? rawPath : (rawPath ? '../' + rawPath : null);
+
+        const resumeFrame = document.getElementById('resumeFrame');
+        const noResumeState = document.getElementById('noResumeState');
+        const downloadResumeBtn = document.getElementById('downloadResumeBtn');
+        const resumeModal = document.getElementById('resumeModal');
+
+        if (fileUrl) {
+            // Setup Download/Open Link
+            if (downloadResumeBtn) {
+                downloadResumeBtn.href = fileUrl;
+                downloadResumeBtn.classList.remove('hidden');
+            }
+
+            if (isUrl) {
+                // Google Doc / Link Logic
+                if (fileUrl.includes('drive.google.com') || fileUrl.includes('docs.google.com')) {
+                    fileUrl = fileUrl.replace(/\/view.*/, '/preview').replace(/\/edit.*/, '/preview');
+                }
+                if(resumeFrame) { resumeFrame.src = fileUrl; resumeFrame.classList.remove('hidden'); }
+                if(noResumeState) noResumeState.classList.add('hidden');
+            } 
+            else {
+                // Local File Logic
+                const ext = fileUrl.split('.').pop().toLowerCase();
+                const isViewable = ['pdf', 'jpg', 'jpeg', 'png', 'gif'].includes(ext);
+
+                if (isViewable) {
+                    if(resumeFrame) { resumeFrame.src = fileUrl; resumeFrame.classList.remove('hidden'); }
+                    if(noResumeState) noResumeState.classList.add('hidden');
+                } else {
+                    // Word Docs (Download only)
+                    if(resumeFrame) { resumeFrame.src = ''; resumeFrame.classList.add('hidden'); }
+                    if(noResumeState) {
+                        noResumeState.classList.remove('hidden');
+                        noResumeState.innerHTML = `
+                            <div class="flex flex-col items-center justify-center h-full text-gray-500">
+                                <i class="fas fa-file-word text-6xl mb-4 text-blue-500"></i>
+                                <p class="text-lg font-bold">Preview not available.</p>
+                                <a href="${fileUrl}" target="_blank" class="bg-blue-600 text-white px-4 py-2 mt-2 rounded">Download File</a>
+                            </div>`;
+                    }
+                }
+            }
+        } else {
+            // Empty State
+            if(resumeFrame) { resumeFrame.src = ''; resumeFrame.classList.add('hidden'); }
+            if(noResumeState) {
+                noResumeState.classList.remove('hidden');
+                noResumeState.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-full text-gray-400">
+                        <i class="fas fa-file-upload text-6xl mb-4 text-gray-300"></i>
+                        <p class="text-lg">No resume uploaded yet.</p>
+                    </div>`;
+            }
+            if(downloadResumeBtn) downloadResumeBtn.classList.add('hidden');
+        }
+        
+        if(resumeModal) resumeModal.classList.remove('hidden');
+    }
+    // Close Modal Listener
+    document.getElementById('closeResumeModal')?.addEventListener('click', () => {
+        resumeModal.classList.add('hidden');
+        resumeFrame.src = ''; 
+    });
+
+    // File Change Listener
+    if (resumeFile) {
+        resumeFile.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            document.getElementById('fileNameDisplay').textContent = file.name;
+
+            const formData = new FormData();
+            formData.append('resume', file);
+            formData.append('application_id', resumeAppId.value);
+            formData.append('action', 'uploadResume'); 
+
+            Swal.fire({ title: 'Uploading...', didOpen: () => Swal.showLoading() });
+
+            try {
+                const response = await fetch(`${API_URL}?action=uploadResume`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    Swal.fire('Success', 'Resume uploaded successfully', 'success');
+                    
+                    // Update Local Data (Both Arrays to be safe)
+                    const appMain = allApplicants.find(a => a.application_id == resumeAppId.value);
+                    if (appMain) appMain.resume_path = result.path;
+
+                    const appNotif = allNotifications.find(a => a.application_id == resumeAppId.value);
+                    if (appNotif) appNotif.resume_path = result.path;
+                    
+                    openResumeModal(appMain || appNotif);
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                Swal.fire('Error', error.message, 'error');
+            }
+        });
+    }
+
     
     // --- EVENT LISTENERS ---
     function addEventListeners() {
@@ -1991,6 +2148,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             });
         }
+
+
 
         document.getElementById('logoutBtn').addEventListener('click', () => {
             Swal.fire({
@@ -2312,6 +2471,51 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
 
+            // LISTENER: Save Resume Link
+        const btnSaveLink = document.getElementById('btnSaveLink');
+        if (btnSaveLink) {
+            btnSaveLink.addEventListener('click', async () => {
+                const link = document.getElementById('resumeLinkInput').value.trim();
+                const id = document.getElementById('resume_app_id').value;
+
+                if (!link) { Swal.fire('Error', 'Please enter a link.', 'warning'); return; }
+
+                // UI Loading
+                btnSaveLink.disabled = true;
+                btnSaveLink.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+                try {
+                    const response = await fetch(`${API_URL}?action=saveResumeLink`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ application_id: id, resume_link: link })
+                    });
+                    const result = await response.json();
+
+                    if (result.status === 'success') {
+                        Swal.fire({ icon: 'success', title: 'Saved', text: 'Link saved successfully', timer: 1000, showConfirmButton: false });
+
+                        // Update Local Data
+                        const appMain = allApplicants.find(a => a.application_id == id);
+                        if (appMain) appMain.resume_path = result.path;
+
+                        const appNotif = allNotifications.find(a => a.application_id == id);
+                        if (appNotif) appNotif.resume_path = result.path;
+
+                        // Refresh Modal
+                        openResumeModal(appMain || appNotif);
+                    } else {
+                        throw new Error(result.message);
+                    }
+                } catch (error) {
+                    Swal.fire('Error', error.message, 'error');
+                } finally {
+                    btnSaveLink.disabled = false;
+                    btnSaveLink.innerHTML = '<i class="fas fa-link mr-1"></i> Save Link';
+                }
+            });
+        }
+
         toggleChartBtn.addEventListener('click', () => {
             chartContainer.classList.toggle('hidden');
             toggleChartBtn.querySelector('i').classList.toggle('fa-chevron-up');
@@ -2324,11 +2528,40 @@ document.addEventListener('DOMContentLoaded', function () {
         
         // 1. Click on Surname (Delegated from Table Body)
         tableBody.addEventListener('click', e => {
-            const btn = e.target.closest('.req-btn');
+            const btn = e.target.closest('.req-btn'); // Matches the class on the Surname button
+            
             if (btn) {
                 const id = btn.dataset.id;
                 const applicant = allApplicants.find(a => a.application_id == id);
-                if (applicant) openRequirementsModal(applicant);
+                
+                if (!applicant) return;
+    
+                // Show Choice Menu
+                Swal.fire({
+                    title: `${applicant.surname}, ${applicant.firstname}`,
+                    text: 'Select an action:',
+                    showCancelButton: true,
+                    showDenyButton: true,
+                    confirmButtonText: '<i class="fas fa-tasks"></i> Requirements',
+                    denyButtonText: '<i class="fas fa-file-alt"></i> Resume',
+                    cancelButtonText: 'Close',
+                    confirmButtonColor: '#3b82f6', // Blue
+                    denyButtonColor: '#10b981',    // Green
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Option 1: Requirements
+                        if (typeof openRequirementsModal === 'function') {
+                            openRequirementsModal(applicant);
+                        }
+                    } else if (result.isDenied) {
+                        // Option 2: Resume
+                        if (typeof openResumeModal === 'function') {
+                            openResumeModal(applicant);
+                        } else {
+                            console.error("openResumeModal function is missing!");
+                        }
+                    }
+                });
             }
         });
 

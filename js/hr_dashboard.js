@@ -7,6 +7,103 @@ window.dashboardGlobals = {
     getFilteredIds: () => [] 
 };
 
+window.openResumeModal = function(applicant) {
+    // 1. Get Elements dynamically (Safe even if HTML updates lag)
+    const modal = document.getElementById('resumeModal');
+    const titleEl = document.getElementById('resumeModalTitle');
+    const appIdField = document.getElementById('resume_app_id');
+    const fileNameDisp = document.getElementById('fileNameDisplay');
+    const linkInput = document.getElementById('resumeLinkInput');
+    const resumeFrame = document.getElementById('resumeFrame');
+    const noResumeState = document.getElementById('noResumeState');
+    const downloadBtn = document.getElementById('downloadResumeBtn');
+
+    // Elements to Hide/Show based on Role
+    const uploadForm = document.getElementById('resumeUploadForm');
+    const linkRow = document.getElementById('resumeLinkRow');
+
+    if (!modal) {
+        console.error("Resume Modal HTML is missing! Paste it into your PHP file.");
+        return;
+    }
+
+    // --- NEW: CHECK PERMISSIONS ---
+    // If we are on the Interviewer Page, HIDE the edit controls
+    const isInterviewer = window.location.pathname.includes('interview_dashboard.php');
+
+    if (isInterviewer) {
+        if (uploadForm) uploadForm.classList.add('hidden'); // Hide Upload Button
+        if (linkRow) linkRow.classList.add('hidden');       // Hide Link Input
+        if (titleEl) titleEl.textContent = `${applicant.surname}, ${applicant.firstname} - Resume (View Only)`;
+    } else {
+        // HR Mode: Show everything
+        if (uploadForm) uploadForm.classList.remove('hidden');
+        if (linkRow) linkRow.classList.remove('hidden');
+        if (titleEl) titleEl.textContent = `${applicant.surname}, ${applicant.firstname} - Resume`;
+    }
+    // -----------------------------
+
+    // 2. Populate Data
+    if (appIdField) appIdField.value = applicant.application_id;
+    if (fileNameDisp) fileNameDisp.textContent = '';
+    if (linkInput) linkInput.value = ''; 
+
+    // 3. Determine File Type
+    let rawPath = applicant.resume_path || '';
+    let isUrl = rawPath.startsWith('http'); 
+    let fileUrl = isUrl ? rawPath : (rawPath ? '../' + rawPath : null);
+
+    // 4. Render Content (Logic unchanged)
+    if (fileUrl) {
+        if (downloadBtn) {
+            downloadBtn.href = fileUrl;
+            downloadBtn.classList.remove('hidden');
+        }
+
+        if (isUrl) {
+            if (fileUrl.includes('drive.google.com') || fileUrl.includes('docs.google.com')) {
+                fileUrl = fileUrl.replace(/\/view.*/, '/preview').replace(/\/edit.*/, '/preview');
+            }
+            if(resumeFrame) { resumeFrame.src = fileUrl; resumeFrame.classList.remove('hidden'); }
+            if(noResumeState) noResumeState.classList.add('hidden');
+        } 
+        else {
+            const ext = fileUrl.split('.').pop().toLowerCase();
+            const isViewable = ['pdf', 'jpg', 'jpeg', 'png', 'gif'].includes(ext);
+
+            if (isViewable) {
+                if(resumeFrame) { resumeFrame.src = fileUrl; resumeFrame.classList.remove('hidden'); }
+                if(noResumeState) noResumeState.classList.add('hidden');
+            } else {
+                if(resumeFrame) { resumeFrame.src = ''; resumeFrame.classList.add('hidden'); }
+                if(noResumeState) {
+                    noResumeState.classList.remove('hidden');
+                    noResumeState.innerHTML = `
+                        <div class="flex flex-col items-center justify-center h-full text-gray-500">
+                            <i class="fas fa-file-word text-6xl mb-4 text-blue-500"></i>
+                            <p class="text-lg font-bold">Preview not available.</p>
+                            <a href="${fileUrl}" target="_blank" class="bg-blue-600 text-white px-4 py-2 mt-2 rounded">Download File</a>
+                        </div>`;
+                }
+            }
+        }
+    } else {
+        if(resumeFrame) { resumeFrame.src = ''; resumeFrame.classList.add('hidden'); }
+        if(noResumeState) {
+            noResumeState.classList.remove('hidden');
+            noResumeState.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-full text-gray-400">
+                    <i class="fas fa-file-excel text-6xl mb-4 text-gray-300"></i>
+                    <p class="text-lg">No resume available.</p>
+                </div>`;
+        }
+        if(downloadBtn) downloadBtn.classList.add('hidden');
+    }
+    
+    // 5. Show Modal
+    modal.classList.remove('hidden');
+};
+
 document.addEventListener('DOMContentLoaded', function () {
 
     // --- CONFIGURATION & STATE ---
@@ -100,7 +197,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const DEFAULT_VISIBLE_COLUMNS = ['select', 'application_id', 'surname', 'firstname', 'position_applied', 'screening_score', 'screening_status', 'recruitment_status_text','specific_skill','recruiter_name', 'application_date'];
     
     // --- VARIABLES ---
-    let allApplicants = [], allRecruiterData = [], visibleColumns = [...DEFAULT_VISIBLE_COLUMNS, 'actions'];
+    window.allApplicants = [];
+    let allRecruiterData = [], visibleColumns = [...DEFAULT_VISIBLE_COLUMNS, 'actions'];
     let sortConfig = { key: 'application_date', direction: 'desc' }, currentStatusFilter = 'all';
     let dropdownData = { recruiters: [], statuses: {} };
     let currentView = 'active', currentPage = 1, rowsPerPage = 10, selectedApplicants = [];
@@ -733,7 +831,7 @@ document.addEventListener('DOMContentLoaded', function () {
             
             const response = await fetch(url); 
             if (!response.ok) throw new Error('Network response was not ok.'); 
-            allApplicants = await response.json(); 
+            window.allApplicants = await response.json();
             currentPage = 1; 
             selectedApplicants = [];
             const selectAll = document.getElementById('selectAllCheckbox');
@@ -1016,7 +1114,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     let tooltipText = String(content).replace(/<[^>]*>?/gm, '');
 
                     // --- FIX: REMOVE TOOLTIP FOR INTERVIEWER DROPDOWNS ---
-                    if (colKey === 'initial_interviewer_id' || colKey === 'final_interviewer_id') {
+                    if (colKey === 'initial_interviewer_id' || colKey === 'final_interviewer_id' || colKey === 'recruitment_status_text') {
                         tooltipText = ''; // Clear the title so no hover text appears
                     }
 
@@ -1100,7 +1198,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if(result.status !== 'success') throw new Error(result.message);
 
             // Update Local Data immediately to reflect color change
-            const applicant = allApplicants.find(a => a.application_id == id);
+            const applicant = window.allApplicants.find(a => a.application_id == id);
             if(applicant) {
                 applicant.requirements_checklist = jsonString;
             }
@@ -1440,7 +1538,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const response = await fetch(`${API_URL}?action=updateApplicant`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ application_id: applicantId, [field]: value, status_date: new Date().toISOString().slice(0, 10) }) }); 
             const result = await response.json(); 
             if (result.status !== 'success') throw new Error(result.message); 
-            const applicantToUpdate = allApplicants.find(a => a.application_id == applicantId); 
+            const applicantToUpdate = window.allApplicants.find(a => a.application_id == applicantId);
             if (applicantToUpdate) { 
                 applicantToUpdate[field] = value; 
                 if (field === 'recruitment_status') { 
@@ -1579,6 +1677,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         <td class="px-4 py-3 text-center">${statusBadge}</td>
                         <td class="px-4 py-3 text-center font-semibold text-gray-700">${req.headcount_approved}</td>
                         <td class="px-4 py-3 text-center text-blue-600 font-bold">${req.joined_count}</td>
+                        
+                        <td class="px-4 py-3 text-center text-orange-600 font-bold">${req.accepted_offer_count}</td>
                         
                         <td class="px-4 py-3 text-center ${balColor}">${req.balance}</td>
                         
@@ -1923,93 +2023,9 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // UPLOAD RESUME
-    const resumeModal = document.getElementById('resumeModal');
-    const resumeFrame = document.getElementById('resumeFrame');
-    const noResumeState = document.getElementById('noResumeState');
-    const resumeUploadForm = document.getElementById('resumeUploadForm');
-    const resumeFile = document.getElementById('resumeFile');
-    const resumeAppId = document.getElementById('resume_app_id');
-    const downloadResumeBtn = document.getElementById('downloadResumeBtn');
 
-    // --- SMART RESUME MODAL ---
-    function openResumeModal(applicant) {
-        // 1. Populate Title & Hidden ID
-        const titleEl = document.getElementById('resumeModalTitle');
-        if (titleEl) titleEl.textContent = `${applicant.surname}, ${applicant.firstname} - Resume`;
-        
-        if (resumeAppId) resumeAppId.value = applicant.application_id;
-        
-        // 2. Reset UI (Safely)
-        const fileNameDisp = document.getElementById('fileNameDisplay');
-        if (fileNameDisp) fileNameDisp.textContent = '';
-        
-        const linkInput = document.getElementById('resumeLinkInput');
-        if (linkInput) linkInput.value = ''; // <--- SAFETY CHECK HERE
-        
-        // 3. Determine File Type
-        let rawPath = applicant.resume_path || '';
-        let isUrl = rawPath.startsWith('http'); 
-        let fileUrl = isUrl ? rawPath : (rawPath ? '../' + rawPath : null);
 
-        const resumeFrame = document.getElementById('resumeFrame');
-        const noResumeState = document.getElementById('noResumeState');
-        const downloadResumeBtn = document.getElementById('downloadResumeBtn');
-        const resumeModal = document.getElementById('resumeModal');
 
-        if (fileUrl) {
-            // Setup Download/Open Link
-            if (downloadResumeBtn) {
-                downloadResumeBtn.href = fileUrl;
-                downloadResumeBtn.classList.remove('hidden');
-            }
-
-            if (isUrl) {
-                // Google Doc / Link Logic
-                if (fileUrl.includes('drive.google.com') || fileUrl.includes('docs.google.com')) {
-                    fileUrl = fileUrl.replace(/\/view.*/, '/preview').replace(/\/edit.*/, '/preview');
-                }
-                if(resumeFrame) { resumeFrame.src = fileUrl; resumeFrame.classList.remove('hidden'); }
-                if(noResumeState) noResumeState.classList.add('hidden');
-            } 
-            else {
-                // Local File Logic
-                const ext = fileUrl.split('.').pop().toLowerCase();
-                const isViewable = ['pdf', 'jpg', 'jpeg', 'png', 'gif'].includes(ext);
-
-                if (isViewable) {
-                    if(resumeFrame) { resumeFrame.src = fileUrl; resumeFrame.classList.remove('hidden'); }
-                    if(noResumeState) noResumeState.classList.add('hidden');
-                } else {
-                    // Word Docs (Download only)
-                    if(resumeFrame) { resumeFrame.src = ''; resumeFrame.classList.add('hidden'); }
-                    if(noResumeState) {
-                        noResumeState.classList.remove('hidden');
-                        noResumeState.innerHTML = `
-                            <div class="flex flex-col items-center justify-center h-full text-gray-500">
-                                <i class="fas fa-file-word text-6xl mb-4 text-blue-500"></i>
-                                <p class="text-lg font-bold">Preview not available.</p>
-                                <a href="${fileUrl}" target="_blank" class="bg-blue-600 text-white px-4 py-2 mt-2 rounded">Download File</a>
-                            </div>`;
-                    }
-                }
-            }
-        } else {
-            // Empty State
-            if(resumeFrame) { resumeFrame.src = ''; resumeFrame.classList.add('hidden'); }
-            if(noResumeState) {
-                noResumeState.classList.remove('hidden');
-                noResumeState.innerHTML = `
-                    <div class="flex flex-col items-center justify-center h-full text-gray-400">
-                        <i class="fas fa-file-upload text-6xl mb-4 text-gray-300"></i>
-                        <p class="text-lg">No resume uploaded yet.</p>
-                    </div>`;
-            }
-            if(downloadResumeBtn) downloadResumeBtn.classList.add('hidden');
-        }
-        
-        if(resumeModal) resumeModal.classList.remove('hidden');
-    }
     // Close Modal Listener
     document.getElementById('closeResumeModal')?.addEventListener('click', () => {
         resumeModal.classList.add('hidden');
@@ -2022,11 +2038,14 @@ document.addEventListener('DOMContentLoaded', function () {
             const file = e.target.files[0];
             if (!file) return;
 
+            // 1. DEFINE THE ELEMENT FIRST
+            const resumeAppId = document.getElementById('resume_app_id'); 
+
             document.getElementById('fileNameDisplay').textContent = file.name;
 
             const formData = new FormData();
             formData.append('resume', file);
-            formData.append('application_id', resumeAppId.value);
+            formData.append('application_id', resumeAppId.value); // Now it works
             formData.append('action', 'uploadResume'); 
 
             Swal.fire({ title: 'Uploading...', didOpen: () => Swal.showLoading() });
@@ -2041,14 +2060,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (result.status === 'success') {
                     Swal.fire('Success', 'Resume uploaded successfully', 'success');
                     
-                    // Update Local Data (Both Arrays to be safe)
-                    const appMain = allApplicants.find(a => a.application_id == resumeAppId.value);
+                    // Update Local Data
+                    const appMain = window.allApplicants.find(a => a.application_id == resumeAppId.value);
                     if (appMain) appMain.resume_path = result.path;
 
                     const appNotif = allNotifications.find(a => a.application_id == resumeAppId.value);
                     if (appNotif) appNotif.resume_path = result.path;
                     
-                    openResumeModal(appMain || appNotif);
+                    // Re-open/Refresh modal using the global function
+                    if (typeof window.openResumeModal === 'function') {
+                        window.openResumeModal(appMain || appNotif);
+                    }
                 } else {
                     throw new Error(result.message);
                 }
@@ -2198,7 +2220,7 @@ document.addEventListener('DOMContentLoaded', function () {
         tableBody.addEventListener('click', e => { 
             const target = e.target; 
             if(target.classList.contains('edit-btn')) { 
-                const applicant = allApplicants.find(a => a.application_id == target.dataset.id); 
+                const applicant = window.allApplicants.find(a => a.application_id == target.dataset.id);
                 if(applicant) openEditModal(applicant); 
             } 
             if (target.classList.contains('restore-btn')) {
@@ -2496,7 +2518,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         Swal.fire({ icon: 'success', title: 'Saved', text: 'Link saved successfully', timer: 1000, showConfirmButton: false });
 
                         // Update Local Data
-                        const appMain = allApplicants.find(a => a.application_id == id);
+                        const appMain = window.allApplicants.find(a => a.application_id == id);
                         if (appMain) appMain.resume_path = result.path;
 
                         const appNotif = allNotifications.find(a => a.application_id == id);
@@ -2528,15 +2550,17 @@ document.addEventListener('DOMContentLoaded', function () {
         
         // 1. Click on Surname (Delegated from Table Body)
         tableBody.addEventListener('click', e => {
-            const btn = e.target.closest('.req-btn'); // Matches the class on the Surname button
+            const btn = e.target.closest('.req-btn'); 
             
             if (btn) {
                 const id = btn.dataset.id;
-                const applicant = allApplicants.find(a => a.application_id == id);
+                const applicant = window.allApplicants.find(a => a.application_id == id);
                 
                 if (!applicant) return;
-    
-                // Show Choice Menu
+
+                // Debug: Check if resume path exists in data
+                // console.log("Applicant Resume Path:", applicant.resume_path); 
+
                 Swal.fire({
                     title: `${applicant.surname}, ${applicant.firstname}`,
                     text: 'Select an action:',
@@ -2545,8 +2569,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     confirmButtonText: '<i class="fas fa-tasks"></i> Requirements',
                     denyButtonText: '<i class="fas fa-file-alt"></i> Resume',
                     cancelButtonText: 'Close',
-                    confirmButtonColor: '#3b82f6', // Blue
-                    denyButtonColor: '#10b981',    // Green
+                    confirmButtonColor: '#3b82f6', 
+                    denyButtonColor: '#10b981',    
                 }).then((result) => {
                     if (result.isConfirmed) {
                         // Option 1: Requirements
@@ -2554,11 +2578,11 @@ document.addEventListener('DOMContentLoaded', function () {
                             openRequirementsModal(applicant);
                         }
                     } else if (result.isDenied) {
-                        // Option 2: Resume
-                        if (typeof openResumeModal === 'function') {
-                            openResumeModal(applicant);
+                        // Option 2: Resume (Using Global Function)
+                        if (typeof window.openResumeModal === 'function') {
+                            window.openResumeModal(applicant);
                         } else {
-                            console.error("openResumeModal function is missing!");
+                            console.error("openResumeModal is missing! Check if code is pasted at top of file.");
                         }
                     }
                 });

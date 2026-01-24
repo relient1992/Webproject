@@ -81,8 +81,8 @@ if (!isset($_SESSION['employee_id'])) {
 
                     <div class="flex items-center space-x-3">
                         <div class="bg-gray-100 p-1 rounded-lg flex text-sm font-bold" id="notifTabs">
-                            <button class="px-4 py-2 rounded-md bg-white text-purple-700 shadow transition" data-filter="all">All</button>
-                            <button class="px-4 py-2 rounded-md text-gray-500 hover:text-gray-700 transition" data-filter="initial">Initial</button>
+                            <!-- <button class="px-4 py-2 rounded-md bg-white text-purple-700 shadow transition" data-filter="all">All</button> -->
+                            <!-- <button class="px-4 py-2 rounded-md text-gray-500 hover:text-gray-700 transition" data-filter="initial">Initial</button> -->
                             <button class="px-4 py-2 rounded-md text-gray-500 hover:text-gray-700 transition" data-filter="final">Final</button>
                         </div>
                         
@@ -115,6 +115,60 @@ if (!isset($_SESSION['employee_id'])) {
         </div>
 
     </main>
+
+    <div id="resumeModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 overflow-y-auto h-full w-full z-[9999] flex items-center justify-center">
+        <div class="relative bg-white rounded-lg shadow-xl w-full max-w-4xl h-[90vh] flex flex-col">
+            
+            <div class="flex justify-between items-center p-4 border-b bg-gray-50 rounded-t-lg">
+                <div>
+                    <h3 class="text-xl font-bold text-gray-800" id="resumeModalTitle">Applicant Resume</h3>
+                    <p class="text-xs text-gray-500">View attached document.</p>
+                </div>
+                <button onclick="document.getElementById('resumeModal').classList.add('hidden'); document.getElementById('resumeFrame').src='';" class="text-gray-400 hover:text-gray-600 focus:outline-none">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+
+            <div class="flex-1 bg-gray-200 p-4 overflow-hidden relative" id="resumeViewerContainer">
+                <iframe id="resumeFrame" class="w-full h-full bg-white shadow hidden" src=""></iframe>
+                <div id="noResumeState" class="flex flex-col items-center justify-center h-full text-gray-500 hidden">
+                    <i class="fas fa-file-excel text-6xl mb-4 text-gray-300"></i>
+                    <p class="text-lg">No resume available.</p>
+                </div>
+            </div>
+
+            <div class="p-4 border-t bg-white flex flex-col gap-3">
+                
+                <div class="flex justify-between items-center border-b pb-3" id="resumeModalFooterRow1">
+                    <form id="resumeUploadForm" class="flex items-center gap-2">
+                        <input type="hidden" id="resume_app_id" name="application_id">
+                        <input type="file" id="resumeFile" name="resume" accept=".pdf,.doc,.docx,.jpg,.png" class="hidden">
+                        
+                        <button type="button" onclick="document.getElementById('resumeFile').click()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded shadow text-sm font-medium transition">
+                            <i class="fas fa-upload mr-2"></i> Upload File
+                        </button>
+                        <span id="fileNameDisplay" class="text-xs text-gray-500 truncate max-w-[150px]"></span>
+                    </form>
+
+                    <!-- <a id="downloadResumeBtn" href="#" target="_blank" class="text-blue-600 hover:underline text-sm font-medium hidden">
+                        <i class="fas fa-external-link-alt mr-1"></i> Open/Download
+                    </a> -->
+                </div>
+
+                <div class="flex items-center gap-2" id="resumeLinkRow">
+                    <div class="relative flex-1">
+                        <i class="fab fa-google-drive absolute left-3 top-2.5 text-gray-500"></i>
+                        <input type="text" id="resumeLinkInput" placeholder="Paste Google Drive / Docs Link here..." 
+                            class="w-full text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 p-2 pl-9 border">
+                    </div>
+                    <button type="button" id="btnSaveLink" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow text-sm font-medium transition">
+                        <i class="fas fa-link mr-1"></i> Save Link
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
 
     <script src="../js/hr_dashboard.js"></script> 
 

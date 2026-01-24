@@ -13,16 +13,16 @@ header('Content-Type: application/json');
 
 // --- DATABASE CONNECTION ---
 // Live Server
-$servername = "10.200.168.89";
-$username   = "supersu";
-$password   = "H110mds2!";
-$database   = "database_rda";
+// $servername = "10.200.168.89";
+// $username   = "supersu";
+// $password   = "H110mds2!";
+// $database   = "database_rda";
 
 // Localhost
-// $servername = "localhost";
-// $username = "root";
-// $password = "";
-// $database = "database_rda";
+$servername = "localhost";
+$username = "root";
+$password = "";
+$database = "database_rda";
 
 $conn = new mysqli($servername, $username, $password, $database);
 
@@ -727,11 +727,16 @@ function getRequisitions($conn) {
                 r.date_approved, 
                 r.status,
                 
-                -- Subquery 1: Joined Count
+                -- Subquery 1: Joined Count (Deployed)
                 (SELECT COUNT(*) FROM applicants a WHERE a.requisition_id = r.requisition_id AND a.recruitment_status = 13) as joined_count,
                 
-                -- Subquery 2: Offer Count
-                (SELECT COUNT(*) FROM applicants a WHERE a.requisition_id = r.requisition_id AND a.recruitment_status = 8) as offer_count,
+                -- Subquery 2: NEW 'OFFERED' COUNT (Accepted + Job Offer Status + Date exists)
+                (SELECT COUNT(*) FROM applicants a 
+                 WHERE a.requisition_id = r.requisition_id 
+                 AND a.recruitment_status = 8 
+                 AND a.offer_status = 'Accepted' 
+                 AND a.offer_date IS NOT NULL 
+                 AND a.offer_date != '0000-00-00') as accepted_offer_count,
                 
                 -- Calculation: Aging
                 DATEDIFF(NOW(), r.date_approved) as aging_days
@@ -752,9 +757,11 @@ function getRequisitions($conn) {
         while ($row = $result->fetch_assoc()) {
             $approved = intval($row['headcount_approved']);
             $joined = intval($row['joined_count']);
-            $offers = intval($row['offer_count']);
+            $offered = intval($row['accepted_offer_count']); // New Variable
             
-            $row['balance'] = $approved - ($joined + $offers);
+            // Usually Balance = Approved - Joined. If you want to subtract offers too, change this line:
+            $row['balance'] = $approved - ( $joined + $offered); 
+            
             $data[] = $row;
         }
         

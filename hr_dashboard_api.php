@@ -884,9 +884,7 @@ function getNotifications($conn, $userIdentifier, $roleName, $roleId) {
             a.application_id, a.surname, a.firstname, a.mobile_number, a.email,
             a.education_level, a.screening_score, a.screening_status, a.college_degree,
             a.position_applied, a.recruitment_status, a.interview_dates, a.feedback_comments,
-            a.initial_interviewer_id, a.final_interviewer_id,
-            
-            a.resume_path,  -- <--- ADD THIS LINE HERE
+            a.initial_interviewer_id, a.final_interviewer_id, a.resume_path, 
             
             e1.FULLNAME as initial_interviewer_name,
             e2.FULLNAME as final_interviewer_name
@@ -908,12 +906,12 @@ function getNotifications($conn, $userIdentifier, $roleName, $roleId) {
         // --- HR MODE: See Everything ---
         // (No WHERE clause added)
     } else {
-        // --- INTERVIEWER MODE: See Only Assigned ---
-        // This handles your requirement: "interviewer... only see those assigned to them"
-        $sql .= " AND (
-            (a.recruitment_status = 3 AND a.initial_interviewer_id = ?) 
+        // --- INTERVIEWER MODE: See Only Assigned (Fixed for "Name - ID" format) ---
+        // We use LIKE instead of = to find the ID inside the string
+    $sql .= " AND (
+            (a.recruitment_status = 3 AND a.initial_interviewer_id LIKE CONCAT('%', ?, '%')) 
             OR 
-            (a.recruitment_status = 5 AND a.final_interviewer_id = ?)
+            (a.recruitment_status = 5 AND a.final_interviewer_id LIKE CONCAT('%', ?, '%'))
         ) ";
         $params[] = $userIdentifier; 
         $params[] = $userIdentifier;

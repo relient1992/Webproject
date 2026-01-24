@@ -109,6 +109,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- CONFIGURATION & STATE ---
     let USER_ROLE = 'hr_staff'; 
     const API_URL = '../hr_dashboard_api.php';
+
+    let CURRENT_USER_ID = null
     
     // Drag & Drop State
     let dragSrcColumn = null;
@@ -307,8 +309,26 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // A. FILTER
         let filtered = allNotifications.filter(app => {
-            if (notifFilter === 'initial') return app.recruitment_status == 3;
-            if (notifFilter === 'final') return app.recruitment_status == 5;
+            // 1. Tab Filter (Initial vs Final)
+            if (notifFilter === 'initial' && app.recruitment_status != 3) return false;
+            if (notifFilter === 'final' && app.recruitment_status != 5) return false;
+
+            // 2. STRICT MODE: If on Interviewer Dashboard, ONLY show assigned tasks
+            if (window.location.pathname.includes('interview_dashboard.php')) {
+                // Get the IDs as strings to be safe
+                const initialID = String(app.initial_interviewer_id || '');
+                const finalID = String(app.final_interviewer_id || '');
+                const myID = String(CURRENT_USER_ID);
+
+                // CHECK: Does the database string CONTAIN my ID?
+                // Example: DB="ALUAGUE... - 2373" includes MyID="2373" -> TRUE
+                const isMyInitial = (app.recruitment_status == 3 && initialID.includes(myID));
+                const isMyFinal = (app.recruitment_status == 5 && finalID.includes(myID));
+                
+                // If neither match, HIDE IT
+                if (!isMyInitial && !isMyFinal) return false;
+            }
+
             return true;
         });
 
@@ -565,7 +585,7 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('dismissNotifBtn')?.addEventListener('click', () => notifModal.classList.add('hidden'));
 
     // Init
-    checkNotifications();
+    // checkNotifications();
 
     // --- COLUMN RESIZING LOGIC ---
     function enableColumnResizing() {
@@ -664,6 +684,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!userRes.ok) throw new Error(`Auth Error: ${userRes.status}`);
             const userInfo = await userRes.json();
             USER_ROLE = userInfo.role || 'hr_staff';
+            CURRENT_USER_ID = userInfo.employee_id;
 
             // --- BRANCH A: INTERVIEWER DASHBOARD ---
             if (isInterviewerPage) {
@@ -736,40 +757,56 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
     function initializePlugins() {
+        // --- 1. MAIN DASHBOARD DATE PICKER ---
         const dateEl = document.getElementById('dateRangePicker');
-        
-        // 1. If element is missing (e.g. Interviewer Dashboard), just stop. No error.
-        if (!dateEl) return;
-
-        // 2. Safety Check: Is Litepicker library loaded?
-        if (typeof Litepicker === 'undefined') {
-            console.warn("Litepicker library is missing. Skipping date picker init.");
-            return;
+        if (dateEl && typeof Litepicker !== 'undefined') {
+             try {
+                const today = new Date();
+                const last7 = new Date(); last7.setDate(today.getDate() - 6);
+                const last30 = new Date(); last30.setDate(today.getDate() - 29);
+            
+                dateRangePicker = new Litepicker({
+                    element: dateEl,
+                    singleMode: false,
+                    allowRepick: true,
+                    autoApply: false,
+                    resetButton: true,
+                    startDate: last7,
+                    endDate: today,
+                    plugins: ['ranges'],
+                    ranges: { 'Last 7 Days': [last7, today], 'Last 30 Days': [last30, today] },
+                    setup: (picker) => {
+                        picker.on('selected', () => refreshAllData());
+                        picker.on('clear:selection', () => refreshAllData());
+                    }
+                });
+            } catch (err) {
+                console.error("Litepicker Init Error:", err);
+            }
         }
 
-        try {
-            const today = new Date();
-            const last7 = new Date(); last7.setDate(today.getDate() - 6);
-            const last30 = new Date(); last30.setDate(today.getDate() - 29);
-        
-            dateRangePicker = new Litepicker({
-                element: dateEl,
+        // --- 2. ANALYTICS DATE PICKER (Now Independent) ---
+        const anDateEl = document.getElementById('an_dateRange');
+        if (anDateEl && typeof Litepicker !== 'undefined') {
+            window.analyticsPicker = new Litepicker({
+                element: anDateEl,
                 singleMode: false,
                 allowRepick: true,
-                autoApply: false,
-                resetButton: true,
-                startDate: last7,
-                endDate: today,
+                autoApply: true, 
+                numberOfMonths: 1,
+                numberOfColumns: 1, 
                 plugins: ['ranges'],
-                ranges: { 'Last 7 Days': [last7, today], 'Last 30 Days': [last30, today] },
+                ranges: {
+                    'This Month': [new Date(new Date().getFullYear(), new Date().getMonth(), 1), new Date()],
+                    'Last Month': [new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1), new Date(new Date().getFullYear(), new Date().getMonth(), 0)],
+                    'This Year': [new Date(new Date().getFullYear(), 0, 1), new Date()]
+                },
                 setup: (picker) => {
-                    picker.on('selected', () => refreshAllData());
-                    picker.on('clear:selection', () => refreshAllData());
+                    picker.on('selected', () => {
+                         // Auto-generate logic if needed
+                    });
                 }
             });
-        } catch (err) {
-            console.error("Litepicker Init Error:", err);
-            // We do NOT re-throw the error, so the rest of the dashboard can still load
         }
     }
 
@@ -2142,36 +2179,6 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
-        if (resetViewBtn) {
-            resetViewBtn.addEventListener('click', () => {
-                Swal.fire({
-                    title: 'Reset Columns?',
-                    text: 'This will revert your column order to the system default.',
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonText: 'Yes, reset',
-                    confirmButtonColor: '#d33',
-                    cancelButtonColor: '#3085d6'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        fetch(`${API_URL}?action=resetColumnPrefs`, { method: 'POST' })
-                        .then(res => res.json())
-                        .then(data => {
-                            if (data.status === 'success') {
-                                // FIXED: Manually reset state in JS instantly, no reload needed
-                                visibleColumns = [...DEFAULT_VISIBLE_COLUMNS];
-                                renderAll();
-                                Swal.fire({ icon: 'success', title: 'Reset!', text: 'Columns have been reset to default.', timer: 1500, showConfirmButton: false });
-                            } else {
-                                Swal.fire('Error', data.message, 'error');
-                            }
-                        });
-                    }
-                });
-            });
-        }
-
-
 
         document.getElementById('logoutBtn').addEventListener('click', () => {
             Swal.fire({
@@ -2631,7 +2638,296 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
         }
+
+        // ==========================================
+    // --- FLEXIBLE ANALYTICS REPORT LOGIC ---
+    // ==========================================
+    
+    let analyticsChartInstance = null;
+    let analyticsDataCache = []; // Stores the calculated data for export
+
+    // 1. Event Listeners
+    const openAnalyticsBtn = document.getElementById('openAnalyticsBtn');
+    const analyticsModal = document.getElementById('analyticsModal');
+    const closeAnalyticsBtn = document.getElementById('closeAnalyticsBtn');
+    const anGenerateBtn = document.getElementById('an_generateBtn');
+    const anExportBtn = document.getElementById('an_exportBtn');
+    const anDateField = document.getElementById('an_dateField');
+    const anDateRange = document.getElementById('an_dateRange');
+    
+    if (anDateField && anDateRange) {
+        anDateField.addEventListener('change', (e) => {
+            if (e.target.value === "") {
+                anDateRange.disabled = true;
+                anDateRange.value = "";
+                if(window.analyticsPicker) window.analyticsPicker.clearSelection();
+            } else {
+                anDateRange.disabled = false;
+                // If empty, default to "This Month" to nudge the user
+                if (!anDateRange.value && window.analyticsPicker) {
+                    const start = new Date(); start.setDate(1);
+                    window.analyticsPicker.setDateRange(start, new Date());
+                }
+            }
+        });
     }
+    
+    // View Switchers (Bar / Pie / Table)
+    const anViewBtns = document.querySelectorAll('.an-view-btn');
+    anViewBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            // UI Toggle
+            anViewBtns.forEach(b => {
+                b.classList.remove('active', 'bg-indigo-100', 'text-indigo-700', 'border-indigo-300');
+                b.classList.add('bg-white', 'text-gray-600', 'border-gray-300');
+            });
+            const target = e.currentTarget;
+            target.classList.add('active', 'bg-indigo-100', 'text-indigo-700', 'border-indigo-300');
+            target.classList.remove('bg-white', 'text-gray-600', 'border-gray-300');
+            
+            // Trigger Render
+            generateAnalyticsReport();
+        });
+    });
+
+    if(openAnalyticsBtn) {
+        openAnalyticsBtn.addEventListener('click', () => {
+            analyticsModal.classList.remove('hidden');
+            generateAnalyticsReport(); // Auto-generate on open
+        });
+    }
+
+    if(closeAnalyticsBtn) {
+        closeAnalyticsBtn.addEventListener('click', () => {
+            analyticsModal.classList.add('hidden');
+        });
+    }
+
+    if(anGenerateBtn) {
+        anGenerateBtn.addEventListener('click', generateAnalyticsReport);
+    }
+
+    if(anExportBtn) {
+        anExportBtn.addEventListener('click', exportAnalyticsData);
+    }
+
+
+    // 2. Core Logic: Generate Data
+    function generateAnalyticsReport() {
+        console.log("Generating Report..."); // Debug Log
+
+        // 1. Get Elements Safely
+        const groupByEl = document.getElementById('an_groupBy');
+        const metricEl = document.getElementById('an_metric');
+        const dateFieldEl = document.getElementById('an_dateField'); // New Field
+        
+        if (!groupByEl || !metricEl) {
+            console.error("Missing Analytics Dropdowns in HTML");
+            Swal.fire('Error', 'Analytics HTML is missing. Please update your PHP file.', 'error');
+            return;
+        }
+
+        const groupBy = groupByEl.value;
+        const metric = metricEl.value;
+        const excludeArchived = document.getElementById('an_exclude_archived')?.checked || false;
+        
+        // View Type
+        const activeViewBtn = document.querySelector('.an-view-btn.active');
+        const viewType = activeViewBtn ? activeViewBtn.dataset.view : 'bar';
+
+        // 2. Date Filter Logic (Safe Check)
+        let filterStartDate = null, filterEndDate = null;
+        let dateField = null;
+
+        // Only try to read date settings if the element actually exists
+        if (dateFieldEl) {
+            dateField = dateFieldEl.value;
+            if (dateField && window.analyticsPicker) {
+                filterStartDate = window.analyticsPicker.getStartDate()?.toJSDate();
+                filterEndDate = window.analyticsPicker.getEndDate()?.toJSDate();
+                if(filterStartDate) filterStartDate.setHours(0,0,0,0);
+                if(filterEndDate) filterEndDate.setHours(23,59,59,999);
+            }
+        }
+
+        // 3. Filter Data
+        let data = window.allApplicants.filter(app => {
+            // Archive Filter
+            if (excludeArchived && app.is_archived == 1) return false;
+            
+            // Custom Date Filter
+            if (dateField && filterStartDate && filterEndDate) {
+                const rawDate = app[dateField];
+                if (!rawDate || rawDate === '0000-00-00') return false; 
+                
+                const targetDate = new Date(rawDate);
+                if (targetDate < filterStartDate || targetDate > filterEndDate) return false;
+            }
+            return true;
+        });
+
+        console.log(`Found ${data.length} records.`); // Debug Log
+
+        // Update Total Count UI
+        const totalEl = document.getElementById('an_totalRecords');
+        if(totalEl) totalEl.textContent = data.length;
+
+        // 4. Group & Aggregate
+        const grouped = {};
+        
+        data.forEach(app => {
+            let key = app[groupBy] || 'Unknown';
+            
+            if (groupBy === 'interview_year_month') {
+                if (app.interview_dates) {
+                    const d = new Date(app.interview_dates);
+                    key = d.toLocaleString('default', { month: 'short', year: 'numeric' });
+                } else {
+                    key = 'No Interview';
+                }
+            }
+
+            if (!grouped[key]) {
+                grouped[key] = { count: 0, sum: 0 };
+            }
+
+            grouped[key].count++;
+            
+            let val = 0;
+            if (metric === 'avg_score') val = parseFloat(app.screening_score) || 0;
+            if (metric === 'avg_age') val = parseFloat(app.age) || 0;
+            
+            grouped[key].sum += val;
+        });
+
+        // 5. Format for Chart
+        const labels = Object.keys(grouped);
+        const chartData = labels.map(label => {
+            if (metric === 'count') return grouped[label].count;
+            return grouped[label].count > 0 ? (grouped[label].sum / grouped[label].count).toFixed(1) : 0;
+        });
+
+        const combined = labels.map((l, i) => ({ label: l, value: parseFloat(chartData[i]) }));
+        combined.sort((a, b) => b.value - a.value);
+        
+        const sortedLabels = combined.map(i => i.label);
+        const sortedValues = combined.map(i => i.value);
+        
+        analyticsDataCache = combined;
+        
+        // Update Titles
+        const topCatEl = document.getElementById('an_topCategory');
+        const reportTitleEl = document.getElementById('an_reportTitle');
+        if(topCatEl) topCatEl.textContent = combined.length > 0 ? `${combined[0].label} (${combined[0].value})` : '-';
+        if(reportTitleEl) reportTitleEl.textContent = `Report: ${groupByEl.selectedOptions[0].text} by ${metric === 'count' ? 'Count' : 'Average'}`;
+
+        // 6. Render
+        const chartContainer = document.getElementById('an_chartContainer');
+        const tableContainer = document.getElementById('an_tableContainer');
+
+        if (viewType === 'table') {
+            if(chartContainer) chartContainer.classList.add('hidden');
+            if(tableContainer) tableContainer.classList.remove('hidden');
+            renderAnalyticsTable(sortedLabels, sortedValues, metric, data.length);
+        } else {
+            if(chartContainer) chartContainer.classList.remove('hidden');
+            if(tableContainer) tableContainer.classList.add('hidden');
+            renderAnalyticsChart(sortedLabels, sortedValues, viewType, metric);
+        }
+    }
+
+    // 3. Render Chart
+    function renderAnalyticsChart(labels, data, type, metric) {
+        const ctx = document.getElementById('an_chartCanvas').getContext('2d');
+        
+        if (analyticsChartInstance) {
+            analyticsChartInstance.destroy();
+        }
+
+        // Color Palette
+        const colors = [
+            '#625f9c', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', 
+            '#ec4899', '#06b6d4', '#84cc16', '#6366f1', '#14b8a6'
+        ];
+
+        analyticsChartInstance = new Chart(ctx, {
+            type: type, // 'bar' or 'pie'
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: metric === 'count' ? 'Applicants' : 'Value',
+                    data: data,
+                    backgroundColor: type === 'pie' ? colors : '#4f46e5',
+                    borderRadius: type === 'bar' ? 4 : 0,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: type === 'pie', position: 'right' },
+                    datalabels: { // Requires datalabels plugin we added earlier
+                        color: type === 'pie' ? '#fff' : '#000',
+                        anchor: type === 'pie' ? 'center' : 'end',
+                        align: type === 'pie' ? 'center' : 'top',
+                        formatter: Math.round,
+                        display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0 // Hide 0s
+                    }
+                },
+                scales: type === 'bar' ? {
+                    y: { beginAtZero: true, grid: { borderDash: [2, 2] } },
+                    x: { grid: { display: false } }
+                } : {} // No scales for pie
+            }
+        });
+    }
+
+    // 4. Render Table
+    function renderAnalyticsTable(labels, values, metric, totalCount) {
+        const tbody = document.getElementById('an_tableBody');
+        tbody.innerHTML = '';
+        
+        labels.forEach((label, index) => {
+            const val = values[index];
+            // Calc Percentage (only valid for Counts)
+            let pct = metric === 'count' ? ((val / totalCount) * 100).toFixed(1) + '%' : '-';
+            
+            const tr = `
+                <tr class="hover:bg-gray-50 border-b border-gray-100">
+                    <td class="px-5 py-3 text-sm text-gray-800 font-medium">${label}</td>
+                    <td class="px-5 py-3 text-sm text-right text-indigo-600 font-bold">${val}</td>
+                    <td class="px-5 py-3 text-sm text-right text-gray-500">${pct}</td>
+                </tr>
+            `;
+            tbody.innerHTML += tr;
+        });
+    }
+
+    // 5. Export
+    function exportAnalyticsData() {
+        if (analyticsDataCache.length === 0) { Swal.fire('Error', 'No data to export', 'warning'); return; }
+        
+        let csv = "Category,Value\n";
+        analyticsDataCache.forEach(row => {
+            csv += `"${row.label}",${row.value}\n`;
+        });
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "analytics_report.csv");
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    }
+
+
+
     
     initializeDashboard();
 });

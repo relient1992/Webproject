@@ -99,6 +99,9 @@ if (!isset($_SESSION['employee_id'])) {
                 <h1 class="text-2xl font-semibold text-gray-800">Applicant Dashboard</h1>
                 <div class="flex items-center gap-2 flex-wrap">
                     <button id="btnOpenRequisition" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-150 ease-in-out flex items-center"><i class="fas fa-clipboard-list mr-2"></i> Requisitions</button>
+                    <button id="openAnalyticsBtn" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 shadow-md transition">
+                        <i class="fas fa-chart-pie mr-2"></i> Analytics
+                    </button>
                      <button id="downloadTemplateBtn" class="bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600"><i class="fas fa-download mr-2"></i>Template</button>
                      <button id="bulkUploadBtn" class="bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600"><i class="fas fa-upload mr-2"></i>Bulk Upload</button>
                      <div class="relative mr-4 cursor-pointer" id="btnNotification">
@@ -494,6 +497,8 @@ if (!isset($_SESSION['employee_id'])) {
         </div>
     </div>
 
+    
+
     <div id="requisitionModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50 flex items-center justify-center">
         <div class="relative w-11/12 xl:w-4/5 bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col" style="max-height: 90vh;">
             
@@ -699,6 +704,130 @@ if (!isset($_SESSION['employee_id'])) {
                 </div>
             </div>
 
+        </div>
+    </div>
+
+    <div id="analyticsModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 z-[9999] flex items-center justify-center">
+        <div class="bg-white w-full max-w-6xl h-[90vh] rounded-xl shadow-2xl flex flex-col overflow-hidden">
+            
+            <div class="bg-indigo-700 text-white p-4 flex justify-between items-center shadow-md">
+                <div>
+                    <h2 class="text-xl font-bold"><i class="fas fa-chart-bar mr-2"></i> Custom Analytics Report</h2>
+                    <p class="text-xs text-indigo-200">Generate real-time reports based on current applicant data.</p>
+                </div>
+                <button id="closeAnalyticsBtn" class="text-indigo-200 hover:text-white transition">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+
+            <div class="flex flex-1 overflow-hidden">
+                
+                <div class="w-1/4 bg-gray-50 border-r border-gray-200 p-5 flex flex-col gap-6 overflow-y-auto">
+                    
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-2">1. Group By (Categories)</label>
+                        <select id="an_groupBy" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm">
+                            <option value="recruitment_status_text">Recruitment Status</option>
+                            <option value="position_applied">Position Applied</option>
+                            <option value="recruiter_name">Recruiter</option>
+                            <option value="application_source">Source</option>
+                            <option value="gender">Gender</option>
+                            <option value="education_level">Education Level</option>
+                            <option value="screening_status">Screening Status</option>
+                            <option value="city">City</option>
+                            <option value="interview_year_month">Interview Date (Month)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-2">2. Metric (Values)</label>
+                        <select id="an_metric" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm">
+                            <option value="count">Count of Applicants</option>
+                            <option value="avg_score">Average Screening Score</option>
+                            <option value="avg_age">Average Age</option>
+                        </select>
+                    </div>
+
+                    <div class="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                        <label class="block text-xs font-bold text-blue-800 uppercase mb-2">3. Data Scope</label>
+                        
+                        <label class="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer mb-3">
+                            <input type="checkbox" id="an_exclude_archived" class="rounded text-indigo-600 focus:ring-indigo-500" checked>
+                            <span>Exclude Archived</span>
+                        </label>
+
+                        <div class="pt-2 border-t border-blue-200">
+                            <label class="block text-[10px] font-bold text-blue-600 uppercase mb-1">Filter by Date:</label>
+                            
+                            <select id="an_dateField" class="w-full mb-2 p-1.5 text-xs border border-blue-300 rounded text-blue-900 bg-white focus:ring-1 focus:ring-blue-500 outline-none">
+                                <option value="">(None) Use All Data</option>
+                                <option value="application_date">Application Date</option>
+                                <option value="interview_dates">Interview Date</option>
+                                <option value="offer_date">Offer Date</option>
+                                <option value="joining_date">Joining Date</option>
+                                <option value="status_date">Last Status Update</option>
+                            </select>
+
+                            <div class="relative">
+                                <i class="fas fa-calendar-alt absolute left-2 top-2 text-gray-400"></i>
+                                <input type="text" id="an_dateRange" class="w-full p-1.5 pl-7 text-xs border border-blue-300 rounded bg-white disabled:bg-gray-100 disabled:text-gray-400 transition" placeholder="Select date range..." disabled>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-2">4. Visualization</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button class="an-view-btn active bg-indigo-100 text-indigo-700 border border-indigo-300 p-2 rounded text-center text-sm font-bold hover:bg-indigo-200 transition" data-view="bar">
+                                <i class="fas fa-chart-bar"></i><br>Bar
+                            </button>
+                            <button class="an-view-btn bg-white text-gray-600 border border-gray-300 p-2 rounded text-center text-sm font-bold hover:bg-gray-50 transition" data-view="pie">
+                                <i class="fas fa-chart-pie"></i><br>Pie
+                            </button>
+                            <button class="an-view-btn bg-white text-gray-600 border border-gray-300 p-2 rounded text-center text-sm font-bold hover:bg-gray-50 transition" data-view="table">
+                                <i class="fas fa-table"></i><br>Data
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mt-auto">
+                        <button id="an_generateBtn" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 shadow-lg transition transform active:scale-95">
+                            <i class="fas fa-sync-alt mr-2"></i> Generate Report
+                        </button>
+                    </div>
+                </div>
+
+                <div class="w-3/4 bg-white p-6 flex flex-col relative">
+                    <div class="flex justify-between items-center mb-4 border-b pb-2">
+                        <h3 id="an_reportTitle" class="text-lg font-bold text-gray-800">Applicant Distribution by Status</h3>
+                        <button id="an_exportBtn" class="text-sm text-green-600 hover:text-green-800 font-bold">
+                            <i class="fas fa-file-csv mr-1"></i> Export Data
+                        </button>
+                    </div>
+
+                    <div id="an_chartContainer" class="flex-1 relative w-full h-full min-h-[300px]">
+                        <canvas id="an_chartCanvas"></canvas>
+                    </div>
+
+                    <div id="an_tableContainer" class="hidden flex-1 overflow-auto border rounded-lg">
+                        <table class="min-w-full leading-normal">
+                            <thead class="bg-gray-100 sticky top-0">
+                                <tr>
+                                    <th class="px-5 py-3 border-b-2 border-gray-200 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Category</th>
+                                    <th class="px-5 py-3 border-b-2 border-gray-200 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">Value</th>
+                                    <th class="px-5 py-3 border-b-2 border-gray-200 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">Percentage</th>
+                                </tr>
+                            </thead>
+                            <tbody id="an_tableBody"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-4 p-3 bg-gray-50 rounded-lg text-sm text-gray-600 flex gap-6">
+                        <p><strong>Total Records:</strong> <span id="an_totalRecords">0</span></p>
+                        <p><strong>Top Category:</strong> <span id="an_topCategory">-</span></p>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

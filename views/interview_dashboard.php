@@ -81,8 +81,8 @@ if (!isset($_SESSION['employee_id'])) {
 
                     <div class="flex items-center space-x-3">
                         <div class="bg-gray-100 p-1 rounded-lg flex text-sm font-bold" id="notifTabs">
-                            <!-- <button class="px-4 py-2 rounded-md bg-white text-purple-700 shadow transition" data-filter="all">All</button> -->
-                            <!-- <button class="px-4 py-2 rounded-md text-gray-500 hover:text-gray-700 transition" data-filter="initial">Initial</button> -->
+                            <!-- <button class="px-4 py-2 rounded-md bg-white text-purple-700 shadow transition" data-filter="all">All</button>
+                            <button class="px-4 py-2 rounded-md text-gray-500 hover:text-gray-700 transition" data-filter="initial">Initial</button> -->
                             <button class="px-4 py-2 rounded-md text-gray-500 hover:text-gray-700 transition" data-filter="final">Final</button>
                         </div>
                         

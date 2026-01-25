@@ -122,6 +122,12 @@ document.addEventListener('DOMContentLoaded', function () {
             link.click();
             document.body.removeChild(link);
 
+            // --- NEW: LOG THIS ACTION TOO ---
+            // We use a simple fire-and-forget fetch here since we are inside the logs module
+            const formData = new FormData();
+            formData.append('description', 'Exported System Activity Logs.');
+            fetch(`${API_URL}?action=log_manual_action`, { method: 'POST', body: formData });
+
         } catch (error) {
             alert('Export failed: ' + error.message);
         } finally {

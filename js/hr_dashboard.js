@@ -772,6 +772,18 @@ async function initializeDashboard() {
     }
 
 
+    async function logUserAction(description) {
+        try {
+            const formData = new FormData();
+            formData.append('description', description);
+            await fetch(`${API_URL}?action=log_manual_action`, {
+                method: 'POST',
+                body: formData
+            });
+        } catch (e) {
+            console.error("Failed to log action:", e);
+        }
+    }
 
 
     function initializePlugins() {
@@ -2258,6 +2270,10 @@ async function initializeDashboard() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+
+        // --- NEW: LOG THE EXPORT ---
+        logUserAction(`Exported ${dataToExport.length} records to CSV (${currentView} view).`);
+
     }
 
     function updateHeaderDates() {
@@ -3193,6 +3209,8 @@ function addEventListeners() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        
+        logUserAction(`Exported Analytics Report (${analyticsDataCache.length} rows).`);
     }
 
     }

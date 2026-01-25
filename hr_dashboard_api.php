@@ -154,6 +154,12 @@ switch ($action) {
     case 'checkEmployeeId':
         checkEmployeeId($conn);
     break;
+    case 'log_manual_action':
+        // Allows frontend to save a specific log message (e.g., "User exported data")
+        $desc = $_POST['description'] ?? 'Unknown Action';
+        logAction($conn, $loggedInUser, 'USER_ACTION', $desc);
+        echo json_encode(['status' => 'success']);
+    break;
     case 'getNotifications':
         // USE THE VALUES FETCHED FROM DB ABOVE
         // Do not rely on $_SESSION['role'] which might be missing/stale
@@ -375,18 +381,40 @@ function updateApplicant($conn, $userIdentifier) {
         exit(); 
     }
 
-    // Check if "Add New" was selected and a new value was provided
+    // --- 1. FETCH CURRENT DATA (BEFORE UPDATE) ---
+    // We need this to compare "Old Value" vs "New Value"
+    $sql = "SELECT * FROM applicants WHERE application_id = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("i", $applicationId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $currentData = $result->fetch_assoc();
+    $stmt->close();
+
+    if (!$currentData) {
+        echo json_encode(['status' => 'error', 'message' => 'Applicant not found.']);
+        exit();
+    }
+    
+    $applicantName = strtoupper(($currentData['surname'] ?? '') . ", " . ($currentData['firstname'] ?? ''));
+    // ---------------------------------------------
+
+    // Custom Logic: Handle "Add New" Project
     if (isset($data['Project']) && $data['Project'] === 'Add New' && !empty($data['project_new'])) {
-        $data['Project'] = strtoupper(trim($data['project_new'])); // Save as Uppercase standard
+        $data['Project'] = strtoupper(trim($data['project_new'])); 
     }
 
-    // --- FIX FOR "OTHER" DEGREE ---
-    // If the frontend sent a custom "college_degree_other" value, overwrite the "college_degree" field
+    // Custom Logic: Handle "Other" Degree
     if (isset($data['college_degree']) && $data['college_degree'] === 'Other' && !empty($data['college_degree_other'])) {
         $data['college_degree'] = $data['college_degree_other'];
     }
 
-    $setClauses = []; $params = []; $types = '';
+    $setClauses = []; 
+    $params = []; 
+    $types = '';
+    
+    $changesLog = []; // Array to store "Field: From -> To" strings
+
     $allowedColumns = [ 
         'surname', 'firstname', 'middlename', 'birthday', 'age', 'gender', 'mobile_number', 'email', 
         'street_address', 'city', 'province', 'postcode', 'position_applied', 'recruiter_name', 
@@ -394,15 +422,49 @@ function updateApplicant($conn, $userIdentifier) {
         'feedback_comments', 'offer_status', 'offer_date', 'joining_date', 'employee_id', 'Project',
         'facebook_account', 'instagram_account', 'twitter_account', 'viber_account', 
         'education_level', 'college_degree', 'experience_years', 'specific_skill', 'screening_score', 'screening_status' , 'requirements_checklist',
-        'entity', 'hdmf_id', 'sss_no', 'philhealth_no', 'tin_no', 'talento_id', 'requisition_status',"requisition_id","initial_interviewer_id","final_interviewer_id"
+        'entity', 'hdmf_id', 'sss_no', 'philhealth_no', 'tin_no', 'talento_id', 'requisition_status',"requisition_id","initial_interviewer_id","final_interviewer_id",
+        'application_date'
     ];
 
     foreach ($data as $key => $value) { 
         if ($key === 'application_id') continue; 
+        
         if(in_array($key, $allowedColumns)) { 
+            // Prepare Update Query
+            $newValue = ($value === '') ? null : $value;
             $setClauses[] = "`{$key}` = ?"; 
-            $params[] = ($value === '') ? null : $value; 
-            $types .= (is_numeric($value) && $key === 'screening_score') ? 'i' : 's'; 
+            $params[] = $newValue; 
+            $types .= (is_numeric($newValue) && $key === 'screening_score') ? 'i' : 's';
+            
+            // --- 2. COMPARE VALUES FOR LOGGING ---
+            $oldValue = $currentData[$key];
+            
+            // Normalize for comparison (treat null and "" as same)
+            $normOld = trim((string)$oldValue);
+            $normNew = trim((string)$newValue);
+
+            // Special handling for Status (Use ID to Name mapping for readability)
+            if ($key === 'recruitment_status' && $normOld !== $normNew) {
+                $statusMap = [
+                    1 => 'Applied', 2 => 'Failed Speedtest', 3 => 'Initial Interview', 4 => 'Failed L1 Interview',
+                    5 => 'Final Interview', 6 => 'Failed L2 Interview', 7 => 'For BGV', 8 => 'Job Offer',
+                    9 => 'Processing Requirements', 10 => 'Complete Requirements', 11 => 'Onboarding', 12 => 'Pooling',
+                    13 => 'Deployed', 14 => 'Withdrawn', 15 => 'Declined Offer'
+                ];
+                $oldTxt = $statusMap[$oldValue] ?? $oldValue;
+                $newTxt = $statusMap[$newValue] ?? $newValue;
+                $changesLog[] = "Status: {$oldTxt} -> {$newTxt}";
+            }
+            // Ignore feedback_comments in the "From -> To" list (it's usually just added text)
+            elseif ($key !== 'feedback_comments' && $key !== 'status_date' && $normOld !== $normNew) {
+                // Shorten field name for log (remove underscores)
+                $label = str_replace('_', ' ', ucfirst($key));
+                // truncate long values
+                $dispOld = strlen($normOld) > 20 ? substr($normOld, 0, 20).'...' : ($normOld ?: 'Empty');
+                $dispNew = strlen($normNew) > 20 ? substr($normNew, 0, 20).'...' : ($normNew ?: 'Empty');
+                
+                $changesLog[] = "{$label}: {$dispOld} -> {$dispNew}";
+            }
         } 
     }
     
@@ -426,7 +488,22 @@ function updateApplicant($conn, $userIdentifier) {
     $stmt->bind_param($types, ...$params);
     
     if ($stmt->execute()) {
-        logAction($conn, $userIdentifier, 'UPDATE', "Updated applicant ID #{$applicationId}.");
+        // --- 3. LOGGING ONLY CHANGES ---
+        $logDesc = "Updated #{$applicationId} ({$applicantName}).";
+        
+        if (!empty($data['feedback_comments']) && trim($data['feedback_comments']) !== trim($currentData['feedback_comments'])) {
+            $changesLog[] = "Added/Updated Feedback";
+        }
+
+        if (!empty($changesLog)) {
+            $logDesc .= " Changes: " . implode(', ', $changesLog) . ".";
+            logAction($conn, $userIdentifier, 'UPDATE', $logDesc);
+        } else {
+            // If nothing actually changed but "Save" was clicked
+             logAction($conn, $userIdentifier, 'UPDATE', $logDesc . " No changes detected.");
+        }
+        // ----------------------------------
+
         echo json_encode(['status' => 'success', 'message' => 'Applicant updated successfully.']);
     } else {
         http_response_code(500);
@@ -450,11 +527,26 @@ function archiveApplicant($conn, $userIdentifier, $userRole) {
         exit(); 
     }
 
+    // --- 1. NEW: FETCH NAME FOR LOGGING ---
+    $nameSql = "SELECT surname, firstname FROM applicants WHERE application_id = ?";
+    $nameStmt = $conn->prepare($nameSql);
+    $nameStmt->bind_param("i", $applicationId);
+    $nameStmt->execute();
+    $nameResult = $nameStmt->get_result();
+    $applicantName = "Unknown";
+    
+    if ($row = $nameResult->fetch_assoc()) {
+        $applicantName = strtoupper($row['surname'] . ", " . $row['firstname']);
+    }
+    $nameStmt->close();
+    // ----------------------------------------
+
     $stmt = $conn->prepare("UPDATE applicants SET is_archived = 1 WHERE application_id = ?");
     $stmt->bind_param('i', $applicationId);
 
     if ($stmt->execute()) {
-        logAction($conn, $userIdentifier, 'ARCHIVE', "Archived applicant ID #{$applicationId}.");
+        // --- 2. UPDATED LOG MESSAGE ---
+        logAction($conn, $userIdentifier, 'ARCHIVE', "Archived applicant ID #{$applicationId} - {$applicantName}.");
         echo json_encode(['status' => 'success', 'message' => 'Applicant archived successfully.']);
     } else { 
         http_response_code(500); 
@@ -478,11 +570,26 @@ function restoreApplicant($conn, $userIdentifier, $userRole) {
         exit(); 
     }
 
+    // --- 1. NEW: FETCH NAME FOR LOGGING ---
+    $nameSql = "SELECT surname, firstname FROM applicants WHERE application_id = ?";
+    $nameStmt = $conn->prepare($nameSql);
+    $nameStmt->bind_param("i", $applicationId);
+    $nameStmt->execute();
+    $nameResult = $nameStmt->get_result();
+    $applicantName = "Unknown";
+    
+    if ($row = $nameResult->fetch_assoc()) {
+        $applicantName = strtoupper($row['surname'] . ", " . $row['firstname']);
+    }
+    $nameStmt->close();
+    // ----------------------------------------
+
     $stmt = $conn->prepare("UPDATE applicants SET is_archived = 0 WHERE application_id = ?");
     $stmt->bind_param('i', $applicationId);
 
     if ($stmt->execute()) {
-        logAction($conn, $userIdentifier, 'RESTORE', "Restored applicant ID #{$applicationId}.");
+        // --- 2. UPDATED LOG MESSAGE ---
+        logAction($conn, $userIdentifier, 'RESTORE', "Restored applicant ID #{$applicationId} - {$applicantName}.");
         echo json_encode(['status' => 'success', 'message' => 'Applicant restored successfully.']);
     } else { 
         http_response_code(500); 

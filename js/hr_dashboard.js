@@ -187,10 +187,10 @@ document.addEventListener('DOMContentLoaded', function () {
         { key: 'offer_status', label: 'Offer', editable: true, type: 'select', options: ['Pending', 'Accepted', 'Declined'] },
         { key: 'offer_date', label: 'Offer Date', editable: true, type: 'date' },
         { key: 'joining_date', label: 'Joining Date', editable: true, type: 'date' },
-        { key: 'employee_id', label: 'Employee ID', editable: true, type: 'text' },
+        { key: 'employee_id', label: 'Employee ID', editable: true, type: 'number', validate: 'check_db' },
         { key: 'initial_interviewer_id', label: 'Initial Interviewer', editable: true, type: 'select', options_key: 'interviewers' },
         { key: 'final_interviewer_id', label: 'Final Interviewer', editable: true, type: 'select', options_key: 'interviewers' },
-        { key: 'Project', label: 'Project', editable: true, type: 'text' },
+        { key: 'Project', label: 'Project', editable: true, type: 'select', options_key: 'projects' },
         { key: 'actions', label: 'Actions', editable: false },
         
     ];
@@ -1970,12 +1970,20 @@ async function initializeDashboard() {
                         options = positionLogic[applicantData.position_applied]?.options || [];
                         optionsHTML += options.map(opt => `<option value="${opt}" ${opt === value ? 'selected' : ''}>${opt}</option>`).join('');
                     }
+
+                    else if (col.key === 'Project') {
+                        // Load projects from API
+                        options = dropdownData.projects || [];
+                        optionsHTML += options.map(opt => `<option value="${opt}" ${opt === value ? 'selected' : ''}>${opt}</option>`).join('');
+                        // Add the special option
+                        optionsHTML += `<option value="Add New" class="font-bold text-blue-600">+ Add New Project</option>`;
+                    }
                     
                     // 4. Default Logic (Recruiters, etc.)
                     else {
                         options = col.options || dropdownData[col.options_key] || [];
                         optionsHTML += options.map(opt => `<option value="${opt}" ${opt === value ? 'selected' : ''}>${opt}</option>`).join('');
-                    }
+                    }          
 
                     // Apply disabled and class
                     inputHTML = `<select id="${formType}_${keyForEdit}" name="${keyForEdit === 'recruitment_status_id' ? 'recruitment_status' : keyForEdit}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm ${bgClass}" ${required} ${disabledAttr}>${optionsHTML}</select>`;
@@ -1990,6 +1998,108 @@ async function initializeDashboard() {
             }
             fieldWrapper.innerHTML = labelHTML + inputHTML;
             container.appendChild(fieldWrapper);
+
+            if (col.key === 'Project') {
+                let newProjWrapper = document.createElement('div');
+                newProjWrapper.id = `${formType}_newProjectContainer`;
+                newProjWrapper.className = 'hidden mt-2';
+                
+                // If the current value isn't in the list (custom value), show the box
+                const currentVal = applicantData[col.key];
+                const isCustom = currentVal && dropdownData.projects && !dropdownData.projects.includes(currentVal);
+                if (isCustom) {
+                    // Set dropdown to "Add New" visually, show text box
+                    // Note: You might need to adjust this logic depending on preference
+                    // For now, we hide it by default unless user clicks "Add New"
+                }
+
+                newProjWrapper.innerHTML = `
+                    <label class="block text-xs text-blue-600 font-bold mb-1">Enter New Project Name:</label>
+                    <input type="text" id="${formType}_project_new" name="project_new" class="block w-full rounded-md border-blue-300 shadow-sm focus:ring-blue-500 bg-blue-50" placeholder="Type new project name...">
+                `;
+                container.appendChild(newProjWrapper);
+            }
+
+            // --- B. NEW: Employee ID Validation Logic ---
+            if (col.key === 'employee_id') {
+                const inputId = `${formType}_${keyForEdit}`;
+                
+                setTimeout(() => {
+                    const el = document.getElementById(inputId);
+                    if (el) {
+                        // Create error message span
+                        const msgSpan = document.createElement('span');
+                        msgSpan.id = `${inputId}_error`;
+                        msgSpan.className = 'text-xs text-red-600 font-bold hidden block mt-1'; // Ensure block display
+                        el.parentNode.appendChild(msgSpan);
+
+                        el.addEventListener('blur', async function() {
+                            const val = this.value;
+                            
+                            // Get the submit button for the current form
+                            const formId = formType === 'add' ? 'addApplicantForm' : 'editForm';
+                            const submitBtn = document.querySelector(`#${formId} button[type="submit"]`);
+
+                            if(!val) {
+                                // If empty, clear errors and re-enable button
+                                this.classList.remove('border-red-500', 'ring-1', 'ring-red-500');
+                                this.classList.remove('border-green-500');
+                                msgSpan.classList.add('hidden');
+                                if(submitBtn) { 
+                                    submitBtn.disabled = false; 
+                                    submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                                }
+                                return;
+                            }
+
+                            // Show checking state
+                            msgSpan.textContent = "Checking ID...";
+                            msgSpan.classList.remove('hidden', 'text-red-600');
+                            msgSpan.classList.add('text-gray-500');
+
+                            try {
+                                const res = await fetch(`${API_URL}?action=checkEmployeeId&id=${val}`);
+                                const data = await res.json();
+                                
+                                if (data.exists) {
+                                    // ERROR: Disable Submit
+                                    this.classList.add('border-red-500', 'ring-1', 'ring-red-500');
+                                    this.classList.remove('border-green-500');
+                                    
+                                    msgSpan.textContent = `⛔ ID Taken: ${data.name}`;
+                                    msgSpan.classList.remove('hidden', 'text-gray-500');
+                                    msgSpan.classList.add('text-red-600');
+                                    
+                                    if(submitBtn) { 
+                                        submitBtn.disabled = true; 
+                                        submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                                        submitBtn.title = "Please fix the Duplicate Employee ID first";
+                                    }
+                                } else {
+                                    // SUCCESS: Enable Submit
+                                    this.classList.remove('border-red-500', 'ring-1', 'ring-red-500');
+                                    this.classList.add('border-green-500'); // Green border for valid
+                                    
+                                    msgSpan.textContent = "✅ ID Available";
+                                    msgSpan.classList.remove('hidden', 'text-red-600', 'text-gray-500');
+                                    msgSpan.classList.add('text-green-600');
+                                    
+                                    // Hide success message after 2 seconds to keep UI clean
+                                    setTimeout(() => msgSpan.classList.add('hidden'), 2000);
+
+                                    if(submitBtn) { 
+                                        submitBtn.disabled = false; 
+                                        submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                                        submitBtn.removeAttribute('title');
+                                    }
+                                }
+                            } catch (e) {
+                                console.error("ID Check failed", e);
+                            }
+                        });
+                    }
+                }, 100);
+            }
 
             // Handle "Other" degree field visibility and locking
             if (col.key === 'college_degree') {
@@ -2052,15 +2162,91 @@ async function initializeDashboard() {
     }
 
     function exportVisibleData() {
+        // 1. Get Data (respecting current filters/sort)
         const dataToExport = getFilteredAndSortedData();
-        if (dataToExport.length === 0) { alert('No data to export.'); return; }
-        const headers = visibleColumns.map(key => ALL_COLUMNS.find(c => c.key === key).label).filter(label => label !== 'Actions');
-        let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n";
-        dataToExport.forEach(row => { const rowData = visibleColumns.map(key => { if (key === 'actions') return null; let cellData = row[key] === null || row[key] === undefined ? '' : String(row[key]); cellData = cellData.includes(',') ? `"${cellData.replace(/"/g, '""')}"` : cellData; return cellData; }).filter(data => data !== null); csvContent += rowData.join(",") + "\n"; });
-        const encodedUri = encodeURI(csvContent);
+        
+        if (dataToExport.length === 0) {
+            Swal.fire({ icon: 'info', title: 'No Data', text: 'There is no data to export based on your current filters.' });
+            return;
+        }
+
+        // 2. Define Columns to Ignore
+        const ignoredColumns = ['select', 'actions'];
+        
+        // 3. Filter Visible Columns
+        const exportCols = visibleColumns.filter(key => !ignoredColumns.includes(key));
+
+        // 4. Build CSV Headers (Strip HTML tags like <input>)
+        const headers = exportCols.map(key => {
+            const colDef = ALL_COLUMNS.find(c => c.key === key);
+            let label = colDef ? colDef.label : key;
+            // Remove HTML tags to get clean text (e.g., "ID", "Surname")
+            return label.replace(/<[^>]*>?/gm, '').trim(); 
+        });
+
+        // 5. Build CSV Rows
+        // Add BOM for Excel UTF-8 compatibility
+        let csvContent = headers.map(h => `"${h}"`).join(",") + "\n"; 
+
+        dataToExport.forEach(row => {
+            const rowData = exportCols.map(key => {
+                let val = row[key];
+
+                // --- DATA TRANSFORMATION LOGIC ---
+
+                // A. Interviewers: Convert ID (e.g., 1579) to Name (e.g., ROALLOS - 1579)
+                if ((key === 'initial_interviewer_id' || key === 'final_interviewer_id') && val) {
+                    if (dropdownData && dropdownData.interviewers) {
+                        const match = dropdownData.interviewers.find(i => i.id == val);
+                        if (match) val = match.label; 
+                    }
+                }
+
+                // B. Status: Convert ID (e.g., 3) to Text (e.g., Initial Interview)
+                if (key === 'recruitment_status_id' && val) {
+                    if (dropdownData && dropdownData.statuses) {
+                        val = dropdownData.statuses[val] || val;
+                    }
+                }
+
+                // C. Recruitment Status Text: Use raw text if available
+                if (key === 'recruitment_status_text' && row['recruitment_status_text']) {
+                    val = row['recruitment_status_text'];
+                }
+
+                // D. Dates: Format nice reading (optional, currently keeps ISO YYYY-MM-DD for Excel sorting)
+                if (key === 'interview_dates' && val) {
+                    // If you want readable: val = new Date(val).toLocaleString();
+                    // Keeping it raw is usually better for Excel calculations
+                }
+
+                // Handle Nulls
+                if (val === null || val === undefined) val = '';
+                
+                // Convert to String & Escape Quotes
+                let stringVal = String(val);
+                stringVal = stringVal.replace(/"/g, '""'); // Double up quotes
+
+                // Wrap in quotes if it contains comma, newline, or quotes
+                if (stringVal.search(/("|,|\n)/g) >= 0) {
+                    stringVal = `"${stringVal}"`;
+                }
+                
+                return stringVal;
+            });
+            csvContent += rowData.join(",") + "\n";
+        });
+
+        // 6. Download File (Using Blob for better compatibility)
+        const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `applicant_data_${currentView}.csv`);
+        
+        // Generate Filename: "Applicants_Active_2025-01-30.csv"
+        const dateStr = new Date().toISOString().slice(0, 10);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `Applicants_${currentView}_${dateStr}.csv`);
+        
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -2182,7 +2368,13 @@ function addEventListeners() {
         if (columnToggleBtn) columnToggleBtn.addEventListener('click', () => columnSelector.classList.remove('hidden'));
         if (closeColumnSelector) closeColumnSelector.addEventListener('click', () => columnSelector.classList.add('hidden'));
         if (cancelEditBtn) cancelEditBtn.addEventListener('click', () => editModal.classList.add('hidden'));
-        if (newApplicantBtn) newApplicantBtn.addEventListener('click', openAddApplicantModal);
+        if (newApplicantBtn) {
+            newApplicantBtn.addEventListener('click', () => {
+                // REPLACE 'recruitment_form.php' WITH YOUR ACTUAL FILE PATH
+                // '_blank' opens it in a new tab so you don't lose your dashboard view
+                window.open('../views/recruitment_userform.html', '_blank'); 
+            });
+        }
         if (cancelAddBtn) cancelAddBtn.addEventListener('click', () => addApplicantModal.classList.add('hidden'));
         
         if (columnCheckboxes) {
@@ -2388,6 +2580,23 @@ function addEventListeners() {
                         skillSelect.innerHTML = logic ? logic.options.map(o => `<option value="${o}">${o}</option>`).join('') : '<option value="">- No skills needed -</option>';
                     }
                 }
+                
+                if (targetId.endsWith('_Project')) {
+                    const newProjContainer = document.getElementById(`${formType}_newProjectContainer`);
+                    if (newProjContainer) {
+                        if (e.target.value === 'Add New') {
+                            newProjContainer.classList.remove('hidden');
+                            document.getElementById(`${formType}_project_new`).required = true;
+                            document.getElementById(`${formType}_project_new`).focus();
+                        } else {
+                            newProjContainer.classList.add('hidden');
+                            document.getElementById(`${formType}_project_new`).required = false;
+                            document.getElementById(`${formType}_project_new`).value = '';
+                        }
+                    }
+                }
+
+
             }
         });
 
@@ -2422,73 +2631,75 @@ function addEventListeners() {
             }
         });
 
-        addApplicantForm.addEventListener('submit', async e => {
-            e.preventDefault();
-            
-            // 1. Validate Form
-            if (!addApplicantForm.checkValidity()) { 
-                addApplicantForm.reportValidity(); 
-                return; 
-            }
-
-            // 2. Prepare Data & Force Uppercase
-            const formData = new FormData(addApplicantForm);
-            // Ensure all text inputs are sent as Uppercase (to match recruitment form standard)
-            for (let [key, value] of formData.entries()) {
-                if (typeof value === 'string') {
-                    formData.set(key, value.toUpperCase());
+        if (addApplicantForm) { 
+                addApplicantForm.addEventListener('submit', async e => {
+                    e.preventDefault();
+                
+                // 1. Validate Form
+                if (!addApplicantForm.checkValidity()) { 
+                    addApplicantForm.reportValidity(); 
+                    return; 
                 }
-            }
 
-            const submitUrl = '../recruitment_applicants.php'; 
+                // 2. Prepare Data & Force Uppercase
+                const formData = new FormData(addApplicantForm);
+                // Ensure all text inputs are sent as Uppercase (to match recruitment form standard)
+                for (let [key, value] of formData.entries()) {
+                    if (typeof value === 'string') {
+                        formData.set(key, value.toUpperCase());
+                    }
+                }
 
-            // 3. Show Loading Spinner
-            Swal.fire({
-                title: 'Adding Applicant...',
-                text: 'Submitting record to database.',
-                allowOutsideClick: false,
-                didOpen: () => { Swal.showLoading(); }
+                const submitUrl = '../recruitment_applicants.php'; 
+
+                // 3. Show Loading Spinner
+                Swal.fire({
+                    title: 'Adding Applicant...',
+                    text: 'Submitting record to database.',
+                    allowOutsideClick: false,
+                    didOpen: () => { Swal.showLoading(); }
+                });
+
+                try {
+                    const response = await fetch(submitUrl, { 
+                        method: 'POST', 
+                        body: formData 
+                    });
+                    
+                    // Handle non-JSON responses (e.g., PHP errors)
+                    const contentType = response.headers.get("content-type");
+                    if (!contentType || !contentType.includes("application/json")) {
+                        const text = await response.text();
+                        throw new Error("Server returned unexpected format: " + text.substring(0, 50));
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.status !== 'success') throw new Error(result.message);
+                    
+                    // 4. Success Notification
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success!',
+                        text: 'Applicant added successfully.',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+
+                    // 5. Cleanup & Refresh
+                    addApplicantModal.classList.add('hidden');
+                    refreshAllData();
+                    
+                } catch (error) {
+                    // 6. Error Notification
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Submission Failed',
+                        text: error.message
+                    });
+                }
             });
-
-            try {
-                const response = await fetch(submitUrl, { 
-                    method: 'POST', 
-                    body: formData 
-                });
-                
-                // Handle non-JSON responses (e.g., PHP errors)
-                const contentType = response.headers.get("content-type");
-                if (!contentType || !contentType.includes("application/json")) {
-                    const text = await response.text();
-                    throw new Error("Server returned unexpected format: " + text.substring(0, 50));
-                }
-
-                const result = await response.json();
-                
-                if (result.status !== 'success') throw new Error(result.message);
-                
-                // 4. Success Notification
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Success!',
-                    text: 'Applicant added successfully.',
-                    timer: 1500,
-                    showConfirmButton: false
-                });
-
-                // 5. Cleanup & Refresh
-                addApplicantModal.classList.add('hidden');
-                refreshAllData();
-                
-            } catch (error) {
-                // 6. Error Notification
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Submission Failed',
-                    text: error.message
-                });
-            }
-        });
+        }    
 
         deleteBtn.addEventListener('click', async () => {
             const id = editApplicationIdInput.value;
@@ -2909,7 +3120,7 @@ function addEventListeners() {
                 datasets: [{
                     label: metric === 'count' ? 'Applicants' : 'Value',
                     data: data,
-                    backgroundColor: type === 'pie' ? colors : '#4f46e5',
+                    backgroundColor: type === 'pie' ? colors : '#42b1a2',
                     borderRadius: type === 'bar' ? 4 : 0,
                     borderWidth: 1
                 }]

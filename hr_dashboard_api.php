@@ -151,6 +151,9 @@ switch ($action) {
     case 'saveResumeLink':
         saveResumeLink($conn, $loggedInUser);
         break;
+    case 'checkEmployeeId':
+        checkEmployeeId($conn);
+    break;
     case 'getNotifications':
         // USE THE VALUES FETCHED FROM DB ABOVE
         // Do not rely on $_SESSION['role'] which might be missing/stale
@@ -300,11 +303,12 @@ function getStatusCounts($conn) {
 }
 
 function getDropdownData($conn) {
-    // 1. Initialize Default Arrays (Prevents "Undefined" errors in JS)
+    // 1. Initialize Default Arrays
     $data = [
         'recruiters' => [],
         'statuses' => [],
-        'interviewers' => [] 
+        'interviewers' => [],
+        'projects' => [] 
     ];
 
     // 2. GET RECRUITERS
@@ -324,14 +328,12 @@ function getDropdownData($conn) {
     ];
 
     // 4. GET INTERVIEWERS (Active Employees)
-    $empSql = "SELECT EDS, FULLNAME FROM employee_listings WHERE emp_status = 'ACTIVE' ORDER BY FULLNAME ASC";
+    $empSql = "SELECT EDS, FULLNAME FROM employee_listings WHERE emp_status = 'ACTIVE' AND PROJECT IN ('ADMIN','ADMIN, LHI') ORDER BY FULLNAME ASC";
     $empResult = $conn->query($empSql);
     
     if ($empResult) {
         while ($e = $empResult->fetch_assoc()) {
-            // SAFEGUARD: Ensure names are UTF-8 compatible to prevent JSON crash
             $safeName = mb_convert_encoding($e['FULLNAME'], 'UTF-8', 'UTF-8');
-            
             $data['interviewers'][] = [
                 'id' => $e['EDS'],
                 'label' => strtoupper($safeName) . ' - ' . $e['EDS']
@@ -339,14 +341,23 @@ function getDropdownData($conn) {
         }
     }
 
-    // 5. OUTPUT JSON (With Error Checking)
+    // 5. GET PROJECTS (Moved UP so it is included in the final output)
+    $projSql = "SELECT DISTINCT PROJECT FROM employee_listings WHERE PROJECT IS NOT NULL AND PROJECT != '' ORDER BY PROJECT ASC";
+    $projResult = $conn->query($projSql);
+    if ($projResult) {
+        while ($row = $projResult->fetch_assoc()) {
+            $data['projects'][] = $row['PROJECT'];
+        }
+    }
+
+    // 6. OUTPUT JSON (Only Once!)
     $json = json_encode($data);
     if ($json === false) {
-        // If encoding fails, return an empty structure so the page doesn't crash completely
         echo json_encode([
             'recruiters' => [], 
             'statuses' => $data['statuses'], 
             'interviewers' => [],
+            'projects' => [],
             'error' => 'JSON Encoding Error: ' . json_last_error_msg()
         ]);
     } else {
@@ -362,6 +373,11 @@ function updateApplicant($conn, $userIdentifier) {
         http_response_code(400); 
         echo json_encode(['status' => 'error', 'message' => 'Invalid Application ID.']); 
         exit(); 
+    }
+
+    // Check if "Add New" was selected and a new value was provided
+    if (isset($data['Project']) && $data['Project'] === 'Add New' && !empty($data['project_new'])) {
+        $data['Project'] = strtoupper(trim($data['project_new'])); // Save as Uppercase standard
     }
 
     // --- FIX FOR "OTHER" DEGREE ---
@@ -1025,6 +1041,24 @@ function saveResumeLink($conn, $userIdentifier) {
         echo json_encode(['status' => 'success', 'message' => 'Link saved successfully!', 'path' => $link]);
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Database update failed.']);
+    }
+    $stmt->close();
+}
+
+function checkEmployeeId($conn) {
+    $id = $_GET['id'] ?? '';
+    if (!$id) { echo json_encode(['exists' => false]); exit(); }
+
+    // Check in employee_listings (The main employee database)
+    $stmt = $conn->prepare("SELECT FULLNAME FROM employee_listings WHERE EDS = ?");
+    $stmt->bind_param("s", $id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    if ($row = $result->fetch_assoc()) {
+        echo json_encode(['exists' => true, 'name' => $row['FULLNAME']]);
+    } else {
+        echo json_encode(['exists' => false]);
     }
     $stmt->close();
 }

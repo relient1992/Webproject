@@ -441,7 +441,7 @@ if (!isset($_SESSION['employee_id'])) {
     </div>
 
 
-    <div id="addApplicantModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center">
+    <!-- <div id="addApplicantModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center">
         <div class="bg-white p-8 rounded-lg shadow-xl max-w-4xl w-full max-h-screen overflow-y-auto">
             <h2 class="text-2xl font-bold mb-6">Add New Applicant</h2>
             <form id="addApplicantForm" novalidate>
@@ -452,7 +452,7 @@ if (!isset($_SESSION['employee_id'])) {
                 </div>
             </form>
         </div>
-    </div>
+    </div> -->
 
     <div id="logsModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center">
         <div class="bg-white p-8 rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] flex flex-col">
@@ -710,7 +710,7 @@ if (!isset($_SESSION['employee_id'])) {
     <div id="analyticsModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 z-[9999] flex items-center justify-center">
         <div class="bg-white w-full max-w-6xl h-[90vh] rounded-xl shadow-2xl flex flex-col overflow-hidden">
             
-            <div class="bg-indigo-700 text-white p-4 flex justify-between items-center shadow-md">
+            <div class="bg-indigo-500 text-white p-4 flex justify-between items-center shadow-md">
                 <div>
                     <h2 class="text-xl font-bold"><i class="fas fa-chart-bar mr-2"></i> Custom Analytics Report</h2>
                     <p class="text-xs text-indigo-200">Generate real-time reports based on current applicant data.</p>
@@ -791,7 +791,7 @@ if (!isset($_SESSION['employee_id'])) {
                     </div>
 
                     <div class="mt-auto">
-                        <button id="an_generateBtn" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 shadow-lg transition transform active:scale-95">
+                        <button id="an_generateBtn" class="w-full bg-indigo-500 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 shadow-lg transition transform active:scale-95">
                             <i class="fas fa-sync-alt mr-2"></i> Generate Report
                         </button>
                     </div>

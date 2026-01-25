@@ -174,7 +174,7 @@ document.addEventListener('DOMContentLoaded', function () {
         { key: 'recruitment_status_id', label: 'Status', editable: true, type: 'select', options_key: 'statuses' },
         { key: 'status_date', label: 'Status Date', editable: true, type: 'date' },
         { key: 'application_source', label: 'Source', editable: true, type: 'select', options: ['Job Portal', 'Employee Referral', 'Career Page', 'Recruitment Agency', 'Walk-in', 'Facebook', 'Indeed', 'Linked-in','Job Fair'], required: true },
-        { key: 'application_date', label: 'Applied On', editable: false },
+        { key: 'application_date', label: 'Applied On', editable: true, type: 'date' },
         { key: 'facebook_account', label: 'Facebook', editable: true, type: 'url' },
         { key: 'instagram_account', label: 'Instagram', editable: true, type: 'text' },
         { key: 'twitter_account', label: 'Twitter (X)', editable: true, type: 'text' },
@@ -670,8 +670,16 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function formatDate(dateString) { 
-        if (!dateString) return 'N/A'; 
+        // 1. Check for empty/null values immediately
+        if (!dateString || dateString === '0000-00-00') return 'N/A'; 
+        
         const date = new Date(dateString); 
+        
+        // 2. Check if the date is actually valid
+        if (isNaN(date.getTime())) {
+            return 'N/A'; // Returns "N/A" instead of "Invalid Date"
+        }
+
         return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); 
     }
     

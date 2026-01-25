@@ -491,7 +491,8 @@ if (!isset($_SESSION['employee_id'])) {
                 <input type="file" id="bulkFileInput" accept=".csv,.xlsx" class="mb-4">
                 <div class="flex justify-end gap-4">
                     <button id="cancelBulkBtn" type="button" class="bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600">Cancel</button>
-                    <button type="submit" class="bg-purple-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-700">Upload</button>
+                    <button type="button" id="processUploadBtn" class="bg-purple-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-700">Upload
+                    </button>
                 </div>
             </form>
         </div>

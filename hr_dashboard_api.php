@@ -629,14 +629,16 @@ function bulkInsertApplicants($conn, $userIdentifier) {
         exit();
     }
 
+    // 1. ADD 'application_date' TO THIS LIST
     $columns = [
         "surname", "firstname", "middlename", "birthday", "age", "gender", "mobile_number", "email",
         "street_address", "city", "province", "postcode", "position_applied", "recruiter_name",
-        "recruitment_status", "status_date", "application_source", "interview_dates", "interviewers",
+        "recruitment_status", "status_date", "application_date", "application_source", "interview_dates", "interviewers", // Added application_date
         "feedback_comments", "offer_status", "offer_date", "joining_date", "employee_id", "Project",
         "facebook_account", "instagram_account", "twitter_account", "viber_account",
         "education_level", "college_degree", "experience_years", "specific_skill", "screening_score", "screening_status",
-        "entity", "hdmf_id", "sss_no", "philhealth_no", "tin_no", "talento_id", "requisition_status"
+        "entity", "hdmf_id", "sss_no", "philhealth_no", "tin_no", "talento_id", "requisition_status",
+        "requisition_id", "initial_interviewer_id", "final_interviewer_id"
     ];
     
     $placeholders = rtrim(str_repeat('?,', count($columns)), ',');
@@ -649,16 +651,32 @@ function bulkInsertApplicants($conn, $userIdentifier) {
     try {
         $insertedCount = 0;
         foreach ($data as $row) {
+            
+            // --- DATA SANITIZATION ---
+            if (!empty($row['Project'])) $row['Project'] = strtoupper(trim($row['Project']));
+            
+            // Validate IDs
+            if (empty($row['initial_interviewer_id'])) $row['initial_interviewer_id'] = null;
+            if (empty($row['final_interviewer_id'])) $row['final_interviewer_id'] = null;
+            if (empty($row['employee_id'])) $row['employee_id'] = null;
+
             $params = [];
             foreach ($columns as $col) {
-                $params[] = $row[$col] ?? null;
+                // 2. CRITICAL FIX: Convert empty strings to NULL
+                // This prevents '0000-00-00' or empty text in Date fields
+                $val = $row[$col] ?? null;
+                if ($val === '') $val = null; 
+                
+                $params[] = $val;
             }
             $stmt->bind_param($types, ...$params);
             $stmt->execute();
             $insertedCount++;
         }
         $conn->commit();
-        logAction($conn, $userIdentifier, 'BULK_INSERT', "Successfully uploaded {$insertedCount} applicants via CSV.");
+        
+        logAction($conn, $userIdentifier, 'BULK_UPLOAD', "Successfully uploaded {$insertedCount} applicants via CSV Template.");
+        
         echo json_encode(['status' => 'success', 'message' => "Successfully inserted {$insertedCount} records."]);
     } catch (Exception $e) {
         $conn->rollback();

@@ -294,7 +294,11 @@ document.addEventListener('DOMContentLoaded', function () {
             } else {
                 // NO DATA: Clear spinner and show "No Interviews" message
                 if(notifBadge) notifBadge.classList.add('hidden');
-                notifList.innerHTML = '<div class="text-center py-10 text-gray-400 flex flex-col items-center"><i class="fas fa-check-circle text-4xl mb-3 text-green-200"></i><p>No pending interviews.</p></div>';
+                    notifList.innerHTML = `
+                        <div class="flex flex-col items-center justify-center h-full text-gray-400 py-10">
+                            <i class="fas fa-calendar-check text-4xl mb-3 text-gray-300"></i>
+                            <p>No pending interviews found.</p>
+                        </div>`;
             }
         } catch (error) { 
             // FETCH ERROR: Clear spinner and show error
@@ -314,14 +318,14 @@ document.addEventListener('DOMContentLoaded', function () {
             if (notifFilter === 'final' && app.recruitment_status != 5) return false;
 
             // 2. STRICT MODE: If on Interviewer Dashboard, ONLY show assigned tasks
-            if (window.location.pathname.includes('interview_dashboard.php')) {
-                // Get the IDs as strings to be safe
+            if (window.location.pathname.toLowerCase().includes('interview')) {
+                // Get the IDs from the applicant object
                 const initialID = String(app.initial_interviewer_id || '');
                 const finalID = String(app.final_interviewer_id || '');
                 const myID = String(CURRENT_USER_ID);
 
                 // CHECK: Does the database string CONTAIN my ID?
-                // Example: DB="ALUAGUE... - 2373" includes MyID="2373" -> TRUE
+                // Example: DB="ALUAGUE - 2373" includes MyID="2373" -> TRUE
                 const isMyInitial = (app.recruitment_status == 3 && initialID.includes(myID));
                 const isMyFinal = (app.recruitment_status == 5 && finalID.includes(myID));
                 
@@ -648,6 +652,8 @@ document.addEventListener('DOMContentLoaded', function () {
         return 'bg-gray-100 text-gray-800'; 
     }
 
+    
+
     function getLocalDateString(dateObj) {
         if (!dateObj) return null;
         const year = dateObj.getFullYear();
@@ -671,37 +677,42 @@ document.addEventListener('DOMContentLoaded', function () {
     
     
     // --- INITIALIZATION ---
-    async function initializeDashboard() {
+async function initializeDashboard() {
         try {
             // 1. SETUP GLOBALS & PLUGINS
             initializePlugins(); 
 
-            // 2. CHECK: ARE WE ON THE INTERVIEWER PAGE?
-            const isInterviewerPage = window.location.pathname.includes('interview_dashboard.php');
+            // 2. CHECK: ARE WE ON THE INTERVIEWER PAGE? (Improved Logic)
+            // We convert to LowerCase to ensure 'Interview_Dashboard.php' matches 'interview_dashboard.php'
+            const path = window.location.pathname.toLowerCase();
+            const isInterviewerPage = path.includes('interview_dashboard.php') || path.includes('interviewer');
+
+            console.log("Current Path:", path); // Debugging
+            console.log("Is Interviewer Page detected?", isInterviewerPage); // Debugging
 
             // 3. GET USER INFO
             const userRes = await fetch(`${API_URL}?action=getUserInfo&_t=${new Date().getTime()}`);
             if (!userRes.ok) throw new Error(`Auth Error: ${userRes.status}`);
             const userInfo = await userRes.json();
+            
             USER_ROLE = userInfo.role || 'hr_staff';
-            CURRENT_USER_ID = userInfo.employee_id;
+            CURRENT_USER_ID = userInfo.employee_id; // Store ID for filtering
 
             // --- BRANCH A: INTERVIEWER DASHBOARD ---
             if (isInterviewerPage) {
                 console.log("Initializing Interviewer Mode...");
                 sessionStorage.removeItem('notifSeen'); 
-                checkNotifications(); 
-                return; // STOP HERE
+                
+                // Force load the notifications (This removes the spinner)
+                await checkNotifications(); 
+                
+                return; // STOP HERE! Do not run HR logic below.
             }
 
-            // --- BRANCH B: HR DASHBOARD ---
+            // --- BRANCH B: HR DASHBOARD (Only runs if NOT interviewer page) ---
             
-            // 1. Manager Buttons
-            const allowedManagerRoles = [
-                'hr_manager', 'super_user', 'manager', 'admin', 
-                'lhi_manager', 'bps_manager', 'administrator'
-            ];
-
+            // 1. Manager Buttons logic...
+            const allowedManagerRoles = ['hr_manager', 'super_user', 'manager', 'admin', 'lhi_manager', 'bps_manager', 'administrator'];
             if (viewRecruiterBtn) {
                 if (allowedManagerRoles.includes(USER_ROLE)) {
                     viewRecruiterBtn.classList.remove('hidden');
@@ -709,12 +720,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 } else {
                     viewRecruiterBtn.classList.add('hidden');
                     viewRecruiterBtn.style.display = 'none';
-                    
-                    // If a non-manager somehow got here, kick them back to 'active' view
-                    if (currentView === 'recruiters') {
-                        currentView = 'active';
-                        if(viewActiveBtn) viewActiveBtn.click();
-                    }
+                    if (currentView === 'recruiters') { currentView = 'active'; if(viewActiveBtn) viewActiveBtn.click(); }
                 }
             }
             
@@ -727,28 +733,32 @@ document.addEventListener('DOMContentLoaded', function () {
                 visibleColumns = validCols;
             }
 
-            // 3. Load Data (With improved error handling)
-            // Even if the calendar failed, we try to load data
+            // 3. Load Data
             await refreshAllData();
             
-            // 4. Final Setup
-            setupColumnSelector();
+            // 4. Final Setup (Wrapped in checks to prevent crashes)
+            if (typeof setupColumnSelector === 'function' && document.getElementById('columnCheckboxes')) {
+                setupColumnSelector();
+            }
             addEventListeners();
-            
             
             // 5. Initial Notification Check (HR Side)
             if(btnNotification) checkNotifications();
 
         } catch (error) {
             console.error("Critical Init Error:", error);
-            // Only show alert on HR dashboard
-            if (document.body && !window.location.pathname.includes('interview_dashboard.php')) {
-               Swal.fire({
-                   icon: 'error',
-                   title: 'Dashboard Error',
-                   text: 'Failed to load some data. Please check console for details.',
-                   footer: `<small style="color:red">${error.message}</small>`
-               });
+            
+            // EMERGENCY FIX: If error on Interviewer Page, manually remove spinner and show error
+            const notifList = document.getElementById('notificationList');
+            if (notifList) {
+                notifList.innerHTML = `<div class="text-center p-10 text-red-500">
+                    <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
+                    <p>Failed to load data. ${error.message}</p>
+                </div>`;
+            }
+            
+            if (document.body && !window.location.pathname.toLowerCase().includes('interview')) {
+               Swal.fire({ icon: 'error', title: 'Dashboard Error', text: 'Failed to load data.' });
             }
         }
     }
@@ -1743,138 +1753,165 @@ document.addEventListener('DOMContentLoaded', function () {
         // --- 4. EVENT LISTENERS (Search, Tabs, Sort, Page) ---
         
         // Status Tabs
-        reqStatusTabs.addEventListener('click', (e) => {
-            if (e.target.tagName === 'BUTTON') {
-                // Update UI
-                reqStatusTabs.querySelectorAll('button').forEach(b => {
-                    b.classList.remove('bg-white', 'shadow', 'text-purple-700');
-                    b.classList.add('text-gray-500');
-                });
-                e.target.classList.add('bg-white', 'shadow', 'text-purple-700');
-                e.target.classList.remove('text-gray-500');
-    
-                // Update State
-                reqState.filterStatus = e.target.dataset.status;
-                reqState.currentPage = 1; // Reset to page 1
-                renderRequisitionTable();
-            }
-        });
-    
-        // Search
-        reqSearchInput.addEventListener('input', (e) => {
-            reqState.searchTerm = e.target.value;
-            reqState.currentPage = 1;
-            renderRequisitionTable();
-        });
-    
-        // Sorting
-        document.querySelectorAll('.req-sort').forEach(th => {
-            th.addEventListener('click', () => {
-                const key = th.dataset.key;
-                if (reqState.sortKey === key) {
-                    reqState.sortDirection = reqState.sortDirection === 'asc' ? 'desc' : 'asc';
-                } else {
-                    reqState.sortKey = key;
-                    reqState.sortDirection = 'asc';
+        if (reqStatusTabs) {
+            reqStatusTabs.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    // Update UI
+                    reqStatusTabs.querySelectorAll('button').forEach(b => {
+                        b.classList.remove('bg-white', 'shadow', 'text-purple-700');
+                        b.classList.add('text-gray-500');
+                    });
+                    e.target.classList.add('bg-white', 'shadow', 'text-purple-700');
+                    e.target.classList.remove('text-gray-500');
+        
+                    // Update State
+                    reqState.filterStatus = e.target.dataset.status;
+                    reqState.currentPage = 1; // Reset to page 1
+                    renderRequisitionTable();
                 }
+            });
+        }
+
+        // Search (SAFE CHECK ADDED)
+        if (reqSearchInput) {
+            reqSearchInput.addEventListener('input', (e) => {
+                reqState.searchTerm = e.target.value;
+                reqState.currentPage = 1;
                 renderRequisitionTable();
             });
-        });
-    
-        // Pagination
-        reqPrevBtn.addEventListener('click', () => {
-            if (reqState.currentPage > 1) { reqState.currentPage--; renderRequisitionTable(); }
-        });
-        reqNextBtn.addEventListener('click', () => {
-            reqState.currentPage++; renderRequisitionTable();
-        });
-    
-        // --- 5. EDIT LOGIC (Requirement: Allow user to Edit) ---
-        reqTableBody.addEventListener('click', (e) => {
-            const btn = e.target.closest('.btn-edit-req');
-            if (btn) {
-                const id = btn.dataset.id;
-                const req = allRequisitions.find(r => r.id == id);
-                
-                if (req) {
-                    // Populate Form
-                    document.getElementById('req_db_id').value = req.id;
-                    document.getElementById('req_id_input').value = req.requisition_id;
-                    document.getElementById('req_project_input').value = req.project_name;
-                    document.getElementById('req_headcount_input').value = req.headcount_approved;
-                    document.getElementById('req_date_input').value = req.date_approved;
-                    document.getElementById('req_status_input').value = req.status;
-    
-                    // Change Mode to Edit
-                    reqFormTitle.textContent = "Edit Requisition";
-                    reqFormTitle.classList.add("text-blue-600");
-                    btnSaveReq.classList.remove("bg-purple-600", "hover:bg-purple-700");
-                    btnSaveReq.classList.add("bg-blue-600", "hover:bg-blue-700");
-                    btnSaveReqText.textContent = "Update";
-                    btnSaveReq.innerHTML = '<i class="fas fa-save mr-1"></i> Update';
-                    btnCancelReqEdit.classList.remove("hidden");
-                }
-            }
-        });
-    
-        function resetReqForm() {
-            reqForm.reset();
-            document.getElementById('req_db_id').value = '';
-            
-            // Reset Visuals
-            reqFormTitle.textContent = "Create New Requisition";
-            reqFormTitle.classList.remove("text-blue-600");
-            btnSaveReq.classList.add("bg-purple-600", "hover:bg-purple-700");
-            btnSaveReq.classList.remove("bg-blue-600", "hover:bg-blue-700");
-            btnSaveReqText.textContent = "Add";
-            btnSaveReq.innerHTML = '<i class="fas fa-plus-circle mr-1"></i> Add';
-            btnCancelReqEdit.classList.add("hidden");
+        }
+
+        // Sorting (SAFE CHECK ADDED)
+        // We check if any sort headers exist before adding listeners
+        const reqSortHeaders = document.querySelectorAll('.req-sort');
+        if (reqSortHeaders.length > 0) {
+            reqSortHeaders.forEach(th => {
+                th.addEventListener('click', () => {
+                    const key = th.dataset.key;
+                    if (reqState.sortKey === key) {
+                        reqState.sortDirection = reqState.sortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        reqState.sortKey = key;
+                        reqState.sortDirection = 'asc';
+                    }
+                    renderRequisitionTable();
+                });
+            });
+        }
+
+        // Pagination (SAFE CHECK ADDED)
+        if (reqPrevBtn) {
+            reqPrevBtn.addEventListener('click', () => {
+                if (reqState.currentPage > 1) { reqState.currentPage--; renderRequisitionTable(); }
+            });
+        }
+        if (reqNextBtn) {
+            reqNextBtn.addEventListener('click', () => {
+                reqState.currentPage++; renderRequisitionTable();
+            });
         }
     
-        btnCancelReqEdit.addEventListener('click', resetReqForm);
-    
-        // --- 6. SAVE / UPDATE SUBMIT ---
-        reqForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
+        // --- 5. EDIT LOGIC (Requirement: Allow user to Edit) ---
+        if (reqTableBody) {
+                reqTableBody.addEventListener('click', (e) => {
+                    const btn = e.target.closest('.btn-edit-req');
+                    if (btn) {
+                        const id = btn.dataset.id;
+                        const req = allRequisitions.find(r => r.id == id);
+                        
+                        if (req) {
+                            // Populate Form
+                            document.getElementById('req_db_id').value = req.id;
+                            document.getElementById('req_id_input').value = req.requisition_id;
+                            document.getElementById('req_project_input').value = req.project_name;
+                            document.getElementById('req_headcount_input').value = req.headcount_approved;
+                            document.getElementById('req_date_input').value = req.date_approved;
+                            document.getElementById('req_status_input').value = req.status;
             
-            // Check if Add or Update
-            const dbId = document.getElementById('req_db_id').value;
-            const action = dbId ? 'updateRequisition' : 'addRequisition';
-            
-            // Get Data
-            const formData = new FormData(reqForm);
-            const data = Object.fromEntries(formData.entries());
-    
-            // UI Feedback
-            const originalBtnHTML = btnSaveReq.innerHTML;
-            btnSaveReq.disabled = true;
-            btnSaveReq.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-    
-            try {
-                const response = await fetch(`${API_URL}?action=${action}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
+                            // Change Mode to Edit
+                            reqFormTitle.textContent = "Edit Requisition";
+                            reqFormTitle.classList.add("text-blue-600");
+                            btnSaveReq.classList.remove("bg-purple-600", "hover:bg-purple-700");
+                            btnSaveReq.classList.add("bg-blue-600", "hover:bg-blue-700");
+                            btnSaveReqText.textContent = "Update";
+                            btnSaveReq.innerHTML = '<i class="fas fa-save mr-1"></i> Update';
+                            btnCancelReqEdit.classList.remove("hidden");
+                        }
+                    }
                 });
-                const result = await response.json();
-    
-                if (result.status === 'success') {
-                    Swal.fire({ icon: 'success', title: 'Saved!', text: result.message, timer: 1500, showConfirmButton: false });
-                    loadRequisitions(); // Reload table
-                    resetReqForm();     // Reset form
-                } else {
-                    throw new Error(result.message);
-                }
-            } catch (error) {
-                Swal.fire({ icon: 'error', title: 'Error', text: error.message });
-            } finally {
-                btnSaveReq.disabled = false;
-                btnSaveReq.innerHTML = originalBtnHTML;
             }
-        });
+
+            function resetReqForm() {
+                // Safe check inside the function just in case
+                if (!reqForm) return; 
+
+                reqForm.reset();
+                document.getElementById('req_db_id').value = '';
+                
+                // Reset Visuals
+                if(reqFormTitle) {
+                    reqFormTitle.textContent = "Create New Requisition";
+                    reqFormTitle.classList.remove("text-blue-600");
+                }
+                if(btnSaveReq) {
+                    btnSaveReq.classList.add("bg-purple-600", "hover:bg-purple-700");
+                    btnSaveReq.classList.remove("bg-blue-600", "hover:bg-blue-700");
+                    btnSaveReqText.textContent = "Add";
+                    btnSaveReq.innerHTML = '<i class="fas fa-plus-circle mr-1"></i> Add';
+                }
+                if(btnCancelReqEdit) btnCancelReqEdit.classList.add("hidden");
+            }
+
+            // SAFE CHECK ADDED
+            if (btnCancelReqEdit) {
+                btnCancelReqEdit.addEventListener('click', resetReqForm);
+            }
+
+            // --- 6. SAVE / UPDATE SUBMIT ---
+            // SAFE CHECK ADDED
+            if (reqForm) {
+                reqForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    
+                    // Check if Add or Update
+                    const dbId = document.getElementById('req_db_id').value;
+                    const action = dbId ? 'updateRequisition' : 'addRequisition';
+                    
+                    // Get Data
+                    const formData = new FormData(reqForm);
+                    const data = Object.fromEntries(formData.entries());
+            
+                    // UI Feedback
+                    const originalBtnHTML = btnSaveReq.innerHTML;
+                    btnSaveReq.disabled = true;
+                    btnSaveReq.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            
+                    try {
+                        const response = await fetch(`${API_URL}?action=${action}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(data)
+                        });
+                        const result = await response.json();
+            
+                        if (result.status === 'success') {
+                            Swal.fire({ icon: 'success', title: 'Saved!', text: result.message, timer: 1500, showConfirmButton: false });
+                            loadRequisitions(); // Reload table
+                            resetReqForm();     // Reset form
+                        } else {
+                            throw new Error(result.message);
+                        }
+                    } catch (error) {
+                        Swal.fire({ icon: 'error', title: 'Error', text: error.message });
+                    } finally {
+                        btnSaveReq.disabled = false;
+                        btnSaveReq.innerHTML = originalBtnHTML;
+                    }
+                });
+            }
     
-    // --- FORM & MODAL LOGIC ---
-    function buildFormFields(container, applicantData = {}, formType) {
+        // --- FORM & MODAL LOGIC ---
+        function buildFormFields(container, applicantData = {}, formType) {
         container.innerHTML = '';
         ALL_COLUMNS.forEach(col => {
             if (!col.editable) return;
@@ -2119,50 +2156,59 @@ document.addEventListener('DOMContentLoaded', function () {
 
     
     // --- EVENT LISTENERS ---
-    function addEventListeners() {
-        searchInput.addEventListener('input', () => { currentPage = 1; renderAll(); });
-        rowsPerPageSelect.addEventListener('change', (e) => { currentPage = 1; rowsPerPage = parseInt(e.target.value, 10); renderAll(); });
-        prevPageBtn.addEventListener('click', () => { if(currentPage > 1) { currentPage--; renderAll(); } });
-        nextPageBtn.addEventListener('click', () => { const totalPages = Math.ceil(getFilteredAndSortedData().length / rowsPerPage); if(currentPage < totalPages) { currentPage++; renderAll(); } });
+function addEventListeners() {
+        // 1. Search & Pagination (Safe Checks Added)
+        if (searchInput) searchInput.addEventListener('input', () => { currentPage = 1; renderAll(); });
+        if (rowsPerPageSelect) rowsPerPageSelect.addEventListener('change', (e) => { currentPage = 1; rowsPerPage = parseInt(e.target.value, 10); renderAll(); });
+        if (prevPageBtn) prevPageBtn.addEventListener('click', () => { if(currentPage > 1) { currentPage--; renderAll(); } });
+        if (nextPageBtn) nextPageBtn.addEventListener('click', () => { const totalPages = Math.ceil(getFilteredAndSortedData().length / rowsPerPage); if(currentPage < totalPages) { currentPage++; renderAll(); } });
         
+        // 2. View Toggles (Safe Checks Added)
         const viewButtons = { active: viewActiveBtn, archived: viewArchivedBtn, recruiters: viewRecruiterBtn };
         Object.entries(viewButtons).forEach(([view, btn]) => {
-            btn.addEventListener('click', () => {
-                Object.values(viewButtons).forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                currentView = view;
-                refreshAllData();
+            if (btn) { // <--- SAFETY CHECK
+                btn.addEventListener('click', () => {
+                    Object.values(viewButtons).forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentView = view;
+                    refreshAllData();
+                });
+            }
+        });
+        
+        // 3. Modals & Actions (Safe Checks Added)
+        if (viewLogsBtn) viewLogsBtn.addEventListener('click', openLogsModal);
+        if (closeLogsModal) closeLogsModal.addEventListener('click', () => logsModal.classList.add('hidden'));
+        if (columnToggleBtn) columnToggleBtn.addEventListener('click', () => columnSelector.classList.remove('hidden'));
+        if (closeColumnSelector) closeColumnSelector.addEventListener('click', () => columnSelector.classList.add('hidden'));
+        if (cancelEditBtn) cancelEditBtn.addEventListener('click', () => editModal.classList.add('hidden'));
+        if (newApplicantBtn) newApplicantBtn.addEventListener('click', openAddApplicantModal);
+        if (cancelAddBtn) cancelAddBtn.addEventListener('click', () => addApplicantModal.classList.add('hidden'));
+        
+        if (columnCheckboxes) {
+            columnCheckboxes.addEventListener('change', e => { 
+                if(e.target.type === 'checkbox') { 
+                    const key = e.target.dataset.key; 
+                    if (e.target.checked) { if (!visibleColumns.includes(key)) visibleColumns.push(key); } 
+                    else { visibleColumns = visibleColumns.filter(col => col !== key); } 
+                    renderAll(); 
+                } 
             });
-        });
+        }
         
-        viewLogsBtn.addEventListener('click', openLogsModal);
-        closeLogsModal.addEventListener('click', () => logsModal.classList.add('hidden'));
-        columnToggleBtn.addEventListener('click', () => columnSelector.classList.remove('hidden'));
-        closeColumnSelector.addEventListener('click', () => columnSelector.classList.add('hidden'));
-        cancelEditBtn.addEventListener('click', () => editModal.classList.add('hidden'));
-        newApplicantBtn.addEventListener('click', openAddApplicantModal);
-        cancelAddBtn.addEventListener('click', () => addApplicantModal.classList.add('hidden'));
-        
-        columnCheckboxes.addEventListener('change', e => { 
-            if(e.target.type === 'checkbox') { 
-                const key = e.target.dataset.key; 
-                if (e.target.checked) { if (!visibleColumns.includes(key)) visibleColumns.push(key); } 
-                else { visibleColumns = visibleColumns.filter(col => col !== key); } 
-                renderAll(); 
-            } 
-        });
-        
-        statusFiltersContainer.addEventListener('click', e => { 
-            e.preventDefault(); 
-            const target = e.target.closest('.filter-link'); 
-            if (target) { 
-                const activeLink = document.querySelector('.filter-link.active'); 
-                if(activeLink) activeLink.classList.remove('active'); 
-                target.classList.add('active'); 
-                currentStatusFilter = target.dataset.status; 
-                fetchData(); 
-            } 
-        });
+        if (statusFiltersContainer) {
+            statusFiltersContainer.addEventListener('click', e => { 
+                e.preventDefault(); 
+                const target = e.target.closest('.filter-link'); 
+                if (target) { 
+                    const activeLink = document.querySelector('.filter-link.active'); 
+                    if(activeLink) activeLink.classList.remove('active'); 
+                    target.classList.add('active'); 
+                    currentStatusFilter = target.dataset.status; 
+                    fetchData(); 
+                } 
+            });
+        }
 
         if (saveViewBtn) {
             saveViewBtn.addEventListener('click', () => {
@@ -2179,87 +2225,88 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
-
-        document.getElementById('logoutBtn').addEventListener('click', () => {
-            Swal.fire({
-                title: 'Are you sure?',
-                text: "You will be logged out of the system.",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33', // Red for logout
-                cancelButtonColor: '#3085d6', // Blue for cancel
-                confirmButtonText: 'Yes, log me out',
-                cancelButtonText: 'Stay logged in'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    sessionStorage.removeItem('notifSeen');
-                    Swal.fire({
-                        title: 'Logging out...',
-                        text: 'Please wait.',
-                        allowOutsideClick: false,
-                        didOpen: () => { Swal.showLoading(); }
-                    });
-                    
-                    setTimeout(() => {
-                        window.location.href = '../logout.php'; 
-                    }, 800);
-                }
-            });
-        });
-        
-        tableHead.addEventListener('click', e => { 
-            const target = e.target.closest('.sortable'); 
-            if (target) { 
-                const key = target.dataset.key; 
-                if (sortConfig.key === key) { sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc'; } 
-                else { sortConfig.key = key; sortConfig.direction = 'asc'; } 
-                renderAll(); 
-            } 
-        });
-        
-        tableBody.addEventListener('change', e => { 
-            if (e.target.classList.contains('table-select')) { 
-                const applicantId = e.target.dataset.id, field = e.target.dataset.field, value = e.target.value; 
-                handleQuickUpdate(applicantId, field, value); 
-            } 
-        });
-        
-        tableBody.addEventListener('click', e => { 
-            const target = e.target; 
-            if(target.classList.contains('edit-btn')) { 
-                const applicant = window.allApplicants.find(a => a.application_id == target.dataset.id);
-                if(applicant) openEditModal(applicant); 
-            } 
-            if (target.classList.contains('restore-btn')) {
-                const id = target.dataset.id;
+        // 4. Logout (Safe Check Added)
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            const newBtn = logoutBtn.cloneNode(true);
+            logoutBtn.parentNode.replaceChild(newBtn, logoutBtn);
+            
+            newBtn.addEventListener('click', () => {
                 Swal.fire({
-                    title: 'Restore Applicant?',
-                    text: "This will move the applicant back to the Active list.",
-                    icon: 'question',
+                    title: 'Are you sure?',
+                    text: "You will be logged out.",
+                    icon: 'warning',
                     showCancelButton: true,
-                    confirmButtonColor: '#10b981',
-                    cancelButtonColor: '#6b7280',
-                    confirmButtonText: 'Yes, restore record',
-                    cancelButtonText: 'Cancel'
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Yes, log out'
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        Swal.showLoading();
-                        fetch(`${API_URL}?action=restoreApplicant`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ application_id: id })
-                        })
-                        .then(res => res.json())
-                        .then(result => {
-                            if (result.status !== 'success') throw new Error(result.message);
-                            Swal.fire({ icon: 'success', title: 'Restored!', text: 'The applicant is now active.', timer: 1500, showConfirmButton: false });
-                            fetchData(); 
-                        })
-                        .catch(err => { Swal.fire({ icon: 'error', title: 'Action Failed', text: err.message }); });
+                        sessionStorage.removeItem('notifSeen');
+                        Swal.fire({ title: 'Logging out...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+                        setTimeout(() => { window.location.href = '../logout.php'; }, 800);
                     }
                 });
-            }
-        });
+            });
+        }
+        
+        // 5. Table Interactions (Safe Checks Added)
+        if (tableHead) {
+            tableHead.addEventListener('click', e => { 
+                const target = e.target.closest('.sortable'); 
+                if (target) { 
+                    const key = target.dataset.key; 
+                    if (sortConfig.key === key) { sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc'; } 
+                    else { sortConfig.key = key; sortConfig.direction = 'asc'; } 
+                    renderAll(); 
+                } 
+            });
+        }
+
+        if (tableBody) {
+            tableBody.addEventListener('change', e => { 
+                if (e.target.classList.contains('table-select')) { 
+                    const applicantId = e.target.dataset.id, field = e.target.dataset.field, value = e.target.value; 
+                    handleQuickUpdate(applicantId, field, value); 
+                } 
+            });
+        
+            tableBody.addEventListener('click', e => { 
+                const target = e.target; 
+                if(target.classList.contains('edit-btn')) { 
+                    const applicant = window.allApplicants.find(a => a.application_id == target.dataset.id);
+                    if(applicant) openEditModal(applicant); 
+                } 
+                if (target.classList.contains('restore-btn')) {
+                    const id = target.dataset.id;
+                    Swal.fire({
+                        title: 'Restore Applicant?',
+                        text: "This will move the applicant back to the Active list.",
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonColor: '#10b981',
+                        cancelButtonColor: '#6b7280',
+                        confirmButtonText: 'Yes, restore record',
+                        cancelButtonText: 'Cancel'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            Swal.showLoading();
+                            fetch(`${API_URL}?action=restoreApplicant`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ application_id: id })
+                            })
+                            .then(res => res.json())
+                            .then(result => {
+                                if (result.status !== 'success') throw new Error(result.message);
+                                Swal.fire({ icon: 'success', title: 'Restored!', text: 'The applicant is now active.', timer: 1500, showConfirmButton: false });
+                                fetchData(); 
+                            })
+                            .catch(err => { Swal.fire({ icon: 'error', title: 'Action Failed', text: err.message }); });
+                        }
+                    });
+                }
+            });
 
         tableBody.addEventListener('change', e => {
             if (e.target.classList.contains('applicant-checkbox')) {
@@ -2545,11 +2592,16 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
-        toggleChartBtn.addEventListener('click', () => {
-            chartContainer.classList.toggle('hidden');
-            toggleChartBtn.querySelector('i').classList.toggle('fa-chevron-up');
-            toggleChartBtn.querySelector('i').classList.toggle('fa-chevron-down');
-        });
+        if (toggleChartBtn) {
+                    toggleChartBtn.addEventListener('click', () => {
+                        chartContainer.classList.toggle('hidden');
+                        toggleChartBtn.querySelector('i').classList.toggle('fa-chevron-up');
+                        toggleChartBtn.querySelector('i').classList.toggle('fa-chevron-down');
+                    });
+                }
+                if (chartMetricSelect) chartMetricSelect.addEventListener('change', fetchChartData);
+                if (exportDataBtn) exportDataBtn.addEventListener('click', exportVisibleData);
+            }
         chartMetricSelect.addEventListener('change', fetchChartData);
         exportDataBtn.addEventListener('click', exportVisibleData);
 

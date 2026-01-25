@@ -906,9 +906,9 @@ function getNotifications($conn, $userIdentifier, $roleName, $roleId) {
         // --- HR MODE: See Everything ---
         // (No WHERE clause added)
     } else {
-        // --- INTERVIEWER MODE: See Only Assigned (Fixed for "Name - ID" format) ---
-        // We use LIKE instead of = to find the ID inside the string
-    $sql .= " AND (
+        // --- INTERVIEWER MODE: FUZZY SEARCH FIX ---
+        // This ensures that user ID "2373" matches "ALUAGUE - 2373"
+        $sql .= " AND (
             (a.recruitment_status = 3 AND a.initial_interviewer_id LIKE CONCAT('%', ?, '%')) 
             OR 
             (a.recruitment_status = 5 AND a.final_interviewer_id LIKE CONCAT('%', ?, '%'))

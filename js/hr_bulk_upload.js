@@ -9,9 +9,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const cancelUploadBtn = getEl('cancelBulkBtn'); 
     const processUploadBtn = getEl('processUploadBtn');
     const csvFileInput = getEl('bulkFileInput') || getEl('csvFile'); 
+    let uploadFeedback = getEl('uploadFeedback');
     
     // Feedback Element Logic
-    let uploadFeedback = getEl('uploadFeedback');
     if (!uploadFeedback && bulkUploadModal) {
         uploadFeedback = document.createElement('div');
         uploadFeedback.id = 'uploadFeedback';
@@ -33,7 +33,14 @@ document.addEventListener('DOMContentLoaded', function () {
         "offer_status", "offer_date", "joining_date", "employee_id", "Project", "entity", 
         "hdmf_id", "sss_no", "philhealth_no", "tin_no", 
         "facebook_account", "instagram_account", "twitter_account", "viber_account",
-        "education_level", "college_degree", "requisition_id"
+        "education_level", "college_degree", "requisition_id",
+        "location", "marital_status", 
+        "father_name", "father_address", 
+        "mother_name", "mother_address", 
+        "spouse_name", "spouse_address",
+        "relatives_at_xbp", "relatives_at_xbp_details", 
+        "worked_at_xbp", "worked_at_xbp_details",
+        "children_info", "employment_history", "character_references",
     ];
 
     // --- 2. SAMPLE ROW ---
@@ -43,21 +50,33 @@ document.addEventListener('DOMContentLoaded', function () {
         street_address: "123 Maple St", city: "Makati", province: "Metro Manila", postcode: "1227", 
         position_applied: "Call Center Agent", experience_years: "2", specific_skill: "Technical Support",
         recruiter_name: "Smith, Jane", 
-        recruitment_status: "1", // 1=Applied
+        recruitment_status: "1", 
         status_date: new Date().toISOString().slice(0, 10), 
         application_date: new Date().toISOString().slice(0, 10), 
-        application_source: "Job Portal", screening_score: "85", screening_status: "Qualified",
+        application_source: "Job Portal", 
+        
+        screening_score: "85", screening_status: "Qualified", 
+        numeric_score: "90", alphanumeric_score: "A+", written_exam_score: "88",
+
         interview_dates: "", interviewers: "", feedback_comments: "",
         initial_interviewer_id: "", final_interviewer_id: "",    
         offer_status: "", offer_date: "", joining_date: "", employee_id: "", 
         Project: "CSR WAVE 1", entity: "Lexicode", 
         
-        // UPDATED GOVERNMENT IDS WITH FORMATS
-        hdmf_id: "1234-5678-9012",       // Pag-IBIG (12 Digits)
-        sss_no: "00-1234567-8",          // SSS (10 Digits)
-        philhealth_no: "12-123456789-1", // PhilHealth (12 Digits)
-        tin_no: "123-456-789-000",       // TIN (9-12 Digits)
+        hdmf_id: "1234-5678-9012", sss_no: "00-1234567-8", philhealth_no: "12-123456789-1", tin_no: "123-456-789-000",
         
+        location: "Subic", marital_status: "Married", 
+        father_name: "Robert Doe", father_address: "Manila",
+        mother_name: "Mary Doe", mother_address: "Manila",
+        spouse_name: "Jane Doe", spouse_address: "Makati",
+        relatives_at_xbp: "Yes", relatives_at_xbp_details: "Cousin in IT", 
+        worked_at_xbp: "No", worked_at_xbp_details: "",
+
+        // MULTI-ENTRY EXAMPLES (Use | to separate items)
+        children_info: "Baby Doe, Makati | Junior Doe, Makati",
+        employment_history: "Company A, Agent, 2020, 2021 | Company B, Lead, 2022, 2023",
+        character_references: "Ref Name 1, 0917111, Manager | Ref Name 2, 0917222, Supervisor",
+
         facebook_account: "", instagram_account: "", twitter_account: "", viber_account: "",
         education_level: "College Graduate", college_degree: "Bachelor of Science in Information Technology",
         requisition_id: ""
@@ -93,6 +112,65 @@ document.addEventListener('DOMContentLoaded', function () {
                     row[col] = '';
                 }
             });
+
+            return row;
+        });
+    }
+
+    function transformComplexData(data) {
+        return data.map(row => {
+            
+            // A. EMPLOYMENT HISTORY
+            // Format: "Company, Position, From, To | Next Company..."
+            if (row.employment_history && row.employment_history.includes(',')) {
+                const entries = row.employment_history.split('|');
+                const historyArray = entries.map(entry => {
+                    const parts = entry.split(',').map(s => s.trim());
+                    return {
+                        company: parts[0] || '',
+                        position: parts[1] || '',
+                        from: parts[2] || '',
+                        to: parts[3] || ''
+                    };
+                });
+                row.employment_history = JSON.stringify(historyArray);
+            } else {
+                row.employment_history = null;
+            }
+
+            // B. REFERENCES
+            // Format: "Name, Contact, Company, Address | Next..."
+            if (row.character_references && row.character_references.includes(',')) {
+                const entries = row.character_references.split('|');
+                const refArray = entries.map(entry => {
+                    const parts = entry.split(',').map(s => s.trim());
+                    return {
+                        name: parts[0] || '',
+                        contact: parts[1] || '',
+                        company: parts[2] || '',
+                        address: parts[3] || ''
+                    };
+                });
+                row.character_references = JSON.stringify(refArray);
+            } else {
+                row.character_references = null;
+            }
+
+            // C. CHILDREN
+            // Format: "Name, Address | Next..."
+            if (row.children_info && row.children_info.includes(',')) {
+                const entries = row.children_info.split('|');
+                const childArray = entries.map(entry => {
+                    const parts = entry.split(',').map(s => s.trim());
+                    return {
+                        name: parts[0] || '',
+                        address: parts[1] || ''
+                    };
+                });
+                row.children_info = JSON.stringify(childArray);
+            } else {
+                row.children_info = null;
+            }
 
             return row;
         });

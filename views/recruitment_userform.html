@@ -91,6 +91,28 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Location <span class="text-red-500">*</span></label>
+                                <select name="location" required class="form-select w-full px-4 py-2 border border-gray-300 rounded-lg bg-white">
+                                    <option value="" disabled selected>SELECT LOCATION...</option>
+                                    <option value="Subic">Subic</option>
+                                    <option value="Clark">Clark</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Marital Status <span class="text-red-500">*</span></label>
+                                <select name="marital_status" required class="form-select w-full px-4 py-2 border border-gray-300 rounded-lg bg-white">
+                                    <option value="" disabled selected>SELECT STATUS...</option>
+                                    <option value="Single">Single</option>
+                                    <option value="Married">Married</option>
+                                    <option value="Widowed">Widowed</option>
+                                    <option value="Separated">Separated</option>
+                                </select>
+                            </div>
+                        </div>
+
                         <br>
                         <div class="mb-8 bg-gray-50 p-6 rounded-xl border border-gray-200">
                             <h3 class="text-lg font-bold text-gray-700 mb-4 border-b pb-2">
@@ -272,6 +294,124 @@
                                 <i class="fas fa-info-circle mr-1"></i> You can add skills from any category to highlight your versatility.
                             </p>
                         </div>
+                        <br>
+
+                        <div class="mb-10">
+                            <h2 class="text-xl font-semibold text-gray-800 border-b border-gray-200 pb-3 mb-6 flex items-center">
+                                <i class="fas fa-users mr-2 text-blue-600"></i> Family Background
+                            </h2>
+                        
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Father's Name</label>
+                                    <input type="text" name="father_name" class="form-input w-full px-4 py-2 border border-gray-300 rounded-lg">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Father's Address</label>
+                                    <input type="text" name="father_address" class="form-input w-full px-4 py-2 border border-gray-300 rounded-lg">
+                                </div>
+                            </div>
+                        
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Mother's Name</label>
+                                    <input type="text" name="mother_name" class="form-input w-full px-4 py-2 border border-gray-300 rounded-lg">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Mother's Address</label>
+                                    <input type="text" name="mother_address" class="form-input w-full px-4 py-2 border border-gray-300 rounded-lg">
+                                </div>
+                            </div>
+                        
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Spouse Name (If Married)</label>
+                                    <input type="text" name="spouse_name" class="form-input w-full px-4 py-2 border border-gray-300 rounded-lg">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Spouse Address</label>
+                                    <input type="text" name="spouse_address" class="form-input w-full px-4 py-2 border border-gray-300 rounded-lg">
+                                </div>
+                            </div>
+                        
+                            <div class="mt-6 bg-gray-50 p-4 rounded-lg">
+                                <label class="block text-sm font-bold text-gray-700 mb-2">Children</label>
+                                <div id="childrenContainer" class="space-y-3"></div>
+                                <button type="button" id="addChildBtn" class="mt-2 text-sm text-blue-600 font-semibold hover:underline">
+                                    <i class="fas fa-plus-circle"></i> Add Child
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mb-10 bg-blue-50 p-6 rounded-xl border border-blue-100">
+                            <h3 class="text-lg font-bold text-blue-800 mb-4">Company History</h3>
+                        
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Do you have relatives working at XBP?</label>
+                                <div class="flex items-center space-x-4">
+                                    <label class="flex items-center cursor-pointer"><input type="radio" name="relatives_at_xbp" value="Yes" class="mr-2"> Yes</label>
+                                    <label class="flex items-center cursor-pointer"><input type="radio" name="relatives_at_xbp" value="No" class="mr-2" checked> No</label>
+                                </div>
+                                <input type="text" name="relatives_at_xbp_details" id="relativesDetails" class="hidden mt-2 form-input w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="Please specify name and relation">
+                            </div>
+                        
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Have you ever worked for XBP?</label>
+                                <div class="flex items-center space-x-4">
+                                    <label class="flex items-center cursor-pointer"><input type="radio" name="worked_at_xbp" value="Yes" class="mr-2"> Yes</label>
+                                    <label class="flex items-center cursor-pointer"><input type="radio" name="worked_at_xbp" value="No" class="mr-2" checked> No</label>
+                                </div>
+                                <input type="text" name="worked_at_xbp_details" id="workedDetails" class="hidden mt-2 form-input w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="If yes, when did you work here?">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-10">
+                            <h2 class="text-xl font-semibold text-gray-800 border-b border-gray-200 pb-3 mb-6 flex items-center">
+                                <i class="fas fa-history mr-2 text-blue-600"></i> Employment History
+                            </h2>
+                            <div id="employmentContainer" class="space-y-4"></div>
+                            <button type="button" id="addEmploymentBtn" class="mt-4 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-semibold text-sm">
+                                <i class="fas fa-plus"></i> Add Employer
+                            </button>
+                        </div>
+                        
+                        <div class="mb-10">
+                            <h2 class="text-xl font-semibold text-gray-800 border-b border-gray-200 pb-3 mb-6 flex items-center">
+                                <i class="fas fa-user-check mr-2 text-blue-600"></i> Character References
+                            </h2>
+                            <p class="text-sm text-gray-500 mb-4 bg-yellow-50 p-2 rounded border border-yellow-200 text-yellow-700">
+                                <i class="fas fa-info-circle"></i> Please provide at least 3 references. Name and Contact Number are required.
+                            </p>
+                            <div id="referencesContainer" class="space-y-6">
+                                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 relative">
+                                    <span class="absolute top-2 right-2 text-xs font-bold text-gray-400">Ref 1</span>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <input type="text" name="ref_name[]" required placeholder="Name *" class="form-input w-full px-3 py-2 rounded border border-gray-300">
+                                        <input type="text" name="ref_contact[]" required placeholder="Contact No. *" class="form-input w-full px-3 py-2 rounded border border-gray-300">
+                                        <input type="text" name="ref_company[]" placeholder="Company/Position" class="form-input w-full px-3 py-2 rounded border border-gray-300">
+                                        <input type="text" name="ref_address[]" placeholder="Address" class="form-input w-full px-3 py-2 rounded border border-gray-300">
+                                    </div>
+                                </div>
+                                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 relative">
+                                    <span class="absolute top-2 right-2 text-xs font-bold text-gray-400">Ref 2</span>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <input type="text" name="ref_name[]" required placeholder="Name *" class="form-input w-full px-3 py-2 rounded border border-gray-300">
+                                        <input type="text" name="ref_contact[]" required placeholder="Contact No. *" class="form-input w-full px-3 py-2 rounded border border-gray-300">
+                                        <input type="text" name="ref_company[]" placeholder="Company/Position" class="form-input w-full px-3 py-2 rounded border border-gray-300">
+                                        <input type="text" name="ref_address[]" placeholder="Address" class="form-input w-full px-3 py-2 rounded border border-gray-300">
+                                    </div>
+                                </div>
+                                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 relative">
+                                    <span class="absolute top-2 right-2 text-xs font-bold text-gray-400">Ref 3</span>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <input type="text" name="ref_name[]" required placeholder="Name *" class="form-input w-full px-3 py-2 rounded border border-gray-300">
+                                        <input type="text" name="ref_contact[]" required placeholder="Contact No. *" class="form-input w-full px-3 py-2 rounded border border-gray-300">
+                                        <input type="text" name="ref_company[]" placeholder="Company/Position" class="form-input w-full px-3 py-2 rounded border border-gray-300">
+                                        <input type="text" name="ref_address[]" placeholder="Address" class="form-input w-full px-3 py-2 rounded border border-gray-300">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
                         <div class="mt-6">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Source <span class="text-red-500">*</span></label>
@@ -284,6 +424,9 @@
                                 <option value="Walk-in">Walk-in</option>
                                 <option value="Facebook">Facebook</option>
                                 <option value="Indeed">Indeed</option>
+                                <option value="Jobstreet">Jobstreet</option>
+                                <option value="SBMA labor">SBMA labor</option>
+                                <option value="PESO">PESO</option>
                                 <option value="Linked-in">Linked-in</option>
                                 <option value="Job Fair">Job Fair</option>
                             </select>

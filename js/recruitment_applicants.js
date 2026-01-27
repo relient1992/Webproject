@@ -344,6 +344,7 @@ document.addEventListener('DOMContentLoaded', function() {
         reviewDataList.innerHTML = ''; 
         const formData = new FormData(form);
         
+        // UPDATED LABELS LIST
         const labels = {
             'surname': 'Surname', 'firstname': 'First Name', 'middlename': 'Middle Name',
             'birthMonth': 'Birth Month', 'birthDay': 'Birth Day', 'birthYear': 'Birth Year',
@@ -353,12 +354,21 @@ document.addEventListener('DOMContentLoaded', function() {
             'position_applied': 'Position', 'experience_years': 'Experience',
             'specific_skill': 'Skills',
             'entity': 'Entity',
-            'sss_no': 'SSS Number',
-            'tin_no': 'TIN',
-            'philhealth_no': 'PhilHealth',
-            'hdmf_id': 'HDMF / Pag-IBIG',
+            'sss_no': 'SSS Number', 'tin_no': 'TIN', 'philhealth_no': 'PhilHealth', 'hdmf_id': 'HDMF / Pag-IBIG',
+            
+            // NEW FIELDS
+            'location': 'Preferred Location',
+            'marital_status': 'Marital Status',
+            'father_name': "Father's Name",
+            'mother_name': "Mother's Name",
+            'spouse_name': "Spouse Name",
+            'relatives_at_xbp': 'Relatives at XBP?',
+            'relatives_at_xbp_details': 'Relative Details',
+            'worked_at_xbp': 'Worked at XBP before?',
+            'worked_at_xbp_details': 'Previous Work Details'
         };
 
+        // Static Fields Loop
         formData.forEach((value, key) => {
             if (labels[key] && value) {
                 let displayVal = value;
@@ -368,6 +378,102 @@ document.addEventListener('DOMContentLoaded', function() {
                 div.innerHTML = `<dt class="font-semibold text-gray-600 text-xs uppercase">${labels[key]}</dt><dd class="text-gray-900">${displayVal}</dd>`;
                 reviewDataList.appendChild(div);
             }
+        });
+
+        // Dynamic Fields (Children, Employment, References) - Simple Counter Display
+        const childCount = formData.getAll('child_name[]').filter(x => x).length;
+        if(childCount > 0) {
+            reviewDataList.innerHTML += `<div class="border-b border-gray-100 pb-2 col-span-2 bg-blue-50 p-2 rounded"><dt class="font-bold text-blue-700 text-xs uppercase">Children Added</dt><dd class="text-gray-900">${childCount} entries</dd></div>`;
+        }
+
+        const empCount = formData.getAll('emp_company[]').filter(x => x).length;
+        if(empCount > 0) {
+            reviewDataList.innerHTML += `<div class="border-b border-gray-100 pb-2 col-span-2 bg-blue-50 p-2 rounded"><dt class="font-bold text-blue-700 text-xs uppercase">Employment History</dt><dd class="text-gray-900">${empCount} companies listed</dd></div>`;
+        }
+        
+        const refCount = formData.getAll('ref_name[]').filter(x => x).length;
+        if(refCount > 0) {
+             reviewDataList.innerHTML += `<div class="border-b border-gray-100 pb-2 col-span-2 bg-blue-50 p-2 rounded"><dt class="font-bold text-blue-700 text-xs uppercase">References</dt><dd class="text-gray-900">${refCount} references provided</dd></div>`;
+        }
+    }
+
+    // --- 8. Additional information ---
+
+    // A. Relatives & Work History Toggle
+    const relativesRadios = document.querySelectorAll('input[name="relatives_at_xbp"]');
+    const workedRadios = document.querySelectorAll('input[name="worked_at_xbp"]');
+    const relativesDetails = document.getElementById('relativesDetails');
+    const workedDetails = document.getElementById('workedDetails');
+
+    relativesRadios.forEach(radio => {
+        radio.addEventListener('change', e => {
+            relativesDetails.classList.toggle('hidden', e.target.value === 'No');
+            relativesDetails.required = (e.target.value === 'Yes');
+        });
+    });
+
+    workedRadios.forEach(radio => {
+        radio.addEventListener('change', e => {
+            workedDetails.classList.toggle('hidden', e.target.value === 'No');
+            workedDetails.required = (e.target.value === 'Yes');
+        });
+    });
+
+    // B. Dynamic Children
+    const childrenContainer = document.getElementById('childrenContainer');
+    const addChildBtn = document.getElementById('addChildBtn');
+    
+    if (addChildBtn && childrenContainer) {
+        addChildBtn.addEventListener('click', () => {
+            const div = document.createElement('div');
+            div.className = 'flex gap-2 items-center';
+            div.innerHTML = `
+                <input type="text" name="child_name[]" placeholder="Child's Name" class="form-input flex-1 px-3 py-2 border border-gray-300 rounded">
+                <input type="text" name="child_address[]" placeholder="Child's Address" class="form-input flex-1 px-3 py-2 border border-gray-300 rounded">
+                <button type="button" class="text-red-500 hover:text-red-700 px-2 remove-row"><i class="fas fa-trash"></i></button>
+            `;
+            childrenContainer.appendChild(div);
+        });
+        
+        childrenContainer.addEventListener('click', e => {
+            if (e.target.closest('.remove-row')) e.target.closest('.flex').remove();
+        });
+    }
+
+    // C. Dynamic Employment History
+    const empContainer = document.getElementById('employmentContainer');
+    const addEmpBtn = document.getElementById('addEmploymentBtn');
+
+    if (addEmpBtn && empContainer) {
+        // Add one empty row by default
+        addEmploymentRow(); 
+
+        addEmpBtn.addEventListener('click', addEmploymentRow);
+
+        function addEmploymentRow() {
+            const div = document.createElement('div');
+            div.className = 'bg-gray-50 p-4 rounded-lg border border-gray-200 relative emp-row mb-4';
+            div.innerHTML = `
+                <button type="button" class="absolute top-2 right-2 text-red-400 hover:text-red-600 remove-emp"><i class="fas fa-times"></i></button>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="text" name="emp_company[]" placeholder="Company Name" class="form-input w-full px-3 py-2 rounded border border-gray-300">
+                    <input type="text" name="emp_position[]" placeholder="Position" class="form-input w-full px-3 py-2 rounded border border-gray-300">
+                    <input type="text" name="emp_address[]" placeholder="Company Address" class="form-input w-full px-3 py-2 rounded border border-gray-300 md:col-span-2">
+                    <div class="flex gap-2 items-center">
+                        <label class="text-xs text-gray-500 w-12">From:</label>
+                        <input type="date" name="emp_from[]" class="form-input w-full px-3 py-2 rounded border border-gray-300">
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <label class="text-xs text-gray-500 w-12">To:</label>
+                        <input type="date" name="emp_to[]" class="form-input w-full px-3 py-2 rounded border border-gray-300">
+                    </div>
+                </div>
+            `;
+            empContainer.appendChild(div);
+        }
+
+        empContainer.addEventListener('click', e => {
+            if (e.target.closest('.remove-emp')) e.target.closest('.emp-row').remove();
         });
     }
 
@@ -395,35 +501,42 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 try {
                     // --- SAFETY WRAPPER START ---
-                    // Calculate Score inside try block. If this crashes, it goes to catch() instead of freezing.
                     const screening = calculatePrescreening();
                     formData.append('screening_score', screening.score);
                     formData.append('screening_status', screening.status);
                     // --- SAFETY WRAPPER END ---
         
-                    // ... (Keep your existing skills/degree handling logic here) ...
-                    // 2. SAFETY CHECK...
                     const hiddenSkillInput = document.getElementById('hidden_specific_skill');
                     if (hiddenSkillInput) formData.set('specific_skill', hiddenSkillInput.value);
         
-                    // 3. Handle "Other" Degree...
                     if (collegeDegreeSelect && collegeDegreeSelect.value === 'Other' && otherDegreeInput) {
                         formData.set('college_degree', otherDegreeInput.value);
                     }
                     formData.delete('college_degree_other');
 
-                    // Submit
+                    // --- DEBUGGING CHANGE START ---
                     const response = await fetch('../recruitment_applicants.php', { method: 'POST', body: formData });
-                    const result = await response.json();
+                    
+                    // 1. Read raw text first (Do not use response.json() immediately)
+                    const rawText = await response.text();
+                    console.log("RAW SERVER RESPONSE:", rawText); // CHECK YOUR CONSOLE FOR THIS!
+
+                    // 2. Try to parse it manually
+                    let result;
+                    try {
+                        result = JSON.parse(rawText);
+                    } catch (e) {
+                        throw new Error(`Server Error: ${rawText.substring(0, 100)}...`); 
+                    }
+                    // --- DEBUGGING CHANGE END ---
                     
                     if (result.status === 'success') {
-                        // ... (Keep your success logic) ...
                         if(responseModal) {
                              modalTitle.textContent = 'Success!';
                              modalTitle.className = 'text-2xl font-bold text-green-600 mb-4';
                              modalMessage.textContent = result.message;
                              responseModal.classList.remove('hidden');
-                             setTimeout(() => { location.reload(); }, 3000); // Reload to clear forms cleanly
+                             setTimeout(() => { location.reload(); }, 3000); 
                         } else {
                              alert('Success: ' + result.message);
                              location.reload();

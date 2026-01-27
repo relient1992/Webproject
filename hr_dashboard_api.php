@@ -13,16 +13,16 @@ header('Content-Type: application/json');
 
 // --- DATABASE CONNECTION ---
 // Live Server
-// $servername = "10.200.168.89";
-// $username   = "supersu";
-// $password   = "H110mds2!";
-// $database   = "database_rda";
+$servername = "10.200.168.89";
+$username   = "supersu";
+$password   = "H110mds2!";
+$database   = "database_rda";
 
 // Localhost
-$servername = "localhost";
-$username = "root";
-$password = "";
-$database = "database_rda";
+// $servername = "localhost";
+// $username = "root";
+// $password = "";
+// $database = "database_rda";
 
 $conn = new mysqli($servername, $username, $password, $database);
 
@@ -213,13 +213,19 @@ function getAllApplicants($conn) {
             education_level, college_degree,
             experience_years, specific_skill, screening_score, screening_status, requirements_checklist,
             entity, hdmf_id, sss_no, philhealth_no, tin_no, talento_id, requisition_status, requisition_id,initial_interviewer_id,final_interviewer_id, 
-            resume_path,
+            resume_path,location, marital_status, relatives_at_xbp, relatives_at_xbp_details,
+            worked_at_xbp, worked_at_xbp_details, father_name, father_address,
+            mother_name, mother_address, spouse_name, spouse_address,
+            children_info, employment_history, character_references, numeric_score, alphanumeric_score, written_exam_score,
             CASE recruitment_status
                 WHEN 1 THEN 'Applied' WHEN 2 THEN 'Failed Speedtest' WHEN 3 THEN 'Initial Interview'
                 WHEN 4 THEN 'Failed L1 Interview' WHEN 5 THEN 'Final Interview' WHEN 6 THEN 'Failed L2 Interview'
                 WHEN 7 THEN 'For BGV' WHEN 8 THEN 'Job Offer' WHEN 9 THEN 'Processing Requirements'
                 WHEN 10 THEN 'Complete Requirements' WHEN 11 THEN 'Onboarding' WHEN 12 THEN 'Pooling'
                 WHEN 13 THEN 'Deployed' WHEN 14 THEN 'Withdrawn' WHEN 15 THEN 'Declined Offer'
+                WHEN 16 THEN 'Final Shortlist'
+                WHEN 17 THEN 'Done BGV'
+                WHEN 18 THEN 'Failed Written Exam'
                 ELSE 'Unknown'
             END AS recruitment_status_text,
             recruitment_status as recruitment_status_id
@@ -292,7 +298,10 @@ function getStatusCounts($conn) {
     $counts['qualified_total'] = ($q_res) ? $q_res->fetch_assoc()['qcount'] : 0;
 
     $statusMap = [
-        1 => 'Applied', 2 => 'Failed Speedtest', 3 => 'Initial Interview', 4 => 'Failed L1 Interview', 5 => 'Final Interview', 6 => 'Failed L2 Interview', 7 => 'For BGV', 8 => 'Job Offer', 9 => 'Processing Requirements', 10 => 'Complete Requirements', 11 => 'Onboarding', 12 => 'Pooling', 13 => 'Deployed', 14 => 'Withdrawn', 15 => 'Declined Offer'
+        1 => 'Applied', 2 => 'Failed Speedtest', 3 => 'Initial Interview', 4 => 'Failed L1 Interview', 5 => 'Final Interview', 6 => 'Failed L2 Interview', 7 => 'For BGV', 8 => 'Job Offer', 9 => 'Processing Requirements', 10 => 'Complete Requirements', 11 => 'Onboarding', 12 => 'Pooling', 13 => 'Deployed', 14 => 'Withdrawn', 15 => 'Declined Offer',
+        16 => 'Final Shortlist',
+        17 => 'Done BGV',
+        18 => 'Failed Written Exam'
     ];
     
     if ($result) {
@@ -330,7 +339,10 @@ function getDropdownData($conn) {
         1 => 'Applied', 2 => 'Failed Speedtest', 3 => 'Initial Interview', 4 => 'Failed L1 Interview',
         5 => 'Final Interview', 6 => 'Failed L2 Interview', 7 => 'For BGV', 8 => 'Job Offer',
         9 => 'Processing Requirements', 10 => 'Complete Requirements', 11 => 'Onboarding', 12 => 'Pooling',
-        13 => 'Deployed', 14 => 'Withdrawn', 15 => 'Declined Offer'
+        13 => 'Deployed', 14 => 'Withdrawn', 15 => 'Declined Offer',
+        16 => 'Final Shortlist',
+        17 => 'Done BGV',
+        18 => 'Failed Written Exam'
     ];
 
     // 4. GET INTERVIEWERS (Active Employees)
@@ -423,7 +435,7 @@ function updateApplicant($conn, $userIdentifier) {
         'facebook_account', 'instagram_account', 'twitter_account', 'viber_account', 
         'education_level', 'college_degree', 'experience_years', 'specific_skill', 'screening_score', 'screening_status' , 'requirements_checklist',
         'entity', 'hdmf_id', 'sss_no', 'philhealth_no', 'tin_no', 'talento_id', 'requisition_status',"requisition_id","initial_interviewer_id","final_interviewer_id",
-        'application_date'
+        'application_date','numeric_score', 'alphanumeric_score', 'written_exam_score'
     ];
 
     foreach ($data as $key => $value) { 
@@ -449,7 +461,11 @@ function updateApplicant($conn, $userIdentifier) {
                     1 => 'Applied', 2 => 'Failed Speedtest', 3 => 'Initial Interview', 4 => 'Failed L1 Interview',
                     5 => 'Final Interview', 6 => 'Failed L2 Interview', 7 => 'For BGV', 8 => 'Job Offer',
                     9 => 'Processing Requirements', 10 => 'Complete Requirements', 11 => 'Onboarding', 12 => 'Pooling',
-                    13 => 'Deployed', 14 => 'Withdrawn', 15 => 'Declined Offer'
+                    13 => 'Deployed', 14 => 'Withdrawn', 15 => 'Declined Offer', 
+                    16 => 'Final Shortlist',
+                    17 => 'Done BGV',
+                    18 => 'Failed Written Exam',
+                    
                 ];
                 $oldTxt = $statusMap[$oldValue] ?? $oldValue;
                 $newTxt = $statusMap[$newValue] ?? $newValue;
@@ -745,7 +761,15 @@ function bulkInsertApplicants($conn, $userIdentifier) {
         "facebook_account", "instagram_account", "twitter_account", "viber_account",
         "education_level", "college_degree", "experience_years", "specific_skill", "screening_score", "screening_status",
         "entity", "hdmf_id", "sss_no", "philhealth_no", "tin_no", "talento_id", "requisition_status",
-        "requisition_id", "initial_interviewer_id", "final_interviewer_id"
+        "requisition_id", "initial_interviewer_id", "final_interviewer_id",
+        "numeric_score", "alphanumeric_score", "written_exam_score",
+        "location", "marital_status", 
+        "father_name", "father_address", 
+        "mother_name", "mother_address", 
+        "spouse_name", "spouse_address",
+        "relatives_at_xbp", "relatives_at_xbp_details",
+        "worked_at_xbp", "worked_at_xbp_details", 
+        "children_info", "employment_history", "character_references"
     ];
     
     $placeholders = rtrim(str_repeat('?,', count($columns)), ',');

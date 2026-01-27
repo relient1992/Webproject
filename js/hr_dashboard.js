@@ -146,6 +146,8 @@ document.addEventListener('DOMContentLoaded', function () {
         { key: 'application_id', label: 'ID', editable: false },
         { key: 'requisition_id', label: 'Requisition ID', editable: true, type: 'text' },
         { key: 'entity', label: 'Entity', editable: true, type: 'select', options: ['Scorp', 'Lexicode'] },
+        { key: 'location', label: 'Location', editable: true, type: 'select', options: ['Subic', 'Clark'] },
+        { key: 'marital_status', label: 'Marital Status', editable: true, type: 'select', options: ['Single', 'Married', 'Widowed', 'Separated'] },
         // { key: 'talento_id', label: 'Talento ID', editable: true, type: 'text' },
         { key: 'requisition_status', label: 'Req Status', editable: true, type: 'select', options: ['Open', 'Approved', 'Closed', 'Hold'] },
         { key: 'hdmf_id', label: 'HDMF (Pag-IBIG)', editable: true, type: 'text' },
@@ -173,7 +175,7 @@ document.addEventListener('DOMContentLoaded', function () {
         { key: 'recruitment_status_text', label: 'Status', editable: false },
         { key: 'recruitment_status_id', label: 'Status', editable: true, type: 'select', options_key: 'statuses' },
         { key: 'status_date', label: 'Status Date', editable: true, type: 'date' },
-        { key: 'application_source', label: 'Source', editable: true, type: 'select', options: ['Job Portal', 'Employee Referral', 'Career Page', 'Recruitment Agency', 'Walk-in', 'Facebook', 'Indeed', 'Linked-in','Job Fair'], required: true },
+        { key: 'application_source', label: 'Source', editable: true, type: 'select', options: ['Job Portal', 'Employee Referral', 'Career Page', 'Recruitment Agency', 'Walk-in', 'Facebook','Indeed','Jobstreet','SBMA labor','PESO', 'Linked-in','Job Fair'], required: true },
         { key: 'application_date', label: 'Applied On', editable: true, type: 'date' },
         { key: 'facebook_account', label: 'Facebook', editable: true, type: 'url' },
         { key: 'instagram_account', label: 'Instagram', editable: true, type: 'text' },
@@ -191,6 +193,16 @@ document.addEventListener('DOMContentLoaded', function () {
         { key: 'initial_interviewer_id', label: 'Initial Interviewer', editable: true, type: 'select', options_key: 'interviewers' },
         { key: 'final_interviewer_id', label: 'Final Interviewer', editable: true, type: 'select', options_key: 'interviewers' },
         { key: 'Project', label: 'Project', editable: true, type: 'select', options_key: 'projects' },
+        { key: 'father_name', label: "Father's Name", editable: true, type: 'text' },
+        { key: 'mother_name', label: "Mother's Name", editable: true, type: 'text' },
+        { key: 'spouse_name', label: "Spouse Name", editable: true, type: 'text' },
+        { key: 'relatives_at_xbp', label: "Relatives @ XBP", editable: true, type: 'select', options: ['Yes', 'No'] },
+        { key: 'worked_at_xbp_details', label: "Last Worked @ XBP", editable: true, type: 'text' },
+        { key: 'employment_history', label: "Employment History", editable: true, type: 'textarea' },
+        { key: 'character_references', label: "References", editable: true, type: 'textarea' },
+        { key: 'numeric_score', label: 'Numeric Score', editable: true, type: 'number' },
+        { key: 'alphanumeric_score', label: 'AlphaNumeric Score', editable: true, type: 'text' },
+        { key: 'written_exam_score', label: 'Written Exam', editable: true, type: 'text' },
         { key: 'actions', label: 'Actions', editable: false },
         
     ];
@@ -1061,45 +1073,83 @@ async function initializeDashboard() {
                     if (!colConfig) return;
                 
                     let content = applicant[colKey] === null || applicant[colKey] === undefined ? '' : applicant[colKey];
-                    
+                    let customTooltip = null; // Store formatted tooltip text here
+
                     // Format Names to Title Case
                     if (['surname', 'firstname', 'middlename', 'email','street_address','city','province'].includes(colKey) && typeof content === 'string') {
                         content = content.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
                     }
 
-                    if (colKey === 'surname') {
+                    // --- NEW: COMPACT JSON COLUMNS (Hover to View) ---
+                    if (colKey === 'character_references' || colKey === 'employment_history') {
+                        if (content && content !== 'null') {
+                            try {
+                                const data = JSON.parse(content);
+                                if (Array.isArray(data) && data.length > 0) {
+                                    // A. Create Compact Badge for the Table Cell
+                                    const count = data.length;
+                                    const icon = colKey === 'character_references' ? 'fa-users' : 'fa-briefcase';
+                                    const label = colKey === 'character_references' ? 'Refs' : 'Jobs';
+                                    
+                                    content = `<span class="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-semibold border border-blue-100 cursor-help">
+                                        <i class="fas ${icon}"></i> ${count} ${label}
+                                    </span>`;
+
+                                    // B. Build Detailed Text for Hover Tooltip
+                                    let details = "";
+                                    data.forEach(item => {
+                                        if (colKey === 'character_references') {
+                                            details += `• ${item.name || 'N/A'}`;
+                                            if(item.company) details += ` (${item.company})`;
+                                            if(item.contact) details += `\n   📞 ${item.contact}`;
+                                        } else {
+                                            details += `• ${item.company || 'N/A'} - ${item.position || ''}`;
+                                            if(item.from || item.to) details += `\n   (${item.from||'?'} to ${item.to||'?'})`;
+                                        }
+                                        details += "\n\n"; // Add spacing between items
+                                    });
+                                    customTooltip = details.trim();
+
+                                } else {
+                                    content = '<span class="text-gray-300">-</span>';
+                                }
+                            } catch (e) {
+                                content = '<span class="text-red-400 text-xs">Error</span>';
+                            }
+                        } else {
+                            content = '';
+                        }
+                    }
+
+                    else if (colKey === 'surname') {
                         // 1. Get Count of Completed Items
                         let completedItems = [];
                         try { completedItems = JSON.parse(applicant.requirements_checklist || '[]'); } catch(e) { completedItems = []; }
                         const count = completedItems.length;
-                        const total = 14; // Your total requirements count
+                        const total = 14; 
 
-                        // 2. Determine State (Default: Not Started / Blue)
+                        // 2. Determine State
                         let colorClass = 'text-blue-600 font-semibold'; 
                         let icon = '';
                         let tooltip = 'Click to view requirements';
 
                         if (count >= total) {
-                            // CASE A: COMPLETED (Green + Check)
                             colorClass = 'text-green-600 font-bold';
                             icon = '<i class="fas fa-check-circle ml-1 text-xs" title="Complete"></i>';
                             tooltip = 'Requirements Complete';
                         } 
                         else if (count > 0) {
-                            // CASE B: ONGOING (Orange + Hourglass)
-                            // This visualizes that they have started but aren't done yet
                             colorClass = 'text-orange-600 font-semibold';
                             icon = `<i class="fas fa-hourglass-half ml-1 text-xs" title="${count}/${total} Completed"></i>`;
                             tooltip = `In Progress: ${count}/${total} items submitted`;
                         }
 
-                        // 3. Render Button
                         content = `<button class="req-btn hover:underline text-left truncate w-full ${colorClass}" data-id="${applicant.application_id}" title="${tooltip}">
                             ${content} ${icon}
                         </button>`;
                     }
                     
-                    if (colKey === 'select') {
+                    else if (colKey === 'select') {
                         content = (currentView === 'active') ? `<div class="flex justify-center"><input type="checkbox" class="applicant-checkbox h-4 w-4 text-blue-600 rounded" data-id="${applicant.application_id}" ${isSelected ? 'checked' : ''}></div>` : '';
                     }
                     else if (colKey === 'screening_score') {
@@ -1110,7 +1160,6 @@ async function initializeDashboard() {
                             const fullColorClass = getStatusColorClass(content);
                             const bgColor = fullColorClass.split(' ').find(c => c.startsWith('bg-')) || 'bg-gray-100';
                             let options = Object.entries(dropdownData.statuses).map(([id, name]) => `<option value="${id}" ${id == applicant.recruitment_status_id ? 'selected' : ''}>${name}</option>`).join('');
-                            // Compact Select
                             content = `<div class="${bgColor} rounded-md px-1"><select class="table-select bg-transparent border-none w-full focus:ring-0 p-0 text-xs font-semibold cursor-pointer" data-id="${applicant.application_id}" data-field="recruitment_status">${options}</select></div>`;
                         } else {
                             const fullColorClass = getStatusColorClass(content);
@@ -1124,16 +1173,12 @@ async function initializeDashboard() {
                     }
 
                     else if ((colKey === 'initial_interviewer_id' || colKey === 'final_interviewer_id') && currentView === 'active') {
-                        // 1. Build Options
                         let options = `<option value="">- Assign -</option>`;
                         if (dropdownData.interviewers) {
                             options += dropdownData.interviewers.map(emp => 
                                 `<option value="${emp.id}" ${emp.id == content ? 'selected' : ''}>${emp.label}</option>`
                             ).join('');
                         }
-                        
-                        // 2. Render Select Element
-                        // Note: data-field matches the DB column name
                         content = `<select class="table-select text-xs p-1 border border-gray-200 rounded w-full cursor-pointer hover:border-blue-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
                                     style="min-width: 160px;"
                                     data-id="${applicant.application_id}" 
@@ -1145,7 +1190,6 @@ async function initializeDashboard() {
                     else if (colKey === 'interview_dates') {
                         if (content) {
                             const dateObj = new Date(content);
-                            // Formats to: "Oct 24, 2025, 10:30 AM"
                             content = `<span class="whitespace-nowrap font-medium text-blue-700">
                                 ${dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} 
                                 <span class="text-gray-500 text-[10px] ml-1">${dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
@@ -1154,20 +1198,20 @@ async function initializeDashboard() {
                             content = '-';
                         }
                     }
-
-                    // Generic Date Format (Date Only)
                     else if (colKey.includes('date')) { 
                         content = `<span class="whitespace-nowrap">${formatDate(content)}</span>`; 
                     }
                     else if (colKey === 'recruiter_name' && currentView === 'active') {
-                         let options = `<option value="">-</option>` + dropdownData.recruiters.map(r => `<option value="${r}" ${r === content ? 'selected' : ''}>${r.split(',')[0]}</option>`).join(''); 
-                         content = `<select class="table-select text-xs p-1 border border-gray-200 rounded w-full" data-id="${applicant.application_id}" data-field="recruiter_name">${options}</select>`; 
-                    }
+                        // CHANGE: r.split(',')[1] gets the Firstname. trim() removes the leading space.
+                        let options = `<option value="">-</option>` + dropdownData.recruiters.map(r => {
+                            const displayName = r.includes(',') ? r.split(',')[1].trim() : r; 
+                            return `<option value="${r}" ${r === content ? 'selected' : ''}>${displayName}</option>`;
+                        }).join(''); 
+                        
+                        content = `<select class="table-select text-xs p-1 border border-gray-200 rounded w-full" data-id="${applicant.application_id}" data-field="recruiter_name">${options}</select>`; 
+                   }
 
-                    // --- COMPACT ROW FIX ---
-                    // whitespace-nowrap: Forces text to stay on one line (prevents row expansion)
-                    // overflow-hidden + text-ellipsis: Adds "..." if text is too long
-                    
+                    // --- STYLES & LAYOUT ---
                     let cellClass = "px-2 py-2 text-xs text-gray-700 whitespace-nowrap overflow-hidden text-ellipsis align-middle";
                     let style = "max-width: 150px;"; 
 
@@ -1177,12 +1221,20 @@ async function initializeDashboard() {
                     } else if (colKey === 'email') {
                          style = "max-width: 180px;"; 
                     }
-                    // Helper to strip HTML tags for the hover tooltip
-                    let tooltipText = String(content).replace(/<[^>]*>?/gm, '');
 
-                    // --- FIX: REMOVE TOOLTIP FOR INTERVIEWER DROPDOWNS ---
+                    // --- FINAL TOOLTIP LOGIC ---
+                    let tooltipText = "";
+                    if (customTooltip) {
+                        // Use our custom line-broken text for References/Jobs
+                        tooltipText = customTooltip; 
+                    } else {
+                        // Default behavior: Strip HTML tags
+                        tooltipText = String(content).replace(/<[^>]*>?/gm, '');
+                    }
+
+                    // Disable tooltip for specific interactive columns
                     if (colKey === 'initial_interviewer_id' || colKey === 'final_interviewer_id' || colKey === 'recruitment_status_text') {
-                        tooltipText = ''; // Clear the title so no hover text appears
+                        tooltipText = ''; 
                     }
 
                     bodyHTML += `<td class="${cellClass}" style="${style}" title="${tooltipText}">${content}</td>`;
@@ -2214,7 +2266,7 @@ async function initializeDashboard() {
 
                 // --- DATA TRANSFORMATION LOGIC ---
 
-                // A. Interviewers: Convert ID (e.g., 1579) to Name (e.g., ROALLOS - 1579)
+                // A. Interviewers
                 if ((key === 'initial_interviewer_id' || key === 'final_interviewer_id') && val) {
                     if (dropdownData && dropdownData.interviewers) {
                         const match = dropdownData.interviewers.find(i => i.id == val);
@@ -2222,22 +2274,38 @@ async function initializeDashboard() {
                     }
                 }
 
-                // B. Status: Convert ID (e.g., 3) to Text (e.g., Initial Interview)
+                // B. Status
                 if (key === 'recruitment_status_id' && val) {
                     if (dropdownData && dropdownData.statuses) {
                         val = dropdownData.statuses[val] || val;
                     }
                 }
 
-                // C. Recruitment Status Text: Use raw text if available
+                // C. Recruitment Status Text
                 if (key === 'recruitment_status_text' && row['recruitment_status_text']) {
                     val = row['recruitment_status_text'];
                 }
 
-                // D. Dates: Format nice reading (optional, currently keeps ISO YYYY-MM-DD for Excel sorting)
-                if (key === 'interview_dates' && val) {
-                    // If you want readable: val = new Date(val).toLocaleString();
-                    // Keeping it raw is usually better for Excel calculations
+                // D. NEW: FORMAT JSON FIELDS FOR CSV (References, Employment, Children)
+                // Convert JSON Array -> Readable String separated by pipes " | "
+                if (['character_references', 'employment_history', 'children_info'].includes(key) && val) {
+                    try {
+                        const parsed = JSON.parse(val);
+                        if (Array.isArray(parsed)) {
+                            if (key === 'character_references') {
+                                // Format: Name (Contact) | Name (Contact)
+                                val = parsed.map(i => `${i.name || ''} (${i.contact || ''})`).join(' | ');
+                            } else if (key === 'employment_history') {
+                                // Format: Company (Position) | Company (Position)
+                                val = parsed.map(i => `${i.company || ''} (${i.position || ''})`).join(' | ');
+                            } else if (key === 'children_info') {
+                                // Format: Name | Name
+                                val = parsed.map(i => i.name || '').join(' | ');
+                            }
+                        }
+                    } catch (e) {
+                        val = ''; // Leave blank if invalid JSON
+                    }
                 }
 
                 // Handle Nulls

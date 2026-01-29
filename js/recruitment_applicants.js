@@ -39,6 +39,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const reviewDataList = document.getElementById('reviewDataList');
     const confirmSubmitBtn = document.getElementById('confirmSubmitBtn');
     const closeReviewBtn = document.getElementById('closeReviewBtn');
+
+    // --- MODAL ELEMENTS ---
+    const privacyModal = document.getElementById('privacyModal');
+    const privacyCheckbox = document.getElementById('privacyCheckbox');
+    const finalPrivacySubmitBtn = document.getElementById('finalPrivacySubmitBtn');
+    const cancelPrivacyBtn = document.getElementById('cancelPrivacyBtn');
     
     // --- SKILLS DATA MASTER LIST ---
     let selectedSkills = []; // Keep this! It tracks user choices.
@@ -492,9 +498,46 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (closeReviewBtn) closeReviewBtn.addEventListener('click', () => reviewModal.classList.add('hidden'));
 
+        // 1. OPEN PRIVACY MODAL (Instead of submitting directly)
         if (confirmSubmitBtn) {
-            confirmSubmitBtn.addEventListener('click', async function() {
-                reviewModal.classList.add('hidden');
+            confirmSubmitBtn.addEventListener('click', function() {
+                reviewModal.classList.add('hidden'); // Hide Review
+                privacyModal.classList.remove('hidden'); // Show Privacy
+                
+                // Reset Checkbox state
+                privacyCheckbox.checked = false;
+                finalPrivacySubmitBtn.disabled = true;
+                finalPrivacySubmitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            });
+        }
+
+        // 2. TOGGLE SUBMIT BUTTON BASED ON CHECKBOX
+        if (privacyCheckbox) {
+            privacyCheckbox.addEventListener('change', function() {
+                if (this.checked) {
+                    finalPrivacySubmitBtn.disabled = false;
+                    finalPrivacySubmitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                } else {
+                    finalPrivacySubmitBtn.disabled = true;
+                    finalPrivacySubmitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                }
+            });
+        }
+
+        // 3. CANCEL PRIVACY
+        if (cancelPrivacyBtn) {
+            cancelPrivacyBtn.addEventListener('click', function() {
+                privacyModal.classList.add('hidden');
+                reviewModal.classList.remove('hidden'); // Go back to Review
+            });
+        }
+
+        // 4. FINAL SUBMISSION (Actual API Call)
+        if (finalPrivacySubmitBtn) {
+            finalPrivacySubmitBtn.addEventListener('click', async function() {
+                privacyModal.classList.add('hidden'); // Hide Privacy
+                
+                // Show Loading on the main button (visual feedback)
                 if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting...'; }
 
                 const formData = new FormData(form);
@@ -505,47 +548,43 @@ document.addEventListener('DOMContentLoaded', function() {
                     formData.append('screening_score', screening.score);
                     formData.append('screening_status', screening.status);
                     // --- SAFETY WRAPPER END ---
-        
+
                     const hiddenSkillInput = document.getElementById('hidden_specific_skill');
                     if (hiddenSkillInput) formData.set('specific_skill', hiddenSkillInput.value);
-        
+
                     if (collegeDegreeSelect && collegeDegreeSelect.value === 'Other' && otherDegreeInput) {
                         formData.set('college_degree', otherDegreeInput.value);
                     }
                     formData.delete('college_degree_other');
 
-                    // --- DEBUGGING CHANGE START ---
+                    // API CALL
                     const response = await fetch('../recruitment_applicants.php', { method: 'POST', body: formData });
                     
-                    // 1. Read raw text first (Do not use response.json() immediately)
+                    // Handle Response
                     const rawText = await response.text();
-                    console.log("RAW SERVER RESPONSE:", rawText); // CHECK YOUR CONSOLE FOR THIS!
-
-                    // 2. Try to parse it manually
                     let result;
                     try {
                         result = JSON.parse(rawText);
                     } catch (e) {
                         throw new Error(`Server Error: ${rawText.substring(0, 100)}...`); 
                     }
-                    // --- DEBUGGING CHANGE END ---
                     
                     if (result.status === 'success') {
                         if(responseModal) {
-                             modalTitle.textContent = 'Success!';
-                             modalTitle.className = 'text-2xl font-bold text-green-600 mb-4';
-                             modalMessage.textContent = result.message;
-                             responseModal.classList.remove('hidden');
-                             setTimeout(() => { location.reload(); }, 3000); 
+                            modalTitle.textContent = 'Success!';
+                            modalTitle.className = 'text-2xl font-bold text-green-600 mb-4';
+                            modalMessage.textContent = result.message;
+                            responseModal.classList.remove('hidden');
+                            setTimeout(() => { location.reload(); }, 3000); 
                         } else {
-                             alert('Success: ' + result.message);
-                             location.reload();
+                            alert('Success: ' + result.message);
+                            location.reload();
                         }
                     } else {
                         throw new Error(result.message);
                     }
                 } catch (error) {
-                    console.error("Submission Error:", error); // Log exact error to console
+                    console.error("Submission Error:", error);
                     if (responseModal) {
                         modalTitle.textContent = 'Error';
                         modalTitle.className = 'text-2xl font-bold text-red-600 mb-4';

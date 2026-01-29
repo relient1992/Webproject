@@ -198,6 +198,7 @@ if (!isset($_SESSION['employee_id'])) {
                         <option value="requisition_id">Requisition ID</option>
                         <option value="firstname">Firstname</option>
                         <option value="surname">Surname</option>
+                        <option value="location">Location</option>
                         <option value="entity">Entity</option>
                         <option value="position_applied">Position Applied</option>
                         <option value="screening_status">Screening Status</option>
@@ -708,6 +709,96 @@ if (!isset($_SESSION['employee_id'])) {
         </div>
     </div>
 
+    <div id="exportModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 backdrop-blur-sm flex items-center justify-center hidden z-[70] p-4 transition-opacity duration-300">
+        <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            
+            <div class="p-6 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                    <i class="fas fa-file-export text-blue-600 mr-2"></i> Export Data
+                </h2>
+                <button id="closeExportModal" class="text-gray-400 hover:text-gray-600 transition">
+                    <i class="fas fa-times text-lg"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto">
+                
+                <div class="mb-8 p-4 border border-blue-100 bg-blue-50 rounded-lg hover:shadow-md transition">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0 bg-blue-100 rounded-full p-2 text-blue-600">
+                            <i class="fas fa-table fa-lg"></i>
+                        </div>
+                        <div class="ml-4 flex-1">
+                            <h3 class="text-lg font-bold text-gray-800">Quick Export (Current View)</h3>
+                            <p class="text-sm text-gray-600 mt-1">
+                                Download exactly what you see on the screen. This respects your current filters, hidden columns, and sort order.
+                            </p>
+                            <button id="btnQuickExport" class="mt-3 px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded shadow hover:bg-blue-700 transition">
+                                Download Now
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="relative flex py-2 items-center">
+                    <div class="flex-grow border-t border-gray-300"></div>
+                    <span class="flex-shrink-0 mx-4 text-gray-400 text-xs uppercase">OR USE A TEMPLATE</span>
+                    <div class="flex-grow border-t border-gray-300"></div>
+                </div>
+
+                <div class="mt-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">Custom Template Export</h3>
+                    <p class="text-sm text-gray-500 mb-4">
+                        Need a specific format for Payroll or Gov't? Upload a CSV file with <strong>just the headers</strong> (e.g., "Worker Name", "Hired Date") and map them to our system fields.
+                    </p>
+                    
+                    <div class="flex items-center gap-3 mb-4">
+                        <input type="file" id="templateFileInput" accept=".csv" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+                    </div>
+
+
+                    <div id="mappingContainer" class="hidden border rounded-lg overflow-hidden mt-4 shadow-sm">
+                                        
+                        <div class="bg-blue-50 p-3 border-b flex justify-between items-center gap-4">
+                            <div class="flex items-center gap-2 flex-1">
+                                <label class="text-xs font-bold text-blue-800 uppercase whitespace-nowrap"><i class="fas fa-bookmark mr-1"></i> Saved Templates:</label>
+                                <select id="savedTemplatesSelect" class="text-xs border-blue-200 rounded w-full focus:ring-blue-500 bg-white">
+                                    <option value="">- Select a template to apply -</option>
+                                </select>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button id="btnSaveTemplate" class="text-xs bg-white border border-blue-300 text-blue-600 px-3 py-1.5 rounded hover:bg-blue-100 font-semibold transition">
+                                    <i class="fas fa-save"></i> Save Map
+                                </button>
+                                <button id="btnDeleteTemplate" class="text-xs bg-white border border-red-200 text-red-500 px-2 py-1.5 rounded hover:bg-red-50 transition" title="Delete Selected Template">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="bg-gray-100 px-4 py-2 border-b flex justify-between font-bold text-xs text-gray-600 uppercase">
+                            <div class="w-1/2">CSV Header (From File)</div>
+                            <div class="w-1/2">Map to System Field</div>
+                        </div>
+                        
+                        <div id="mappingList" class="max-h-60 overflow-y-auto bg-white p-2 space-y-2">
+                            </div>
+                        
+                        <div class="p-3 bg-gray-50 border-t text-right">
+                            <button id="btnExecuteCustomExport" class="px-6 py-2 bg-green-600 text-white font-bold rounded shadow hover:bg-green-700 transition">
+                                Export Custom CSV
+                            </button>
+                        </div>
+                    </div>
+
+
+
+                </div>
+
+            </div>
+        </div>
+    </div>
+
     <div id="analyticsModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 z-[9999] flex items-center justify-center">
         <div class="bg-white w-full max-w-6xl h-[90vh] rounded-xl shadow-2xl flex flex-col overflow-hidden">
             
@@ -736,9 +827,13 @@ if (!isset($_SESSION['employee_id'])) {
                             <option value="education_level">Education Level</option>
                             <option value="screening_status">Screening Status</option>
                             <option value="city">City</option>
+                            <option value="final_interviewer_id">Final Interviewer</option>
+                            <option value="initial_interviewer_id">Initial Interviewer</option>
                             <option value="interview_year_month">Interview Date (Month)</option>
                         </select>
                     </div>
+
+                    
 
                     <div>
                         <label class="block text-xs font-bold text-gray-500 uppercase mb-2">2. Metric (Values)</label>
@@ -746,6 +841,15 @@ if (!isset($_SESSION['employee_id'])) {
                             <option value="count">Count of Applicants</option>
                             <option value="avg_score">Average Screening Score</option>
                             <option value="avg_age">Average Age</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Location</label>
+                        <select id="an_location" class="w-full border-gray-300 rounded-md text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="All">All Locations</option>
+                            <option value="Subic">Subic</option>
+                            <option value="Clark">Clark</option>
                         </select>
                     </div>
 

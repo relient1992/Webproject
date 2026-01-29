@@ -176,7 +176,7 @@ document.addEventListener('DOMContentLoaded', function () {
         { key: 'recruitment_status_id', label: 'Status', editable: true, type: 'select', options_key: 'statuses' },
         { key: 'status_date', label: 'Status Date', editable: true, type: 'date' },
         { key: 'application_source', label: 'Source', editable: true, type: 'select', options: ['Job Portal', 'Employee Referral', 'Career Page', 'Recruitment Agency', 'Walk-in', 'Facebook','Indeed','Jobstreet','SBMA labor','PESO', 'Linked-in','Job Fair'], required: true },
-        { key: 'application_date', label: 'Applied On', editable: true, type: 'date' },
+        { key: 'application_date', label: 'Applied On', editable: true, type: 'datetime-local' },
         { key: 'facebook_account', label: 'Facebook', editable: true, type: 'url' },
         { key: 'instagram_account', label: 'Instagram', editable: true, type: 'text' },
         { key: 'twitter_account', label: 'Twitter (X)', editable: true, type: 'text' },
@@ -259,6 +259,21 @@ document.addEventListener('DOMContentLoaded', function () {
     const notifPrevBtn = document.getElementById('notifPrevBtn');
     const notifNextBtn = document.getElementById('notifNextBtn');
     const notifPageInfo = document.getElementById('notifPageInfo');
+
+    // Export Advanced logic
+    const exportModal = document.getElementById('exportModal');
+    const closeExportModal = document.getElementById('closeExportModal');
+    const btnQuickExport = document.getElementById('btnQuickExport');
+    const templateFileInput = document.getElementById('templateFileInput');
+    const mappingContainer = document.getElementById('mappingContainer');
+    const mappingList = document.getElementById('mappingList');
+    const btnExecuteCustomExport = document.getElementById('btnExecuteCustomExport');
+
+    // Export Template Saving Logic
+    const savedTemplatesSelect = document.getElementById('savedTemplatesSelect');
+    const btnSaveTemplate = document.getElementById('btnSaveTemplate');
+    const btnDeleteTemplate = document.getElementById('btnDeleteTemplate');
+    const STORAGE_KEY = 'hr_export_templates_v1';
 
     // State
     let allNotifications = [];
@@ -695,9 +710,296 @@ document.addEventListener('DOMContentLoaded', function () {
         return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); 
     }
     
+    // Advance Export HR dashboard function
+
+    if (exportDataBtn) {
+        const newExportBtn = exportDataBtn.cloneNode(true);
+        exportDataBtn.parentNode.replaceChild(newExportBtn, exportDataBtn);
+        
+        newExportBtn.addEventListener('click', () => {
+            exportModal.classList.remove('hidden');
+            // Reset Custom Export State on open
+            if(templateFileInput) templateFileInput.value = '';
+            if(mappingContainer) mappingContainer.classList.add('hidden');
+            if(mappingList) mappingList.innerHTML = '';
+        });
+    }
+
+    if(closeExportModal) closeExportModal.addEventListener('click', () => exportModal.classList.add('hidden'));
+
+    // 2. Handle "Quick Export" (Uses your existing function)
+    if(btnQuickExport) {
+        btnQuickExport.addEventListener('click', () => {
+            exportVisibleData(); 
+            exportModal.classList.add('hidden');
+        });
+    }
+
+    // 3. Handle Template Upload & Parse Headers
+    if(templateFileInput) {
+        templateFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if(!file) return;
+
+            // Use PapaParse (ensure it's loaded)
+            if (typeof Papa === 'undefined') {
+                alert('Error: CSV Parser (PapaParse) is missing.');
+                return;
+            }
+
+            Papa.parse(file, {
+                header: false, // We only want the raw first row
+                preview: 1,    // Stop after the first row
+                skipEmptyLines: true,
+                complete: function(results) {
+                    if(results.data && results.data.length > 0) {
+                        const headers = results.data[0]; // Array ['Name', 'Date', etc.]
+                        renderMappingUI(headers);
+                    } else {
+                        Swal.fire('Error', 'CSV file appears empty or invalid.', 'error');
+                    }
+                }
+            });
+        });
+    }
+
+    // 4. Render Mapping UI
+    function renderMappingUI(headers) {
+        mappingList.innerHTML = '';
+        mappingContainer.classList.remove('hidden');
+
+        // Create System Field Options from ALL_COLUMNS
+        let optionsHTML = '<option value="">- Ignore / Blank -</option>';
+        
+        // Useful calculated fields
+        optionsHTML += `<option value="CALC_FULLNAME" class="font-bold text-blue-600">Calculated: Full Name</option>`;
+
+        ALL_COLUMNS.forEach(col => {
+            if(col.key !== 'select' && col.key !== 'actions') {
+                optionsHTML += `<option value="${col.key}">${col.label} (${col.key})</option>`;
+            }
+        });
+
+        // Generate Rows
+        headers.forEach((header, index) => {
+            const cleanHeader = header.toLowerCase().replace(/[^a-z0-9]/g, '');
+            
+            const div = document.createElement('div');
+            div.className = 'flex items-center gap-4 border-b border-gray-100 pb-2 last:border-0';
+            div.innerHTML = `
+                <div class="w-1/2 text-sm font-medium text-gray-700 truncate" title="${header}">
+                    ${header}
+                </div>
+                <div class="w-1/2">
+                    <select class="map-select w-full text-xs border-gray-300 rounded focus:ring-blue-500" data-header="${header}">
+                        ${optionsHTML}
+                    </select>
+                </div>
+            `;
+            mappingList.appendChild(div);
+
+            // Auto-Match Logic (Smart Selection)
+            const select = div.querySelector('select');
+            Array.from(select.options).forEach(opt => {
+                const cleanOpt = opt.text.toLowerCase().replace(/[^a-z0-9]/g, '');
+                // Check if headers align (e.g. "Employee Name" matches "Full Name")
+                if (cleanOpt.includes(cleanHeader) || cleanHeader.includes(cleanOpt)) {
+                    select.value = opt.value;
+                }
+            });
+        });
+
+        loadTemplateDropdown();
+    }
+
+    // 5. Generate Custom CSV
+    if(btnExecuteCustomExport) {
+        btnExecuteCustomExport.addEventListener('click', () => {
+            // A. Get Mapping Configuration
+            const mapping = [];
+            const selects = mappingList.querySelectorAll('.map-select');
+            
+            selects.forEach(sel => {
+                mapping.push({ 
+                    header: sel.dataset.header, // The User's Header
+                    field: sel.value            // The System DB Field
+                });
+            });
+
+            // B. Get Data (Using current table filters)
+            const dataToExport = getFilteredAndSortedData(); 
+
+            if (dataToExport.length === 0) {
+                Swal.fire('Warning', 'No data to export based on current filters.', 'warning');
+                return;
+            }
+
+            // C. Build CSV Content
+            // Row 1: The User's Headers
+            let csvContent = mapping.map(m => `"${m.header}"`).join(",") + "\n";
+
+            // Row 2+: The Data
+            dataToExport.forEach(row => {
+                const csvRow = mapping.map(m => {
+                    let val = '';
+
+                    // 1. Handle Calculated Fields
+                    if (m.field === 'CALC_FULLNAME') {
+                        val = `${row.surname || ''}, ${row.firstname || ''} ${row.middlename || ''}`.trim();
+                    } 
+                    // 2. Handle Standard Fields
+                    else if (m.field) {
+                        val = row[m.field];
+                        
+                        // 3. Handle JSON Fields (Format neatly)
+                        if (['character_references', 'employment_history', 'children_info'].includes(m.field) && val) {
+                            try {
+                                const parsed = JSON.parse(val);
+                                if (Array.isArray(parsed)) {
+                                    if (m.field === 'character_references') val = parsed.map(i => `${i.name} (${i.contact})`).join(' | ');
+                                    else if (m.field === 'employment_history') val = parsed.map(i => `${i.company} (${i.position})`).join(' | ');
+                                    else if (m.field === 'children_info') val = parsed.map(i => i.name).join(' | ');
+                                }
+                            } catch(e) { val = ''; }
+                        }
+                    }
+
+                    // 4. Escape CSV characters
+                    if (val === null || val === undefined) val = '';
+                    let stringVal = String(val).replace(/"/g, '""'); // Double quotes
+                    if (stringVal.search(/("|,|\n)/g) >= 0) stringVal = `"${stringVal}"`;
+                    
+                    return stringVal;
+                });
+                csvContent += csvRow.join(",") + "\n";
+            });
+
+            // D. Download File
+            const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            
+            const dateStr = new Date().toISOString().slice(0, 10);
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Custom_Export_${dateStr}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            exportModal.classList.add('hidden');
+            
+            // Log Action
+            logUserAction(`Generated Custom Export with ${mapping.length} columns.`);
+        });
+    }
+
+    // 6. Load Templates on Startup
+    function loadTemplateDropdown() {
+        if(!savedTemplatesSelect) return;
+        
+        savedTemplatesSelect.innerHTML = '<option value="">- Select a template to apply -</option>';
+        const stored = localStorage.getItem(STORAGE_KEY);
+        
+        if (stored) {
+            const templates = JSON.parse(stored); // Object: { "Payroll": { "EmpName": "surname" }, ... }
+            Object.keys(templates).forEach(name => {
+                savedTemplatesSelect.innerHTML += `<option value="${name}">${name}</option>`;
+            });
+        }
+    }
+
+    if(btnSaveTemplate) {
+        btnSaveTemplate.addEventListener('click', () => {
+            const selects = document.querySelectorAll('.map-select');
+            if (selects.length === 0) return;
+
+            // Ask for name
+            const name = prompt("Enter a name for this mapping template (e.g., 'Payroll Format'):");
+            if (!name) return;
+
+            // Build Mapping Object: { "CSV Header": "System Field" }
+            const newMapping = {};
+            let hasSelection = false;
+            selects.forEach(sel => {
+                if (sel.value) {
+                    newMapping[sel.dataset.header] = sel.value;
+                    hasSelection = true;
+                }
+            });
+
+            if (!hasSelection) {
+                alert("Please map at least one field before saving.");
+                return;
+            }
+
+            // Save to LocalStorage
+            const stored = localStorage.getItem(STORAGE_KEY);
+            const templates = stored ? JSON.parse(stored) : {};
+            templates[name] = newMapping;
+            
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
+            
+            // Refresh UI
+            loadTemplateDropdown();
+            savedTemplatesSelect.value = name; // Auto-select the new one
+            Swal.fire({ icon: 'success', title: 'Template Saved', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+        });
+    }
+
+    if(savedTemplatesSelect) {
+        savedTemplatesSelect.addEventListener('change', (e) => {
+            const name = e.target.value;
+            if (!name) return;
+
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (!stored) return;
+
+            const templates = JSON.parse(stored);
+            const mapping = templates[name]; // The saved mapping object
+
+            if (mapping) {
+                // Loop through currently visible selects and apply values
+                const selects = document.querySelectorAll('.map-select');
+                let matchCount = 0;
+
+                selects.forEach(sel => {
+                    const headerName = sel.dataset.header;
+                    // Check if we have a saved map for this specific header
+                    if (mapping[headerName]) {
+                        sel.value = mapping[headerName];
+                        matchCount++;
+                    }
+                });
+
+                if (matchCount > 0) {
+                    Swal.fire({ icon: 'success', title: `Mapped ${matchCount} columns`, toast: true, position: 'top-end', showConfirmButton: false, timer: 1000 });
+                } else {
+                    Swal.fire({ icon: 'warning', title: 'Mismatch', text: 'This template does not match any columns in the current file.', toast: true });
+                }
+            }
+        });
+    }
+
+    if(btnDeleteTemplate) {
+        btnDeleteTemplate.addEventListener('click', () => {
+            const name = savedTemplatesSelect.value;
+            if (!name) return;
+
+            if (confirm(`Delete template "${name}"?`)) {
+                const stored = localStorage.getItem(STORAGE_KEY);
+                const templates = stored ? JSON.parse(stored) : {};
+                
+                delete templates[name];
+                
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
+                loadTemplateDropdown();
+                Swal.fire({ icon: 'success', title: 'Deleted', toast: true, position: 'top-end', showConfirmButton: false, timer: 1000 });
+            }
+        });
+    }
     
     // --- INITIALIZATION ---
-async function initializeDashboard() {
+    async function initializeDashboard() {
         try {
             // 1. SETUP GLOBALS & PLUGINS
             initializePlugins(); 
@@ -1988,6 +2290,16 @@ async function initializeDashboard() {
         ALL_COLUMNS.forEach(col => {
             if (!col.editable) return;
             let value = applicantData[col.key] || '';
+            if (col.type === 'date' && value && value.length > 10) {
+                value = value.substring(0, 10);
+            }
+            // 2. If it's a 'datetime-local' field (Application Date), format for HTML input
+            // Database sends: "2026-01-27 14:30:00"
+            // Input needs:    "2026-01-27T14:30"
+            else if (col.type === 'datetime-local' && value) {
+                // Replace the space with a 'T' and remove seconds if present
+                value = value.replace(' ', 'T').substring(0, 16);
+            }
             const keyForEdit = col.key === 'recruitment_status_text' ? 'recruitment_status_id' : col.key;
             let required = col.required ? 'required' : '';
             let requiredSpan = col.required ? ' <span class="text-red-500">*</span>' : '';
@@ -2209,8 +2521,14 @@ async function initializeDashboard() {
             document.getElementById('edit_screening_status_display').textContent = applicant.screening_status || 'Pending';
         }
         buildFormFields(editFormContent, applicant, 'edit'); 
+        const relSelect = document.getElementById('edit_relatives_at_xbp');
+        if(relSelect) relSelect.dispatchEvent(new Event('change', { bubbles: true }));
+
+        const workSelect = document.getElementById('edit_worked_at_xbp');
+        if(workSelect) workSelect.dispatchEvent(new Event('change', { bubbles: true }));
+
         deleteBtn.style.display = USER_ROLE === 'hr_manager' || USER_ROLE === 'super_user' ? 'inline-block' : 'none'; 
-        editModal.classList.remove('hidden'); 
+        editModal.classList.remove('hidden');
     }
     
     function openAddApplicantModal() { 
@@ -2688,6 +3006,39 @@ function addEventListeners() {
                     }
                 }
 
+                // --- 5. NEW: RELATIVES @ XBP TOGGLE ---
+                if (targetId.endsWith('_relatives_at_xbp')) {
+                    const detailsInput = document.getElementById(`${formType}_relatives_at_xbp_details`);
+                    if (detailsInput) {
+                        // Find the parent div to hide the whole label+input
+                        const container = detailsInput.closest('div'); 
+                        if (e.target.value === 'Yes') {
+                            container.classList.remove('hidden');
+                            detailsInput.required = true;
+                        } else {
+                            container.classList.add('hidden');
+                            detailsInput.required = false;
+                            detailsInput.value = ''; // Clear value
+                        }
+                    }
+                }
+
+                // --- 6. NEW: WORKED @ XBP TOGGLE ---
+                if (targetId.endsWith('_worked_at_xbp')) {
+                    const workInput = document.getElementById(`${formType}_worked_at_xbp_details`);
+                    if (workInput) {
+                        const container = workInput.closest('div');
+                        if (e.target.value === 'Yes') {
+                            container.classList.remove('hidden');
+                            workInput.required = true;
+                        } else {
+                            container.classList.add('hidden');
+                            workInput.required = false;
+                            workInput.value = '';
+                        }
+                    }
+                }
+
 
             }
         });
@@ -3048,7 +3399,8 @@ function addEventListeners() {
     if(openAnalyticsBtn) {
         openAnalyticsBtn.addEventListener('click', () => {
             analyticsModal.classList.remove('hidden');
-            generateAnalyticsReport(); // Auto-generate on open
+            populateAnalyticsFilters();
+            generateAnalyticsReport(); 
         });
     }
 
@@ -3066,64 +3418,116 @@ function addEventListeners() {
         anExportBtn.addEventListener('click', exportAnalyticsData);
     }
 
+    function populateAnalyticsFilters() {
+        const intSelect = document.getElementById('an_interviewer_name');
+        if (intSelect && window.dashboardGlobals && window.dashboardGlobals.getDropdownData) {
+            const data = window.dashboardGlobals.getDropdownData();
+            
+            // Save current selection if re-populating
+            const currentVal = intSelect.value;
+            
+            intSelect.innerHTML = '<option value="All">All Interviewers</option>';
+            
+            if (data.interviewers) {
+                data.interviewers.forEach(emp => {
+                    intSelect.innerHTML += `<option value="${emp.id}">${emp.label}</option>`;
+                });
+            }
+            
+            // Restore selection if valid
+            if(currentVal) intSelect.value = currentVal;
+        }
+    }
 
     // 2. Core Logic: Generate Data
     function generateAnalyticsReport() {
-        console.log("Generating Report..."); // Debug Log
+        console.log("Generating Report..."); 
 
         // 1. Get Elements Safely
         const groupByEl = document.getElementById('an_groupBy');
         const metricEl = document.getElementById('an_metric');
-        const dateFieldEl = document.getElementById('an_dateField'); // New Field
         
-        if (!groupByEl || !metricEl) {
-            console.error("Missing Analytics Dropdowns in HTML");
-            Swal.fire('Error', 'Analytics HTML is missing. Please update your PHP file.', 'error');
-            return;
-        }
+        if (!groupByEl || !metricEl) return;
 
         const groupBy = groupByEl.value;
         const metric = metricEl.value;
         const excludeArchived = document.getElementById('an_exclude_archived')?.checked || false;
+
+        // --- NEW FILTER ELEMENTS ---
+        const locEl = document.getElementById('an_location');
+        const intRoleEl = document.getElementById('an_interviewer_role');
+        const intNameEl = document.getElementById('an_interviewer_name');
         
-        // View Type
+        // Get New Filter Values
+        const filterLoc = locEl ? locEl.value : 'All';
+        const filterRole = intRoleEl ? intRoleEl.value : 'All';
+        const filterIntId = intNameEl ? intNameEl.value : 'All';
+
         const activeViewBtn = document.querySelector('.an-view-btn.active');
         const viewType = activeViewBtn ? activeViewBtn.dataset.view : 'bar';
 
-        // 2. Date Filter Logic (Safe Check)
+        // 2. Date Filter Setup
         let filterStartDate = null, filterEndDate = null;
-        let dateField = null;
+        const dateFieldEl = document.getElementById('an_dateField');
+        let dateField = dateFieldEl ? dateFieldEl.value : null;
 
-        // Only try to read date settings if the element actually exists
-        if (dateFieldEl) {
-            dateField = dateFieldEl.value;
-            if (dateField && window.analyticsPicker) {
-                filterStartDate = window.analyticsPicker.getStartDate()?.toJSDate();
-                filterEndDate = window.analyticsPicker.getEndDate()?.toJSDate();
-                if(filterStartDate) filterStartDate.setHours(0,0,0,0);
-                if(filterEndDate) filterEndDate.setHours(23,59,59,999);
-            }
+        if (dateField && window.analyticsPicker) {
+            filterStartDate = window.analyticsPicker.getStartDate()?.toJSDate();
+            filterEndDate = window.analyticsPicker.getEndDate()?.toJSDate();
+            if(filterStartDate) filterStartDate.setHours(0,0,0,0);
+            if(filterEndDate) filterEndDate.setHours(23,59,59,999);
         }
 
         // 3. Filter Data
         let data = window.allApplicants.filter(app => {
-            // Archive Filter
+            // A. Archive Filter
             if (excludeArchived && app.is_archived == 1) return false;
             
-            // Custom Date Filter
+            // B. Date Filter
             if (dateField && filterStartDate && filterEndDate) {
                 const rawDate = app[dateField];
                 if (!rawDate || rawDate === '0000-00-00') return false; 
-                
                 const targetDate = new Date(rawDate);
                 if (targetDate < filterStartDate || targetDate > filterEndDate) return false;
             }
+
+            // C. Location Filter
+            if (filterLoc !== 'All') {
+                const appLoc = (app.location || '').toLowerCase();
+                if (appLoc !== filterLoc.toLowerCase()) return false;
+            }
+
+            // D. Interviewer Filter (Specific Person)
+            if (filterIntId !== 'All') {
+                const initId = String(app.initial_interviewer_id || '');
+                const finalId = String(app.final_interviewer_id || '');
+                const searchId = String(filterIntId);
+
+                if (filterRole === 'Initial') {
+                    if (initId !== searchId) return false;
+                } else if (filterRole === 'Final') {
+                    if (finalId !== searchId) return false;
+                } else { 
+                    if (initId !== searchId && finalId !== searchId) return false;
+                }
+            }
+
+            // --- E. HIDE UNASSIGNED LOGIC (NEW) ---
+            // If we are grouping by Initial Interviewer, remove those with no initial interviewer
+            if (groupBy === 'initial_interviewer_id') {
+                const id = app.initial_interviewer_id;
+                if (!id || id === '0' || id === '') return false;
+            }
+            // If we are grouping by Final Interviewer, remove those with no final interviewer
+            if (groupBy === 'final_interviewer_id') {
+                const id = app.final_interviewer_id;
+                if (!id || id === '0' || id === '') return false;
+            }
+
             return true;
         });
 
-        console.log(`Found ${data.length} records.`); // Debug Log
-
-        // Update Total Count UI
+        // Update UI Count
         const totalEl = document.getElementById('an_totalRecords');
         if(totalEl) totalEl.textContent = data.length;
 
@@ -3133,12 +3537,33 @@ function addEventListeners() {
         data.forEach(app => {
             let key = app[groupBy] || 'Unknown';
             
+            // --- A. DATE LOGIC ---
             if (groupBy === 'interview_year_month') {
                 if (app.interview_dates) {
                     const d = new Date(app.interview_dates);
                     key = d.toLocaleString('default', { month: 'short', year: 'numeric' });
                 } else {
                     key = 'No Interview';
+                }
+            }
+
+            // --- B. INTERVIEWER ID -> NAME LOGIC ---
+            else if (groupBy === 'initial_interviewer_id' || groupBy === 'final_interviewer_id') {
+                if (typeof dropdownData !== 'undefined' && Array.isArray(dropdownData.interviewers)) {
+                    const match = dropdownData.interviewers.find(i => i.id == key);
+                    if (match) {
+                        key = match.label;
+                    } else {
+                        // Double check: if it somehow slipped through filter, ignore it or label it
+                        key = 'Unassigned'; 
+                    }
+                }
+            }
+
+            // --- C. STATUS ID -> NAME LOGIC ---
+            else if (groupBy === 'recruitment_status_id') {
+                if (typeof dropdownData !== 'undefined' && dropdownData.statuses) {
+                    key = dropdownData.statuses[key] || 'Unknown';
                 }
             }
 
@@ -3151,7 +3576,9 @@ function addEventListeners() {
             let val = 0;
             if (metric === 'avg_score') val = parseFloat(app.screening_score) || 0;
             if (metric === 'avg_age') val = parseFloat(app.age) || 0;
-            
+            if (metric === 'avg_numeric') val = parseFloat(app.numeric_score) || 0;
+            if (metric === 'avg_written') val = parseFloat(app.written_exam_score) || 0;
+
             grouped[key].sum += val;
         });
 
@@ -3174,7 +3601,7 @@ function addEventListeners() {
         const topCatEl = document.getElementById('an_topCategory');
         const reportTitleEl = document.getElementById('an_reportTitle');
         if(topCatEl) topCatEl.textContent = combined.length > 0 ? `${combined[0].label} (${combined[0].value})` : '-';
-        if(reportTitleEl) reportTitleEl.textContent = `Report: ${groupByEl.selectedOptions[0].text} by ${metric === 'count' ? 'Count' : 'Average'}`;
+        if(reportTitleEl) reportTitleEl.textContent = `Report: ${groupByEl.selectedOptions[0].text}`;
 
         // 6. Render
         const chartContainer = document.getElementById('an_chartContainer');
@@ -3190,7 +3617,6 @@ function addEventListeners() {
             renderAnalyticsChart(sortedLabels, sortedValues, viewType, metric);
         }
     }
-
     // 3. Render Chart
     function renderAnalyticsChart(labels, data, type, metric) {
         const ctx = document.getElementById('an_chartCanvas').getContext('2d');

@@ -409,7 +409,6 @@ function updateApplicant($conn, $userIdentifier) {
     }
     
     $applicantName = strtoupper(($currentData['surname'] ?? '') . ", " . ($currentData['firstname'] ?? ''));
-    // ---------------------------------------------
 
     // Custom Logic: Handle "Add New" Project
     if (isset($data['Project']) && $data['Project'] === 'Add New' && !empty($data['project_new'])) {
@@ -424,8 +423,7 @@ function updateApplicant($conn, $userIdentifier) {
     $setClauses = []; 
     $params = []; 
     $types = '';
-    
-    $changesLog = []; // Array to store "Field: From -> To" strings
+    $changesLog = [];
 
     $allowedColumns = [ 
         'surname', 'firstname', 'middlename', 'birthday', 'age', 'gender', 'mobile_number', 'email', 
@@ -435,58 +433,69 @@ function updateApplicant($conn, $userIdentifier) {
         'facebook_account', 'instagram_account', 'twitter_account', 'viber_account', 
         'education_level', 'college_degree', 'experience_years', 'specific_skill', 'screening_score', 'screening_status' , 'requirements_checklist',
         'entity', 'hdmf_id', 'sss_no', 'philhealth_no', 'tin_no', 'talento_id', 'requisition_status',"requisition_id","initial_interviewer_id","final_interviewer_id",
-        'application_date','numeric_score', 'alphanumeric_score', 'written_exam_score'
+        'application_date','numeric_score', 'alphanumeric_score', 'written_exam_score',
+        'location', 'marital_status','father_name', 'father_address','mother_name', 'mother_address',
+        'spouse_name', 'spouse_address','relatives_at_xbp', 'relatives_at_xbp_details','worked_at_xbp', 'worked_at_xbp_details',
+        'children_info', 'employment_history', 'character_references'
     ];
 
     foreach ($data as $key => $value) { 
         if ($key === 'application_id') continue; 
         
         if(in_array($key, $allowedColumns)) { 
-            // Prepare Update Query
             $newValue = ($value === '') ? null : $value;
+            $oldValue = $currentData[$key];
+
+            // --- SMART COMPARISON START ---
+            
+            // Normalize values for comparison (treat null and empty string as same)
+            $strNew = (string)$newValue;
+            $strOld = (string)$oldValue;
+
+            // SPECIAL DATE CHECK:
+            // If the input is YYYY-MM-DD (10 chars) and the DB has YYYY-MM-DD HH:MM:SS
+            // We check if the DB string STARTS with the Input string.
+            // If yes, we consider them "Equal" and skip the update to preserve the original time.
+            if (strlen($strNew) === 10 && strpos($strOld, $strNew) === 0 && ($key === 'application_date' || $key === 'status_date')) {
+                continue; 
+            }
+
+            // Skip if values are identical
+            if ($strNew === $strOld) {
+                continue;
+            }
+            // --- SMART COMPARISON END ---
+
+            // If we are here, the value has actually changed. Add to update list.
             $setClauses[] = "`{$key}` = ?"; 
             $params[] = $newValue; 
             $types .= (is_numeric($newValue) && $key === 'screening_score') ? 'i' : 's';
-            
-            // --- 2. COMPARE VALUES FOR LOGGING ---
-            $oldValue = $currentData[$key];
-            
-            // Normalize for comparison (treat null and "" as same)
-            $normOld = trim((string)$oldValue);
-            $normNew = trim((string)$newValue);
 
-            // Special handling for Status (Use ID to Name mapping for readability)
-            if ($key === 'recruitment_status' && $normOld !== $normNew) {
+            // Log the specific change (Logic preserved from your previous file)
+            if ($key === 'recruitment_status') {
                 $statusMap = [
                     1 => 'Applied', 2 => 'Failed Speedtest', 3 => 'Initial Interview', 4 => 'Failed L1 Interview',
                     5 => 'Final Interview', 6 => 'Failed L2 Interview', 7 => 'For BGV', 8 => 'Job Offer',
                     9 => 'Processing Requirements', 10 => 'Complete Requirements', 11 => 'Onboarding', 12 => 'Pooling',
                     13 => 'Deployed', 14 => 'Withdrawn', 15 => 'Declined Offer', 
-                    16 => 'Final Shortlist',
-                    17 => 'Done BGV',
-                    18 => 'Failed Written Exam',
-                    
+                    16 => 'Final Shortlist', 17 => 'Done BGV', 18 => 'Failed Written Exam'
                 ];
                 $oldTxt = $statusMap[$oldValue] ?? $oldValue;
                 $newTxt = $statusMap[$newValue] ?? $newValue;
                 $changesLog[] = "Status: {$oldTxt} -> {$newTxt}";
             }
-            // Ignore feedback_comments in the "From -> To" list (it's usually just added text)
-            elseif ($key !== 'feedback_comments' && $key !== 'status_date' && $normOld !== $normNew) {
-                // Shorten field name for log (remove underscores)
+            elseif ($key !== 'feedback_comments' && $key !== 'status_date') {
                 $label = str_replace('_', ' ', ucfirst($key));
-                // truncate long values
-                $dispOld = strlen($normOld) > 20 ? substr($normOld, 0, 20).'...' : ($normOld ?: 'Empty');
-                $dispNew = strlen($normNew) > 20 ? substr($normNew, 0, 20).'...' : ($normNew ?: 'Empty');
-                
+                $dispOld = strlen($strOld) > 20 ? substr($strOld, 0, 20).'...' : ($strOld ?: 'Empty');
+                $dispNew = strlen($strNew) > 20 ? substr($strNew, 0, 20).'...' : ($strNew ?: 'Empty');
                 $changesLog[] = "{$label}: {$dispOld} -> {$dispNew}";
             }
         } 
     }
     
+    // If nothing changed, return success immediately without touching the DB
     if (empty($setClauses)) { 
-        http_response_code(400); 
-        echo json_encode(['status' => 'error', 'message' => 'No valid fields to update.']); 
+        echo json_encode(['status' => 'success', 'message' => 'No changes detected.']); 
         exit(); 
     }
 
@@ -504,7 +513,6 @@ function updateApplicant($conn, $userIdentifier) {
     $stmt->bind_param($types, ...$params);
     
     if ($stmt->execute()) {
-        // --- 3. LOGGING ONLY CHANGES ---
         $logDesc = "Updated #{$applicationId} ({$applicantName}).";
         
         if (!empty($data['feedback_comments']) && trim($data['feedback_comments']) !== trim($currentData['feedback_comments'])) {
@@ -515,10 +523,9 @@ function updateApplicant($conn, $userIdentifier) {
             $logDesc .= " Changes: " . implode(', ', $changesLog) . ".";
             logAction($conn, $userIdentifier, 'UPDATE', $logDesc);
         } else {
-            // If nothing actually changed but "Save" was clicked
-             logAction($conn, $userIdentifier, 'UPDATE', $logDesc . " No changes detected.");
+             // Fallback log if something updated but wasn't caught in the readable log loop
+             logAction($conn, $userIdentifier, 'UPDATE', $logDesc . " Updated details.");
         }
-        // ----------------------------------
 
         echo json_encode(['status' => 'success', 'message' => 'Applicant updated successfully.']);
     } else {

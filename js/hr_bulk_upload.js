@@ -229,15 +229,13 @@ document.addEventListener('DOMContentLoaded', function () {
         uploadFeedback.textContent = 'Analyzing file...';
         if(processUploadBtn) processUploadBtn.disabled = true;
 
-        // Use FileReader to handle "sep=," header manually
         const reader = new FileReader();
         
         reader.onload = function(e) {
             let content = e.target.result;
             
-            // FIX: If Excel added "sep=," at the top, remove it before parsing
+            // FIX: If Excel added "sep=," at the top, remove it
             if (content.startsWith("sep=,")) {
-                // Remove the first line
                 content = content.split("\n").slice(1).join("\n");
             }
 
@@ -261,24 +259,29 @@ document.addEventListener('DOMContentLoaded', function () {
                         return;
                     }
 
-                    // 2. Sanitize
-                    const cleanedData = sanitizeData(results.data);
+                    // 2. Sanitize (Trim spaces, Fix Dates)
+                    let processedData = sanitizeData(results.data);
+
+                    // --- 2.1 CRITICAL FIX: TRANSFORM TEXT TO JSON ---
+                    // This was missing! It converts "Name, Addr" -> [{"name":"Name"}]
+                    processedData = transformComplexData(processedData); 
+                    // -----------------------------------------------
 
                     // 3. Validate
-                    const validationErrors = validateData(cleanedData);
+                    const validationErrors = validateData(processedData);
 
                     if (validationErrors.length > 0) {
-                        // Show top 5 errors
                         const displayErrors = validationErrors.slice(0, 5).join('<br>');
                         const more = validationErrors.length > 5 ? `<br>...and ${validationErrors.length - 5} more errors.` : '';
                         showError(`<strong>Found ${validationErrors.length} issues:</strong><br>${displayErrors}${more}`);
                     } else {
                         // Success State
-                        uploadFeedback.innerHTML = `<i class="fas fa-check-circle"></i> Validated! Ready to upload ${cleanedData.length} records.`;
+                        uploadFeedback.innerHTML = `<i class="fas fa-check-circle"></i> Validated! Ready to upload ${processedData.length} records.`;
                         uploadFeedback.className = 'mt-4 text-sm bg-green-100 text-green-700 p-3 rounded border border-green-200 text-center';
                         if(processUploadBtn) {
                             processUploadBtn.disabled = false;
-                            processUploadBtn.dataset.payload = JSON.stringify(cleanedData);
+                            // Attach the TRANSFORMED data, not the raw data
+                            processUploadBtn.dataset.payload = JSON.stringify(processedData);
                         }
                     }
                 },

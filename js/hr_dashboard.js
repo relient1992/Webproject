@@ -2360,6 +2360,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         options = dropdownData.projects || [];
                         optionsHTML += options.map(opt => `<option value="${opt}" ${opt === value ? 'selected' : ''}>${opt}</option>`).join('');
                         // Add the special option
+                        optionsHTML += `<option disabled>──────────</option>`;
                         optionsHTML += `<option value="Add New" class="font-bold text-blue-600">+ Add New Project</option>`;
                     }
                     
@@ -2386,20 +2387,12 @@ document.addEventListener('DOMContentLoaded', function () {
             if (col.key === 'Project') {
                 let newProjWrapper = document.createElement('div');
                 newProjWrapper.id = `${formType}_newProjectContainer`;
-                newProjWrapper.className = 'hidden mt-2';
+                // Improved styling: added padding, border, and background color
+                newProjWrapper.className = 'hidden mt-2 p-3 bg-blue-50 rounded border border-blue-200';
                 
-                // If the current value isn't in the list (custom value), show the box
-                const currentVal = applicantData[col.key];
-                const isCustom = currentVal && dropdownData.projects && !dropdownData.projects.includes(currentVal);
-                if (isCustom) {
-                    // Set dropdown to "Add New" visually, show text box
-                    // Note: You might need to adjust this logic depending on preference
-                    // For now, we hide it by default unless user clicks "Add New"
-                }
-
                 newProjWrapper.innerHTML = `
-                    <label class="block text-xs text-blue-600 font-bold mb-1">Enter New Project Name:</label>
-                    <input type="text" id="${formType}_project_new" name="project_new" class="block w-full rounded-md border-blue-300 shadow-sm focus:ring-blue-500 bg-blue-50" placeholder="Type new project name...">
+                    <label class="block text-xs text-blue-800 font-bold mb-1"><i class="fas fa-plus-circle"></i> New Project Name:</label>
+                    <input type="text" id="${formType}_project_new" name="project_new" class="block w-full rounded-md border-blue-300 shadow-sm focus:ring-blue-500 text-sm" placeholder="e.g. ACCOUNTING WAVE 5">
                 `;
                 container.appendChild(newProjWrapper);
             }

@@ -359,14 +359,31 @@ function getDropdownData($conn) {
         }
     }
 
-    // 5. GET PROJECTS (Moved UP so it is included in the final output)
-    $projSql = "SELECT DISTINCT PROJECT FROM employee_listings WHERE PROJECT IS NOT NULL AND PROJECT != '' ORDER BY PROJECT ASC";
+    // 5. GET PROJECTS (Merged Source)
+    $projects = [];
+        
+    // Source A: Employee Listings (Existing)
+    $projSql = "SELECT DISTINCT PROJECT FROM employee_listings WHERE PROJECT IS NOT NULL AND PROJECT != ''";
     $projResult = $conn->query($projSql);
     if ($projResult) {
         while ($row = $projResult->fetch_assoc()) {
-            $data['projects'][] = $row['PROJECT'];
+            $projects[] = strtoupper(trim($row['PROJECT']));
         }
     }
+
+    // Source B: Ref Projects (New Custom Projects)
+    $refSql = "SELECT project_name FROM ref_projects";
+    $refResult = $conn->query($refSql);
+    if ($refResult) {
+        while ($row = $refResult->fetch_assoc()) {
+            $projects[] = strtoupper(trim($row['project_name']));
+        }
+    }
+
+    // Merge, Unique, and Sort
+    $uniqueProjects = array_unique($projects);
+    sort($uniqueProjects);
+    $data['projects'] = array_values($uniqueProjects);
 
     // 6. OUTPUT JSON (Only Once!)
     $json = json_encode($data);
@@ -412,7 +429,18 @@ function updateApplicant($conn, $userIdentifier) {
 
     // Custom Logic: Handle "Add New" Project
     if (isset($data['Project']) && $data['Project'] === 'Add New' && !empty($data['project_new'])) {
-        $data['Project'] = strtoupper(trim($data['project_new'])); 
+        $newProjectName = strtoupper(trim($data['project_new']));
+        
+        // 1. Insert into ref_projects (Ignore duplicates safely)
+        $insertProj = $conn->prepare("INSERT IGNORE INTO ref_projects (project_name) VALUES (?)");
+        if ($insertProj) {
+            $insertProj->bind_param("s", $newProjectName);
+            $insertProj->execute();
+            $insertProj->close();
+        }
+        
+        // 2. Set the value for the applicant update
+        $data['Project'] = $newProjectName;
     }
 
     // Custom Logic: Handle "Other" Degree

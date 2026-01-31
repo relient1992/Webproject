@@ -188,7 +188,7 @@ document.addEventListener('DOMContentLoaded', function () {
         { key: 'feedback_comments', label: 'Feedback', editable: true, type: 'textarea' },
         { key: 'offer_status', label: 'Offer', editable: true, type: 'select', options: ['Pending', 'Accepted', 'Declined'] },
         { key: 'offer_date', label: 'Offer Date', editable: true, type: 'date' },
-        { key: 'joining_date', label: 'Joining Date', editable: true, type: 'date' },
+        { key: 'joining_date', label: 'Hired Date', editable: true, type: 'date' },
         { key: 'employee_id', label: 'Employee ID', editable: true, type: 'number', validate: 'check_db' },
         { key: 'initial_interviewer_id', label: 'Initial Interviewer', editable: true, type: 'select', options_key: 'interviewers' },
         { key: 'final_interviewer_id', label: 'Final Interviewer', editable: true, type: 'select', options_key: 'interviewers' },
@@ -2745,7 +2745,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     
     // --- EVENT LISTENERS ---
-function addEventListeners() {
+    function addEventListeners() {
         // 1. Search & Pagination (Safe Checks Added)
         if (searchInput) searchInput.addEventListener('input', () => { currentPage = 1; renderAll(); });
         if (rowsPerPageSelect) rowsPerPageSelect.addEventListener('change', (e) => { currentPage = 1; rowsPerPage = parseInt(e.target.value, 10); renderAll(); });
@@ -2753,12 +2753,29 @@ function addEventListeners() {
         if (nextPageBtn) nextPageBtn.addEventListener('click', () => { const totalPages = Math.ceil(getFilteredAndSortedData().length / rowsPerPage); if(currentPage < totalPages) { currentPage++; renderAll(); } });
         
         // 2. View Toggles (Safe Checks Added)
-        const viewButtons = { active: viewActiveBtn, archived: viewArchivedBtn, recruiters: viewRecruiterBtn };
+        const viewDeployedBtn = document.getElementById('viewDeployedBtn');
+        const viewButtons = { 
+            active: viewActiveBtn, 
+            archived: viewArchivedBtn, 
+            recruiters: viewRecruiterBtn,
+            deployed: viewDeployedBtn
+        };
+
         Object.entries(viewButtons).forEach(([view, btn]) => {
-            if (btn) { // <--- SAFETY CHECK
+            if (btn) { 
                 btn.addEventListener('click', () => {
-                    Object.values(viewButtons).forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
+                    // Update UI Classes
+                    Object.values(viewButtons).forEach(b => {
+                        if(b) {
+                            b.classList.remove('active', 'text-green-700', 'border-green-500', 'bg-green-50');
+                            b.classList.add('text-gray-600', 'border-transparent');
+                        }
+                    });
+                    
+                    // Highlight Active Button
+                    btn.classList.remove('text-gray-600', 'border-transparent');
+                    btn.classList.add('active', 'text-green-700', 'border-green-500', 'bg-green-50');
+                    
                     currentView = view;
                     refreshAllData();
                 });

@@ -13,16 +13,16 @@ header('Content-Type: application/json');
 
 // --- DATABASE CONNECTION ---
 // Live Server
-$servername = "10.200.168.89";
-$username   = "supersu";
-$password   = "H110mds2!";
-$database   = "database_rda";
+// $servername = "10.200.168.89";
+// $username   = "supersu";
+// $password   = "H110mds2!";
+// $database   = "database_rda";
 
 // Localhost
-// $servername = "localhost";
-// $username = "root";
-// $password = "";
-// $database = "database_rda";
+$servername = "localhost";
+$username = "root";
+$password = "";
+$database = "database_rda";
 
 $conn = new mysqli($servername, $username, $password, $database);
 
@@ -200,7 +200,24 @@ function getUserInfo($conn, $employeeId, $role) {
 function getAllApplicants($conn) {
     $view = $_GET['view'] ?? 'active';
     $statusFilter = $_GET['status'] ?? 'all';
-    $is_archived = ($view === 'archived') ? 1 : 0;
+    
+    // --- VIEW LOGIC SETUP ---
+    $is_archived = 0;
+    $extraWhere = "";
+
+    if ($view === 'archived') {
+        $is_archived = 1;
+    } 
+    elseif ($view === 'deployed') {
+        // Deployed View: Show ONLY Deployed (Status 13) and NOT Archived
+        $is_archived = 0;
+        $extraWhere = " AND recruitment_status = 13";
+    } 
+    else {
+        // Active View: Show everything EXCEPT Deployed and Archived
+        $is_archived = 0;
+        $extraWhere = " AND recruitment_status != 13";
+    }
 
     $sql = "
         SELECT 
@@ -230,7 +247,7 @@ function getAllApplicants($conn) {
             END AS recruitment_status_text,
             recruitment_status as recruitment_status_id
         FROM applicants
-        WHERE is_archived = ?
+        WHERE is_archived = ? $extraWhere
     ";
     
     $params = [$is_archived];
@@ -265,9 +282,25 @@ function getStatusCounts($conn) {
     $startDate = $_GET['start_date'] ?? null;
     $endDate = $_GET['end_date'] ?? null;
     $view = $_GET['view'] ?? 'active';
-    $is_archived = ($view === 'archived') ? 1 : 0;
 
-    $sql = "SELECT recruitment_status, COUNT(*) as count FROM applicants WHERE is_archived = ?";
+    // --- VIEW LOGIC SETUP ---
+    $is_archived = 0;
+    $extraWhere = "";
+
+    if ($view === 'archived') {
+        $is_archived = 1;
+    } 
+    elseif ($view === 'deployed') {
+        $is_archived = 0;
+        $extraWhere = " AND recruitment_status = 13";
+    } 
+    else {
+        // Active View
+        $is_archived = 0;
+        $extraWhere = " AND recruitment_status != 13";
+    }
+
+    $sql = "SELECT recruitment_status, COUNT(*) as count FROM applicants WHERE is_archived = ? $extraWhere";
     $params = [$is_archived];
     $types = 'i';
 

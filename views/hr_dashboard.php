@@ -222,6 +222,9 @@ if (!isset($_SESSION['employee_id'])) {
                         </div>
                         <div class="flex items-center bg-gray-200 rounded-lg p-1">
                             <button id="viewActiveBtn" class="view-toggle-btn px-4 py-1 text-sm font-semibold rounded-md active">Active</button>
+                            <button id="viewDeployedBtn" class="px-4 py-2 text-gray-600 hover:text-green-600 font-semibold border-b-2 border-transparent        hover:border-green-500 transition">
+                                <i class="fas fa-check-circle mr-1"></i> Deployed
+                            </button>
                             <button id="viewArchivedBtn" class="view-toggle-btn px-4 py-1 text-sm font-semibold rounded-md text-gray-600">Archived</button>
                             <button id="viewRecruiterBtn" class="view-toggle-btn px-4 py-1 text-sm font-semibold rounded-md text-gray-600">Recruiters</button>
                         </div>

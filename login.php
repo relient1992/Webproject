@@ -45,6 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = $result->fetch_assoc();
 
         if (password_verify($password, $user['password'])) {
+            session_regenerate_id(true);
             $_SESSION['employee_id'] = $user['employee_id'];
             $_SESSION['firstname'] = $user['FIRSTNAME'] ?? '';
             $_SESSION['position'] = $user['POSITION'] ?? '';
@@ -83,11 +84,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             logActivity($conn, 'login', 'User logged in successfully.');
 
+            $safeName = htmlspecialchars($user['FIRSTNAME'], ENT_QUOTES, 'UTF-8');
+            $safeRole = htmlspecialchars($roleName, ENT_QUOTES, 'UTF-8');
+
+            // 2. Now print the script using the safe variables
             echo "<script>
                 Swal.fire({
                     icon: 'success',
                     title: 'Login Successful!',
-                    html: 'Welcome <b>{$user['FIRSTNAME']}</b><br>Your role: <b>$roleName</b>',
+                    html: 'Welcome <b>$safeName</b><br>Your role: <b>$safeRole</b>',
                     timer: 2500,
                     showConfirmButton: false
                 }).then(() => {

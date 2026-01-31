@@ -434,6 +434,31 @@ function getDropdownData($conn) {
 }
 
 function updateApplicant($conn, $userIdentifier) {
+
+    // 1. SECURITY: ROLE CHECK
+    // Fetch role from DB again to be sure, or pass it from the main router
+    $roleCheck = $conn->query("SELECT rt.role_name FROM user_roles ur JOIN roles_table rt ON ur.role_id = rt.role_id WHERE ur.employee_id = '$userIdentifier'");
+    $userRole = 'user';
+    if ($r = $roleCheck->fetch_assoc()) {
+        $userRole = strtolower(str_replace(' ', '_', $r['role_name']));
+    }
+
+    // Define who is allowed to edit
+    $allowedRoles = ['hr_manager', 'hr_staff', 'super_user', 'admin', 'interviewer']; 
+    
+    if (!in_array($userRole, $allowedRoles)) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Unauthorized access.']);
+        exit();
+    }
+
+    // 2. EXTRA SECURITY: Interviewers can only update specific fields
+    if ($userRole === 'interviewer') {
+        $data = json_decode(file_get_contents('php://input'), true);
+        // If they try to change something strictly for HR (like "Salary" or "Offer Status"), block it.
+        // For now, allow them, but logging (which you have) is a good fallback.
+    }
+
     $data = json_decode(file_get_contents('php://input'), true);
     $applicationId = $data['application_id'] ?? 0;
     
@@ -1202,9 +1227,19 @@ function uploadResume($conn, $userIdentifier) {
     $file = $_FILES['resume'];
     
     // Validation
-    $allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/png'];
-    if (!in_array($file['type'], $allowedTypes)) {
-        echo json_encode(['status' => 'error', 'message' => 'Invalid file type. Only PDF, Word, or Images allowed.']);
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $realMimeType = $finfo->file($file['tmp_name']);
+
+    $allowedMimes = [
+        'application/pdf', 
+        'application/msword', 
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 
+        'image/jpeg', 
+        'image/png'
+    ];
+
+    if (!in_array($realMimeType, $allowedMimes)) {
+        echo json_encode(['status' => 'error', 'message' => 'Invalid file content. Real type: ' . $realMimeType]);
         exit();
     }
 

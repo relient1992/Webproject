@@ -189,6 +189,10 @@ if (!isset($_SESSION['employee_id'])) {
 
                     <button id="applyBulkStatus" class="bg-blue-50 text-blue-600 font-semibold py-2 px-4 rounded-lg border border-blue-200 hover:bg-blue-100 transition">Apply Selected Status</button>
 
+                    <button id="openFilterModalBtn" class="ml-2 bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-50  focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium transition shadow-sm flex items-center">
+                        <i class="fas fa-filter text-blue-500 mr-2"></i> Filters <span id="filterCountBadge" class="hidden ml-2 bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">0</span>
+                    </button>
+
                     <div class="relative w-full md:w-auto flex-grow">
                         <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
                         <input type="text" id="searchInput" class="w-full p-2 pl-10 border rounded-lg" placeholder="Search...">
@@ -935,6 +939,34 @@ if (!isset($_SESSION['employee_id'])) {
                         <p><strong>Top Category:</strong> <span id="an_topCategory">-</span></p>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="smartFilterModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 z-[80] hidden flex justify-end transition-opacity">
+        <div class="bg-white w-full max-w-md h-full shadow-2xl flex flex-col transform transition-transform translate-x-full duration-300" id="smartFilterPanel">
+            
+            <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <div>
+                    <h3 class="font-bold text-gray-800 text-lg"><i class="fas fa-sliders-h text-blue-600 mr-2"></i> Smart Filters</h3>
+                    <p class="text-xs text-gray-500">Narrow down results by multiple criteria</p>
+                </div>
+                <button id="closeFilterModalBtn" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <div id="smartFilterContainer" class="flex-1 overflow-y-auto p-5 space-y-6">
+                <div class="text-center text-gray-400 mt-10"><i class="fas fa-spinner fa-spin"></i> Loading filters...</div>
+            </div>
+
+            <div class="p-4 border-t border-gray-100 bg-gray-50 flex gap-3">
+                <button id="resetFiltersBtn" class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 font-bold rounded hover:bg-white transition">
+                    Clear All
+                </button>
+                <button id="applyFiltersBtn" class="flex-1 px-4 py-2 bg-blue-600 text-white font-bold rounded shadow hover:bg-blue-700 transition">
+                    Apply Filters
+                </button>
             </div>
         </div>
     </div>

@@ -106,6 +106,16 @@ window.openResumeModal = function(applicant) {
 
 document.addEventListener('DOMContentLoaded', function () {
 
+    function escapeHtml(text) {
+        if (!text) return text;
+        return String(text)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
     // --- CONFIGURATION & STATE ---
     let USER_ROLE = 'hr_staff'; 
     const API_URL = '../hr_dashboard_api.php';
@@ -207,6 +217,32 @@ document.addEventListener('DOMContentLoaded', function () {
         
     ];
 
+        // SMART FILTER LOGIC
+    const FILTERABLE_FIELDS = [
+        { key: 'recruitment_status_text', label: 'Status' },
+        { key: 'position_applied', label: 'Position' },
+        { key: 'Project', label: 'Project' },
+        { key: 'recruiter_name', label: 'Recruiter' },
+        { key: 'entity', label: 'Entity' },
+        { key: 'location', label: 'Location' },
+        { key: 'application_source', label: 'Source' },
+        { key: 'specific_skill', label: 'Skill / Expertise' },
+        { key: 'initial_interviewer_id', label: 'Initial Interviewer', isId: true },
+        { key: 'final_interviewer_id', label: 'Final Interviewer', isId: true }
+    ];
+
+    // table smart filter
+    let activeSmartFilters = {};
+
+    const smartFilterModal = document.getElementById('smartFilterModal');
+    const smartFilterPanel = document.getElementById('smartFilterPanel');
+    const smartFilterContainer = document.getElementById('smartFilterContainer');
+    const openFilterModalBtn = document.getElementById('openFilterModalBtn');
+    const closeFilterModalBtn = document.getElementById('closeFilterModalBtn');
+    const applyFiltersBtn = document.getElementById('applyFiltersBtn');
+    const resetFiltersBtn = document.getElementById('resetFiltersBtn');
+    const filterCountBadge = document.getElementById('filterCountBadge');
+
     // IMPORTANT: Defined as a separate constant so Reset can use it
     const DEFAULT_VISIBLE_COLUMNS = ['select', 'application_id', 'surname', 'firstname', 'position_applied', 'screening_score', 'screening_status', 'recruitment_status_text','specific_skill','recruiter_name', 'application_date'];
     
@@ -274,6 +310,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const btnSaveTemplate = document.getElementById('btnSaveTemplate');
     const btnDeleteTemplate = document.getElementById('btnDeleteTemplate');
     const STORAGE_KEY = 'hr_export_templates_v1';
+
+
+
+    
 
     // State
     let allNotifications = [];
@@ -471,6 +511,141 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // smart filter
+    if (openFilterModalBtn) {
+        openFilterModalBtn.addEventListener('click', () => {
+            smartFilterModal.classList.remove('hidden');
+            setTimeout(() => { // Animation
+                smartFilterPanel.classList.remove('translate-x-full');
+            }, 10);
+            renderFilterUI();
+        });
+    }
+
+    // Close Modal
+    function closeFilterModal() {
+        smartFilterPanel.classList.add('translate-x-full');
+        setTimeout(() => {
+            smartFilterModal.classList.add('hidden');
+        }, 300);
+    }
+    if (closeFilterModalBtn) closeFilterModalBtn.addEventListener('click', closeFilterModal);
+
+    //Render the Filter Options Dynamically
+    function renderFilterUI() {
+        smartFilterContainer.innerHTML = '';
+
+        FILTERABLE_FIELDS.forEach(field => {
+            // A. Get Unique Values from CURRENT Data
+            // We use 'window.allApplicants' to get all possibilities, 
+            // OR you could use 'getFilteredAndSortedData()' if you want dependent filters (cascading).
+            // Using allApplicants is safer so options don't disappear unexpectedly.
+            const uniqueValues = new Set();
+            
+            window.allApplicants.forEach(app => {
+                let val = app[field.key];
+                
+                // ID Lookup Logic (for Interviewers)
+                if (field.isId && val && dropdownData && dropdownData.interviewers) {
+                    const match = dropdownData.interviewers.find(i => i.id == val);
+                    val = match ? match.label : val;
+                }
+                
+                if (val && val !== 'null' && val !== '') {
+                    uniqueValues.add(val.trim());
+                }
+            });
+
+            // Skip empty categories
+            if (uniqueValues.size === 0) return;
+
+            const sortedValues = Array.from(uniqueValues).sort();
+
+            // B. Build HTML Section
+            const section = document.createElement('div');
+            section.className = 'border border-gray-200 rounded-lg overflow-hidden';
+            
+            // Header
+            const header = document.createElement('div');
+            header.className = 'bg-gray-100 px-3 py-2 font-bold text-gray-700 text-sm flex justify-between cursor-pointer';
+            header.innerHTML = `<span>${field.label}</span> <i class="fas fa-chevron-down text-gray-400"></i>`;
+            
+            // Content (Checkboxes)
+            const content = document.createElement('div');
+            content.className = 'p-3 bg-white max-h-40 overflow-y-auto space-y-2';
+            
+            sortedValues.forEach(val => {
+                const isChecked = activeSmartFilters[field.key] && activeSmartFilters[field.key].includes(val);
+                
+                // HTML ID friendly string
+                const safeId = `filter_${field.key}_${val.replace(/[^a-zA-Z0-9]/g, '')}`;
+
+                const row = document.createElement('label');
+                row.className = 'flex items-center space-x-2 text-xs text-gray-600 cursor-pointer hover:bg-gray-50 p-1 rounded';
+                row.innerHTML = `
+                    <input type="checkbox" class="smart-filter-cb h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" 
+                        value="${val}" 
+                        data-key="${field.key}" 
+                        ${isChecked ? 'checked' : ''}>
+                    <span class="truncate" title="${val}">${val}</span>
+                `;
+                content.appendChild(row);
+            });
+
+            section.appendChild(header);
+            section.appendChild(content);
+            smartFilterContainer.appendChild(section);
+        });
+    }
+
+    // Apply Filters Action
+    if (applyFiltersBtn) {
+        applyFiltersBtn.addEventListener('click', () => {
+            // Collect all checked boxes
+            const checkboxes = document.querySelectorAll('.smart-filter-cb:checked');
+            activeSmartFilters = {}; // Reset
+
+            checkboxes.forEach(cb => {
+                const key = cb.dataset.key;
+                const val = cb.value;
+
+                if (!activeSmartFilters[key]) {
+                    activeSmartFilters[key] = [];
+                }
+                activeSmartFilters[key].push(val);
+            });
+
+            // Update Badge
+            const count = Object.keys(activeSmartFilters).length;
+            if (filterCountBadge) {
+                filterCountBadge.textContent = count;
+                filterCountBadge.classList.toggle('hidden', count === 0);
+            }
+
+            // Refresh Table
+            currentPage = 1;
+            renderAll();
+            closeFilterModal();
+            
+            // Optional: Show toast
+            if (count > 0) {
+                Swal.fire({ icon: 'success', title: 'Filters Applied', toast: true, position: 'top-end', showConfirmButton: false, timer: 1000 });
+            }
+        });
+    }
+
+    // Reset Filters
+    if (resetFiltersBtn) {
+        resetFiltersBtn.addEventListener('click', () => {
+            activeSmartFilters = {};
+            if (filterCountBadge) filterCountBadge.classList.add('hidden');
+            document.querySelectorAll('.smart-filter-cb').forEach(cb => cb.checked = false);
+            currentPage = 1;
+            renderAll();
+            closeFilterModal();
+        });
+    }
+
     // 3. Events
     if(notifTabs) {
         notifTabs.addEventListener('click', (e) => {
@@ -553,20 +728,32 @@ document.addEventListener('DOMContentLoaded', function () {
             // -----------------------------
             const btn = e.target.closest('.btn-update-interview');
             if (btn) {
-                if(btn.disabled) return; // Prevent double-clicks
+                if(btn.disabled) return; 
 
                 const id = btn.dataset.id;
                 const currentStage = parseInt(btn.dataset.currentStage);
                 const outcome = document.getElementById(`status_${id}`).value;
                 const feedback = document.getElementById(`feedback_${id}`)?.value || '';
 
-                if (!outcome) { Swal.fire('Required', 'Select a decision.', 'warning'); return; }
+                // --- FIX: ALLOW SAVING NOTES WITHOUT DECISION ---
+                // If both are empty, then warn. Otherwise, proceed.
+                if (!outcome && !feedback.trim()) { 
+                    Swal.fire({ 
+                        icon: 'warning', 
+                        title: 'No Changes', 
+                        text: 'Please select a decision OR enter feedback to save.',
+                        confirmButtonColor: '#3b82f6'
+                    }); 
+                    return; 
+                }
 
-                // Logic: Determine new status ID based on Pass/Fail
+                // Logic: Determine new status ID
+                // If outcome is blank, keep the current status (just save the notes)
                 let newStatusId = currentStage;
+                
                 if (outcome === 'Failed') newStatusId = (currentStage === 3) ? 4 : 6;
                 else if (outcome === 'Passed') newStatusId = (currentStage === 3) ? 5 : 7;
-                else if (outcome === 'Reschedule') newStatusId = currentStage;
+                // If 'Reschedule' or blank, newStatusId remains = currentStage
 
                 // UI Feedback (Spinner)
                 const originalBtnContent = btn.innerHTML;
@@ -1206,7 +1393,9 @@ document.addEventListener('DOMContentLoaded', function () {
             const startDate = getLocalDateString(dateRangePicker.getStartDate()?.toJSDate()); 
             const endDate = getLocalDateString(dateRangePicker.getEndDate()?.toJSDate());
 
-            let url = `${API_URL}?action=readAll&status=${currentStatusFilter}&view=${currentView}&_t=${new Date().getTime()}`;
+
+            // let url = `${API_URL}?action=readAll&status=${currentStatusFilter}&view=${currentView}&_t=${new Date().getTime()}`;
+            let url = `${API_URL}?action=readAll&status=all&view=${currentView}&_t=${new Date().getTime()}`;
             // IMPORTANT: Pass dates to readAll API too if you want server-side filtering
             // For now, client-side filtering handles it, but this keeps variables consistent.
             
@@ -1272,6 +1461,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (dataToDisplay.length > 0) paginationControls.classList.remove('hidden'); else paginationControls.classList.add('hidden');
             renderTable(paginateData(dataToDisplay));
             renderPagination(dataToDisplay.length);
+            updateSidebarCounts();
         }
         updateAnalytics(dataToDisplay);
         // Important: Update checkbox state in case columns were removed via header
@@ -1287,16 +1477,48 @@ document.addEventListener('DOMContentLoaded', function () {
         if (endDate) endDate.setHours(23, 59, 59, 999);
 
         let filteredData = allApplicants.filter(applicant => {
+            // 1. STATUS FILTER (New Client-Side Logic)
+            // If the sidebar has a specific status selected, hide others.
+            if (currentStatusFilter !== 'all') {
+                if (String(applicant.recruitment_status_id) !== String(currentStatusFilter)) {
+                    return false;
+                }
+            }
+
+            // 2. Search Logic
             let matchesSearch = false;
             if (!searchTerm) matchesSearch = true;
             else if (applicant[searchField]) matchesSearch = String(applicant[searchField]).toLowerCase().includes(searchTerm);
+            if (!matchesSearch) return false;
             
-            if (!startDate && !endDate) return matchesSearch;
-            const appDateStr = applicant.application_date || applicant.status_date; 
-            const matchesDate = (!startDate || new Date(appDateStr) >= startDate) && (!endDate || new Date(appDateStr) <= endDate);
-            return matchesSearch && matchesDate;
+            // 3. Date Logic
+            if (startDate || endDate) {
+                const appDateStr = applicant.application_date || applicant.status_date; 
+                const d = new Date(appDateStr);
+                if ((startDate && d < startDate) || (endDate && d > endDate)) return false;
+            }
+
+            // 4. SMART MULTI-FILTER LOGIC
+            if (Object.keys(activeSmartFilters).length > 0) {
+                for (const [key, selectedValues] of Object.entries(activeSmartFilters)) {
+                    let appVal = applicant[key];
+                    
+                    // Helper: Map IDs to Labels for Interviewers
+                    if ((key === 'initial_interviewer_id' || key === 'final_interviewer_id') && dropdownData && dropdownData.interviewers) {
+                        const match = dropdownData.interviewers.find(i => i.id == appVal);
+                        appVal = match ? match.label : appVal;
+                    }
+
+                    if (!appVal || !selectedValues.includes(String(appVal).trim())) {
+                        return false; 
+                    }
+                }
+            }
+
+            return true;
         });
 
+        // Sort Logic (Unchanged)
         filteredData.sort((a, b) => { 
             const valA = a[sortConfig.key] || '', valB = b[sortConfig.key] || ''; 
             if (sortConfig.key === 'screening_score') return sortConfig.direction === 'asc' ? (valA - valB) : (valB - valA);
@@ -1304,6 +1526,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1; 
             return 0; 
         });
+        
         return filteredData;
     }
 
@@ -1374,7 +1597,19 @@ document.addEventListener('DOMContentLoaded', function () {
                     const colConfig = ALL_COLUMNS.find(c => c.key === colKey);
                     if (!colConfig) return;
                 
-                    let content = applicant[colKey] === null || applicant[colKey] === undefined ? '' : applicant[colKey];
+                    let rawContent = applicant[colKey] === null || applicant[colKey] === undefined ? '' : applicant[colKey];
+                    // Only escape if it's NOT one of your special HTML columns (like buttons or select boxes)
+                    let content = '';
+
+                    // List of columns that generate their own safe HTML (Do not escape these)
+                    const safeHtmlColumns = ['select', 'actions', 'recruitment_status_text', 'initial_interviewer_id', 'final_interviewer_id', 'recruiter_name'];
+
+                    if (safeHtmlColumns.includes(colKey)) {
+                        content = rawContent; 
+                    } else {
+                        // Escape user input columns (Name, Address, Feedback, etc.)
+                        content = escapeHtml(rawContent); 
+                    }
                     let customTooltip = null; // Store formatted tooltip text here
 
                     // Format Names to Title Case
@@ -1384,31 +1619,34 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     // --- NEW: COMPACT JSON COLUMNS (Hover to View) ---
                     if (colKey === 'character_references' || colKey === 'employment_history') {
-                        if (content && content !== 'null') {
+                        // FIX: Use 'rawContent' for parsing, because 'content' might be escaped already
+                        if (rawContent && rawContent !== 'null' && rawContent !== '') {
                             try {
-                                const data = JSON.parse(content);
+                                // 1. Attempt to Parse JSON from RAW data
+                                const data = JSON.parse(rawContent);
+                                
                                 if (Array.isArray(data) && data.length > 0) {
-                                    // A. Create Compact Badge for the Table Cell
                                     const count = data.length;
                                     const icon = colKey === 'character_references' ? 'fa-users' : 'fa-briefcase';
                                     const label = colKey === 'character_references' ? 'Refs' : 'Jobs';
                                     
+                                    // 2. Build the Badge (This overwrites the escaped text with our nice HTML)
                                     content = `<span class="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-semibold border border-blue-100 cursor-help">
                                         <i class="fas ${icon}"></i> ${count} ${label}
                                     </span>`;
 
-                                    // B. Build Detailed Text for Hover Tooltip
                                     let details = "";
                                     data.forEach(item => {
+                                        // We use escapeHtml here individually for safety inside the tooltip
                                         if (colKey === 'character_references') {
-                                            details += `• ${item.name || 'N/A'}`;
-                                            if(item.company) details += ` (${item.company})`;
-                                            if(item.contact) details += `\n   📞 ${item.contact}`;
+                                            details += `• ${escapeHtml(item.name || 'N/A')}`;
+                                            if(item.company) details += ` (${escapeHtml(item.company)})`;
+                                            if(item.contact) details += `\n   📞 ${escapeHtml(item.contact)}`;
                                         } else {
-                                            details += `• ${item.company || 'N/A'} - ${item.position || ''}`;
-                                            if(item.from || item.to) details += `\n   (${item.from||'?'} to ${item.to||'?'})`;
+                                            details += `• ${escapeHtml(item.company || 'N/A')} - ${escapeHtml(item.position || '')}`;
+                                            if(item.from || item.to) details += `\n   (${escapeHtml(item.from||'?')} to ${escapeHtml(item.to||'?')})`;
                                         }
-                                        details += "\n\n"; // Add spacing between items
+                                        details += "\n\n"; 
                                     });
                                     customTooltip = details.trim();
 
@@ -1416,10 +1654,13 @@ document.addEventListener('DOMContentLoaded', function () {
                                     content = '<span class="text-gray-300">-</span>';
                                 }
                             } catch (e) {
-                                content = '<span class="text-red-400 text-xs">Error</span>';
+                                // 3. FALLBACK: If raw JSON is invalid, show the safe escaped text
+                                customTooltip = content; 
+                                let displayStr = content.length > 20 ? content.substring(0, 20) + '...' : content;
+                                content = `<span class="text-gray-600 text-xs">${displayStr}</span>`;
                             }
                         } else {
-                            content = '';
+                            content = '<span class="text-gray-300">-</span>';
                         }
                     }
 
@@ -1915,6 +2156,94 @@ document.addEventListener('DOMContentLoaded', function () {
         statusFiltersContainer.innerHTML = sidebarHTML; 
         const activeLink = document.querySelector(`.filter-link[data-status="${currentStatusFilter}"]`); 
         if (activeLink) activeLink.classList.add('active');
+    }
+
+    function updateSidebarCounts() {
+        if (!dropdownData || !dropdownData.statuses) return;
+
+        // 1. Get Base Data (Filtered by Date & Smart Filters, BUT NOT Status)
+        // We need this because the sidebar shows counts for ALL statuses given the current criteria
+        const startDate = dateRangePicker.getStartDate()?.toJSDate();
+        const endDate = dateRangePicker.getEndDate()?.toJSDate();
+        if (startDate) startDate.setHours(0, 0, 0, 0);
+        if (endDate) endDate.setHours(23, 59, 59, 999);
+        const searchTerm = searchInput.value.toLowerCase(); // Optional: Should search affect sidebar? Usually Yes.
+
+        const relevantData = allApplicants.filter(applicant => {
+            // Apply Date
+            if (startDate || endDate) {
+                const appDateStr = applicant.application_date || applicant.status_date; 
+                const d = new Date(appDateStr);
+                if ((startDate && d < startDate) || (endDate && d > endDate)) return false;
+            }
+            
+            // Apply Search
+            if (searchTerm) {
+                 const searchField = searchFieldSelector ? searchFieldSelector.value : 'firstname';
+                 if (!String(applicant[searchField]).toLowerCase().includes(searchTerm)) return false;
+            }
+
+            // Apply Smart Filters
+            if (Object.keys(activeSmartFilters).length > 0) {
+                for (const [key, selectedValues] of Object.entries(activeSmartFilters)) {
+                    let appVal = applicant[key];
+                    if ((key === 'initial_interviewer_id' || key === 'final_interviewer_id')) {
+                        const match = dropdownData.interviewers.find(i => i.id == appVal);
+                        appVal = match ? match.label : appVal;
+                    }
+                    if (!appVal || !selectedValues.includes(String(appVal).trim())) return false;
+                }
+            }
+            return true;
+        });
+
+        // 2. Count Statuses
+        const counts = {};
+        let total = 0;
+        let qualified = 0;
+
+        relevantData.forEach(app => {
+            const status = app.recruitment_status_id;
+            counts[status] = (counts[status] || 0) + 1;
+            total++;
+            if (parseInt(app.screening_score || 0) >= 70) qualified++;
+        });
+
+        // 3. Render Sidebar HTML
+        let sidebarHTML = `
+            <a href="#" class="filter-link flex justify-between items-center px-4 py-2 text-gray-700 rounded-md hover:bg-gray-100 ${currentStatusFilter === 'all' ? 'active' : ''}" data-status="all">
+                <span>All Applicants</span>
+                <span class="bg-gray-200 text-xs font-semibold px-2 py-1 rounded-full">${total}</span>
+            </a>
+        `;
+        
+        // Loop through DEFINED statuses to maintain order
+        Object.entries(dropdownData.statuses).forEach(([id, name]) => {
+            const count = counts[id] || 0;
+            
+            // 1. Hide Deployed in Active View (and vice versa)
+            if (currentView === 'active' && id == '13') return; 
+            if (currentView === 'deployed' && id != '13') return;
+
+            // 2. NEW: HIDE ZERO COUNTS
+            // If the count is 0, skip this iteration so it doesn't appear in the list.
+            if (count === 0) return;
+
+            const isActive = String(currentStatusFilter) === String(id) ? 'active' : '';
+            
+            sidebarHTML += `
+                <a href="#" class="filter-link flex justify-between items-center px-4 py-2 text-gray-700 rounded-md hover:bg-gray-100 ${isActive}" data-status="${id}">
+                    <span>${name}</span>
+                    <span class="bg-gray-200 text-xs font-semibold px-2 py-1 rounded-full">${count}</span>
+                </a>
+            `;
+        });
+
+        if (statusFiltersContainer) statusFiltersContainer.innerHTML = sidebarHTML;
+
+        // 4. Update Header Badges (Optional but nice)
+        // const qBadge = document.getElementById('dateBadge_qualified');
+        // if(qBadge) qBadge.textContent = qualified; // Update "Qualified" count dynamically too
     }
 
     function updateAnalytics(applicants) {

@@ -184,6 +184,7 @@ document.addEventListener('DOMContentLoaded', function () {
         { key: 'recruiter_name', label: 'Recruiter', editable: true, type: 'select', options_key: 'recruiters' },
         { key: 'recruitment_status_text', label: 'Status', editable: false },
         { key: 'recruitment_status_id', label: 'Status', editable: true, type: 'select', options_key: 'statuses' },
+        { key: 'interview_rating', label: 'Rating', editable: true, type: 'select', options: ['5', '4', '3', '2', '1'] },
         { key: 'status_date', label: 'Status Date', editable: true, type: 'date' },
         { key: 'application_source', label: 'Source', editable: true, type: 'select', options: ['Job Portal', 'Employee Referral', 'Career Page', 'Recruitment Agency', 'Walk-in', 'Facebook','Indeed','Jobstreet','SBMA labor','PESO', 'Linked-in','Job Fair'], required: true },
         { key: 'application_date', label: 'Applied On', editable: true, type: 'datetime-local' },
@@ -460,51 +461,72 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Compact Card HTML
             const card = document.createElement('div');
-            card.className = `bg-white shadow-sm rounded-lg p-3 flex flex-col md:flex-row gap-3 items-center hover:shadow-md transition ${cardBorder}`;
+            card.className = `bg-white shadow-sm rounded-lg p-3 flex flex-col gap-3 hover:shadow-md transition ${cardBorder}`;
             
             card.innerHTML = `
-                <div class="flex-1 w-full">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h4 class="font-bold text-gray-800 text-sm">${app.surname}, ${app.firstname}</h4>
-                            <p class="text-xs text-gray-500">${app.position_applied} • ${app.interview_type}</p>
-                        </div>
-                        ${statusBadge}
+                <div class="flex justify-between items-start w-full">
+                    <div>
+                        <h4 class="font-bold text-gray-800 text-sm">${app.surname}, ${app.firstname}</h4>
+                        <p class="text-xs text-gray-500">${app.position_applied} • ${app.interview_type}</p>
                     </div>
-                    <div class="flex items-center gap-4 mt-2 text-xs text-gray-600">
-                        <div class="${dateColor} flex items-center"><i class="far fa-clock mr-1"></i> ${dateStr} @ ${timeStr}</div>
-                        <div title="Interviewer"><i class="far fa-user mr-1"></i> ${app.interviewer_name || 'N/A'}</div>
-                        <div title="Phone"><i class="fas fa-phone mr-1"></i> ${app.mobile_number}</div>
-                    </div>
+                    ${statusBadge}
                 </div>
 
-                <div class="flex items-center gap-2 w-full md:w-auto mt-2 md:mt-0">
-                    <select class="text-xs border-gray-300 rounded focus:ring-blue-500 py-1" id="status_${app.application_id}">
-                        <option value="">- Decision -</option>
-                        <option value="Passed">Passed</option>
-                        <option value="Failed">Failed</option>
-                        <option value="Reschedule">Reschedule</option>
-                    </select>
-                    
-                    <button class="bg-blue-500 hover:bg-purple-700 text-white p-1.5 rounded shadow btn-update-interview" 
-                        title="Save" data-id="${app.application_id}" data-current-stage="${app.recruitment_status}">
-                        <i class="fas fa-save text-xs"></i>
-                    </button>
-                    
-                    <button class="bg-gray-200 hover:bg-gray-300 text-gray-600 p-1.5 rounded" 
-                        onclick="document.getElementById('note_${app.application_id}').classList.toggle('hidden')" title="Add Notes">
-                        <i class="fas fa-comment-alt text-xs"></i>
-                    </button>
+                <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-600 bg-gray-50 p-2 rounded border border-gray-100">
+                    <div>
+                        <span class="font-semibold text-gray-500">Score:</span> 
+                        <span class="${parseInt(app.screening_score)>=70 ? 'text-green-600 font-bold' : 'text-orange-600'}">${app.screening_score || '0'}</span> 
+                        <span class="text-[10px]">(${app.screening_status || '-'})</span>
+                    </div>
+                    <div><span class="font-semibold text-gray-500">Edu:</span> ${app.education_level || '-'}</div>
+                    <div><span class="font-semibold text-gray-500">Related Exp:</span> ${app.experience_years || '0'} years</div>
+                    <div class="truncate" title="${app.specific_skill}"><span class="font-semibold text-gray-500">Skill:</span> ${app.specific_skill || '-'}</div>
+                </div>
 
-                    <button class="bg-green-600 hover:bg-green-700 text-white p-1.5 rounded shadow btn-view-resume" 
-                        title="View Resume" data-id="${app.application_id}">
-                        <i class="fas fa-file-alt text-xs"></i>
-                    </button>
+                <div class="flex flex-col md:flex-row justify-between items-center gap-3 w-full">
+                    <div class="flex flex-col gap-1 text-xs text-gray-500 w-full md:w-auto">
+                        <div class="${dateColor} flex items-center"><i class="far fa-clock mr-1.5 w-4 text-center"></i> ${dateStr} @ ${timeStr}</div>
+                        <div class="flex items-center"><i class="far fa-user mr-1.5 w-4 text-center"></i> ${app.interviewer_name || 'Unassigned'}</div>
+                        <div class="flex items-center"><i class="fas fa-phone mr-1.5 w-4 text-center"></i> ${app.mobile_number}</div>
+                    </div>
 
+                    <div class="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
+                        <select id="rating_${app.application_id}" class="text-xs border-gray-300 rounded focus:ring-yellow-500 py-1 w-20 text-yellow-600 font-bold">
+                            <option value="">Rate</option>
+                            <option value="5">⭐⭐⭐⭐⭐</option>
+                            <option value="4">⭐⭐⭐⭐</option>
+                            <option value="3">⭐⭐⭐</option>
+                            <option value="2">⭐⭐</option>
+                            <option value="1">⭐</option>
+                        </select>
+
+                        <select class="text-xs border-gray-300 rounded focus:ring-blue-500 py-1 w-24" id="status_${app.application_id}">
+                            <option value="">Decision...</option>
+                            <option value="Passed" class="text-green-600 font-bold">Passed</option>
+                            <option value="Failed" class="text-red-600 font-bold">Failed</option>
+                            <option value="Reschedule">Reschedule</option>
+                        </select>
+                        
+                        <button class="bg-blue-600 hover:bg-blue-700 text-white p-1.5 rounded shadow btn-update-interview w-8 h-8 flex items-center justify-center" 
+                            title="Save Decision" data-id="${app.application_id}" data-current-stage="${app.recruitment_status}">
+                            <i class="fas fa-save"></i>
+                        </button>
+                        
+                        <button class="bg-gray-100 hover:bg-gray-200 text-gray-600 p-1.5 rounded border border-gray-300 w-8 h-8 flex items-center justify-center" 
+                            onclick="document.getElementById('note_${app.application_id}').classList.toggle('hidden')" title="Add Notes">
+                            <i class="fas fa-comment-alt"></i>
+                        </button>
+
+                        <button class="bg-green-600 hover:bg-green-700 text-white p-1.5 rounded shadow btn-view-resume w-8 h-8 flex items-center justify-center" 
+                            title="View Resume" data-id="${app.application_id}">
+                            <i class="fas fa-file-alt"></i>
+                        </button>
+                    </div>
                 </div>
                 
-                <div id="note_${app.application_id}" class="hidden w-full mt-2 border-t pt-2">
-                    <textarea id="feedback_${app.application_id}" class="w-full text-xs border-gray-300 rounded p-2" rows="2" placeholder="Interview feedback...">${app.feedback_comments || ''}</textarea>
+                <div id="note_${app.application_id}" class="hidden w-full border-t pt-2 mt-1">
+                    <label class="text-[10px] font-bold text-gray-500 uppercase">Interview Notes:</label>
+                    <textarea id="feedback_${app.application_id}" class="w-full text-xs border-gray-300 rounded p-2 focus:ring-blue-500 focus:border-blue-500" rows="3" placeholder="Enter detailed feedback here...">${app.feedback_comments || ''}</textarea>
                 </div>
             `;
             notifList.appendChild(card);
@@ -734,14 +756,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 const currentStage = parseInt(btn.dataset.currentStage);
                 const outcome = document.getElementById(`status_${id}`).value;
                 const feedback = document.getElementById(`feedback_${id}`)?.value || '';
+                const ratingEl = document.getElementById(`rating_${id}`);
+                const ratingVal = ratingEl ? ratingEl.value : null;
 
                 // --- FIX: ALLOW SAVING NOTES WITHOUT DECISION ---
                 // If both are empty, then warn. Otherwise, proceed.
-                if (!outcome && !feedback.trim()) { 
+                if (!outcome && !feedback.trim() && !ratingVal) {
                     Swal.fire({ 
                         icon: 'warning', 
                         title: 'No Changes', 
-                        text: 'Please select a decision OR enter feedback to save.',
+                        text: 'Please select a decision, rating, or enter feedback.',
                         confirmButtonColor: '#3b82f6'
                     }); 
                     return; 
@@ -768,6 +792,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             application_id: id, 
                             recruitment_status: newStatusId, 
                             feedback_comments: feedback, 
+                            interview_rating: ratingVal, // <--- SEND RATING
                             status_date: new Date().toISOString().slice(0, 10) 
                         })
                     });
@@ -1728,6 +1753,16 @@ document.addEventListener('DOMContentLoaded', function () {
                                     data-field="${colKey}">
                                     ${options}
                                    </select>`;
+                    }
+
+                    else if (colKey === 'interview_rating') {
+                        if (content) {
+                            const val = parseFloat(content);
+                            const stars = '⭐'.repeat(Math.floor(val));
+                            content = `<span class="text-yellow-500 text-xs" title="${val}/5">${stars} <span class="text-gray-400">(${val})</span></span>`;
+                        } else {
+                            content = '<span class="text-gray-300">-</span>';
+                        }
                     }
                     
                     else if (colKey === 'interview_dates') {

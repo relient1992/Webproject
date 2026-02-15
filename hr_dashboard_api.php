@@ -233,7 +233,7 @@ function getAllApplicants($conn) {
             resume_path,location, marital_status, relatives_at_xbp, relatives_at_xbp_details,
             worked_at_xbp, worked_at_xbp_details, father_name, father_address,
             mother_name, mother_address, spouse_name, spouse_address,
-            children_info, employment_history, character_references, numeric_score, alphanumeric_score, written_exam_score,
+            children_info, employment_history, character_references, numeric_score, alphanumeric_score, written_exam_score, interview_rating,
             CASE recruitment_status
                 WHEN 1 THEN 'Applied' WHEN 2 THEN 'Failed Speedtest' WHEN 3 THEN 'Initial Interview'
                 WHEN 4 THEN 'Failed L1 Interview' WHEN 5 THEN 'Final Interview' WHEN 6 THEN 'Failed L2 Interview'
@@ -522,7 +522,7 @@ function updateApplicant($conn, $userIdentifier) {
         'application_date','numeric_score', 'alphanumeric_score', 'written_exam_score',
         'location', 'marital_status','father_name', 'father_address','mother_name', 'mother_address',
         'spouse_name', 'spouse_address','relatives_at_xbp', 'relatives_at_xbp_details','worked_at_xbp', 'worked_at_xbp_details',
-        'children_info', 'employment_history', 'character_references'
+        'children_info', 'employment_history', 'character_references', 'interview_rating'
     ];
 
     foreach ($data as $key => $value) { 
@@ -1142,7 +1142,7 @@ function getNotifications($conn, $userIdentifier, $roleName, $roleId) {
             a.application_id, a.surname, a.firstname, a.mobile_number, a.email,
             a.education_level, a.screening_score, a.screening_status, a.college_degree,
             a.position_applied, a.recruitment_status, a.interview_dates, a.feedback_comments,
-            a.initial_interviewer_id, a.final_interviewer_id, a.resume_path, 
+            a.initial_interviewer_id, a.final_interviewer_id, a.resume_path, a.experience_years, a.specific_skill,
             
             e1.FULLNAME as initial_interviewer_name,
             e2.FULLNAME as final_interviewer_name

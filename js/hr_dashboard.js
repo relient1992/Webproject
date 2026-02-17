@@ -2869,6 +2869,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if(eduSelect && degreeContainer) {
             degreeContainer.classList.toggle('hidden', eduSelect.value !== 'College Graduate' && eduSelect.value !== 'Post Graduate');
         }
+        
     }
 
     function openEditModal(applicant) { 

@@ -13,16 +13,16 @@ header('Content-Type: application/json');
 
 // --- DATABASE CONNECTION ---
 // Live Server
-$servername = "10.200.168.89";
-$username   = "supersu";
-$password   = "H110mds2!";
-$database   = "database_rda";
+// $servername = "10.200.168.89";
+// $username   = "supersu";
+// $password   = "H110mds2!";
+// $database   = "database_rda";
 
 // Localhost
-// $servername = "localhost";
-// $username = "root";
-// $password = "";
-// $database = "database_rda";
+$servername = "localhost";
+$username = "root";
+$password = "";
+$database = "database_rda";
 
 $conn = new mysqli($servername, $username, $password, $database);
 

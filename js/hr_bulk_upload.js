@@ -183,12 +183,52 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Fix Dates
             const dateColumns = ['birthday', 'status_date', 'application_date', 'offer_date', 'joining_date', 'interview_dates'];
+            
             dateColumns.forEach(col => {
-                if (row[col] && typeof row[col] === 'string' && row[col].trim() !== '') {
-                    const valStr = String(row[col]);
-                    const dateParts = valStr.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
-                    if (dateParts) {
-                        row[col] = `${dateParts[3]}-${dateParts[1].padStart(2, '0')}-${dateParts[2].padStart(2, '0')}`;
+                let val = row[col];
+                
+                if (val && typeof val === 'string' && val.trim() !== '') {
+                    val = val.trim();
+                    
+                    // 1. If it's ALREADY perfect database format (YYYY-MM-DD), keep it and skip
+                    if (/^\d{4}-\d{2}-\d{2}/.test(val)) {
+                        row[col] = val;
+                        return;
+                    }
+
+                    // 2. Try standard parsing (Works for MM/DD/YYYY)
+                    let d = new Date(val);
+
+                    // 3. If standard parsing fails, assume it's DD/MM/YYYY (PH/UK format)
+                    if (isNaN(d.getTime())) {
+                        const dateOnly = val.split(' ')[0]; // Get the date part
+                        const timeOnly = val.substring(dateOnly.length) || ''; // Get the time part
+                        const parts = dateOnly.split(/[\/\-]/); // Split by / or -
+                        
+                        if (parts.length === 3) {
+                            // Swap Day and Month to trick JS into reading it (MM/DD/YYYY)
+                            d = new Date(`${parts[1]}/${parts[0]}/${parts[2]}${timeOnly}`);
+                        }
+                    }
+
+                    // 4. Format cleanly for the database
+                    if (!isNaN(d.getTime())) {
+                        let yyyy = d.getFullYear();
+                        let mm = String(d.getMonth() + 1).padStart(2, '0');
+                        let dd = String(d.getDate()).padStart(2, '0');
+
+                        // If it has a time component, add it back
+                        if (val.includes(':')) {
+                            let hh = String(d.getHours()).padStart(2, '0');
+                            let min = String(d.getMinutes()).padStart(2, '0');
+                            let ss = String(d.getSeconds()).padStart(2, '0');
+                            row[col] = `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+                        } else {
+                            row[col] = `${yyyy}-${mm}-${dd}`;
+                        }
+                    } else {
+                        // If it is completely unreadable, wipe it so the database doesn't crash
+                        row[col] = ''; 
                     }
                 } else {
                     row[col] = '';

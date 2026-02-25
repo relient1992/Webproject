@@ -3725,9 +3725,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // ==========================================
     
     let analyticsChartInstance = null;
-    let analyticsDataCache = []; // Stores the calculated data for export
+    let analyticsDataCache = [];
+    let currentAnalyticsMetric = 'count'; 
+    let currentAnalyticsTotal = 0;
 
-    // 1. Event Listeners
     const openAnalyticsBtn = document.getElementById('openAnalyticsBtn');
     const analyticsModal = document.getElementById('analyticsModal');
     const closeAnalyticsBtn = document.getElementById('closeAnalyticsBtn');
@@ -3744,7 +3745,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 if(window.analyticsPicker) window.analyticsPicker.clearSelection();
             } else {
                 anDateRange.disabled = false;
-                // If empty, default to "This Month" to nudge the user
                 if (!anDateRange.value && window.analyticsPicker) {
                     const start = new Date(); start.setDate(1);
                     window.analyticsPicker.setDateRange(start, new Date());
@@ -3757,6 +3757,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const anViewBtns = document.querySelectorAll('.an-view-btn');
     anViewBtns.forEach(btn => {
         btn.addEventListener('click', (e) => {
+            e.preventDefault();
             // UI Toggle
             anViewBtns.forEach(b => {
                 b.classList.remove('active', 'bg-indigo-100', 'text-indigo-700', 'border-indigo-300');
@@ -3766,13 +3767,14 @@ document.addEventListener('DOMContentLoaded', function () {
             target.classList.add('active', 'bg-indigo-100', 'text-indigo-700', 'border-indigo-300');
             target.classList.remove('bg-white', 'text-gray-600', 'border-gray-300');
             
-            // Trigger Render
-            generateAnalyticsReport();
+            // Trigger Render ONLY (Doesn't regenerate data)
+            updateAnalyticsVisualization();
         });
     });
 
     if(openAnalyticsBtn) {
-        openAnalyticsBtn.addEventListener('click', () => {
+        openAnalyticsBtn.addEventListener('click', (e) => {
+            e.preventDefault();
             analyticsModal.classList.remove('hidden');
             populateAnalyticsFilters();
             generateAnalyticsReport(); 
@@ -3785,40 +3787,37 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // FIX: Added e.preventDefault() to stop page reloads
     if(anGenerateBtn) {
-        anGenerateBtn.addEventListener('click', generateAnalyticsReport);
+        anGenerateBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            generateAnalyticsReport();
+        });
     }
 
     if(anExportBtn) {
-        anExportBtn.addEventListener('click', exportAnalyticsData);
+        anExportBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            exportAnalyticsData();
+        });
     }
 
     function populateAnalyticsFilters() {
         const intSelect = document.getElementById('an_interviewer_name');
         if (intSelect && window.dashboardGlobals && window.dashboardGlobals.getDropdownData) {
             const data = window.dashboardGlobals.getDropdownData();
-            
-            // Save current selection if re-populating
             const currentVal = intSelect.value;
-            
             intSelect.innerHTML = '<option value="All">All Interviewers</option>';
-            
             if (data.interviewers) {
                 data.interviewers.forEach(emp => {
                     intSelect.innerHTML += `<option value="${emp.id}">${emp.label}</option>`;
                 });
             }
-            
-            // Restore selection if valid
             if(currentVal) intSelect.value = currentVal;
         }
     }
 
-    // 2. Core Logic: Generate Data
     function generateAnalyticsReport() {
-        console.log("Generating Report..."); 
-
-        // 1. Get Elements Safely
         const groupByEl = document.getElementById('an_groupBy');
         const metricEl = document.getElementById('an_metric');
         
@@ -3828,20 +3827,14 @@ document.addEventListener('DOMContentLoaded', function () {
         const metric = metricEl.value;
         const excludeArchived = document.getElementById('an_exclude_archived')?.checked || false;
 
-        // --- NEW FILTER ELEMENTS ---
         const locEl = document.getElementById('an_location');
         const intRoleEl = document.getElementById('an_interviewer_role');
         const intNameEl = document.getElementById('an_interviewer_name');
         
-        // Get New Filter Values
         const filterLoc = locEl ? locEl.value : 'All';
         const filterRole = intRoleEl ? intRoleEl.value : 'All';
         const filterIntId = intNameEl ? intNameEl.value : 'All';
 
-        const activeViewBtn = document.querySelector('.an-view-btn.active');
-        const viewType = activeViewBtn ? activeViewBtn.dataset.view : 'bar';
-
-        // 2. Date Filter Setup
         let filterStartDate = null, filterEndDate = null;
         const dateFieldEl = document.getElementById('an_dateField');
         let dateField = dateFieldEl ? dateFieldEl.value : null;
@@ -3853,12 +3846,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if(filterEndDate) filterEndDate.setHours(23,59,59,999);
         }
 
-        // 3. Filter Data
         let data = window.allApplicants.filter(app => {
-            // A. Archive Filter
             if (excludeArchived && app.is_archived == 1) return false;
             
-            // B. Date Filter
             if (dateField && filterStartDate && filterEndDate) {
                 const rawDate = app[dateField];
                 if (!rawDate || rawDate === '0000-00-00') return false; 
@@ -3866,13 +3856,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (targetDate < filterStartDate || targetDate > filterEndDate) return false;
             }
 
-            // C. Location Filter
             if (filterLoc !== 'All') {
                 const appLoc = (app.location || '').toLowerCase();
                 if (appLoc !== filterLoc.toLowerCase()) return false;
             }
 
-            // D. Interviewer Filter (Specific Person)
             if (filterIntId !== 'All') {
                 const initId = String(app.initial_interviewer_id || '');
                 const finalId = String(app.final_interviewer_id || '');
@@ -3887,13 +3875,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
 
-            // --- E. HIDE UNASSIGNED LOGIC (NEW) ---
-            // If we are grouping by Initial Interviewer, remove those with no initial interviewer
             if (groupBy === 'initial_interviewer_id') {
                 const id = app.initial_interviewer_id;
                 if (!id || id === '0' || id === '') return false;
             }
-            // If we are grouping by Final Interviewer, remove those with no final interviewer
             if (groupBy === 'final_interviewer_id') {
                 const id = app.final_interviewer_id;
                 if (!id || id === '0' || id === '') return false;
@@ -3902,17 +3887,14 @@ document.addEventListener('DOMContentLoaded', function () {
             return true;
         });
 
-        // Update UI Count
         const totalEl = document.getElementById('an_totalRecords');
         if(totalEl) totalEl.textContent = data.length;
 
-        // 4. Group & Aggregate
         const grouped = {};
         
         data.forEach(app => {
             let key = app[groupBy] || 'Unknown';
             
-            // --- A. DATE LOGIC ---
             if (groupBy === 'interview_year_month') {
                 if (app.interview_dates) {
                     const d = new Date(app.interview_dates);
@@ -3921,31 +3903,20 @@ document.addEventListener('DOMContentLoaded', function () {
                     key = 'No Interview';
                 }
             }
-
-            // --- B. INTERVIEWER ID -> NAME LOGIC ---
             else if (groupBy === 'initial_interviewer_id' || groupBy === 'final_interviewer_id') {
                 if (typeof dropdownData !== 'undefined' && Array.isArray(dropdownData.interviewers)) {
                     const match = dropdownData.interviewers.find(i => i.id == key);
-                    if (match) {
-                        key = match.label;
-                    } else {
-                        // Double check: if it somehow slipped through filter, ignore it or label it
-                        key = 'Unassigned'; 
-                    }
+                    if (match) key = match.label;
+                    else key = 'Unassigned'; 
                 }
             }
-
-            // --- C. STATUS ID -> NAME LOGIC ---
             else if (groupBy === 'recruitment_status_id') {
                 if (typeof dropdownData !== 'undefined' && dropdownData.statuses) {
                     key = dropdownData.statuses[key] || 'Unknown';
                 }
             }
 
-            if (!grouped[key]) {
-                grouped[key] = { count: 0, sum: 0 };
-            }
-
+            if (!grouped[key]) grouped[key] = { count: 0, sum: 0 };
             grouped[key].count++;
             
             let val = 0;
@@ -3953,11 +3924,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if (metric === 'avg_age') val = parseFloat(app.age) || 0;
             if (metric === 'avg_numeric') val = parseFloat(app.numeric_score) || 0;
             if (metric === 'avg_written') val = parseFloat(app.written_exam_score) || 0;
-
             grouped[key].sum += val;
         });
 
-        // 5. Format for Chart
         const labels = Object.keys(grouped);
         const chartData = labels.map(label => {
             if (metric === 'count') return grouped[label].count;
@@ -3967,32 +3936,54 @@ document.addEventListener('DOMContentLoaded', function () {
         const combined = labels.map((l, i) => ({ label: l, value: parseFloat(chartData[i]) }));
         combined.sort((a, b) => b.value - a.value);
         
-        const sortedLabels = combined.map(i => i.label);
-        const sortedValues = combined.map(i => i.value);
-        
         analyticsDataCache = combined;
+        currentAnalyticsMetric = metric;       
+        currentAnalyticsTotal = data.length;   
         
-        // Update Titles
         const topCatEl = document.getElementById('an_topCategory');
         const reportTitleEl = document.getElementById('an_reportTitle');
         if(topCatEl) topCatEl.textContent = combined.length > 0 ? `${combined[0].label} (${combined[0].value})` : '-';
         if(reportTitleEl) reportTitleEl.textContent = `Report: ${groupByEl.selectedOptions[0].text}`;
 
-        // 6. Render
+        updateAnalyticsVisualization();
+    }
+
+    function updateAnalyticsVisualization() {
         const chartContainer = document.getElementById('an_chartContainer');
         const tableContainer = document.getElementById('an_tableContainer');
+
+        // FIX: Handle Empty Data explicitly instead of silently failing
+        if (analyticsDataCache.length === 0) {
+            if(chartContainer) chartContainer.classList.add('hidden');
+            if(tableContainer) tableContainer.classList.remove('hidden');
+            
+            const tbody = document.getElementById('an_tableBody');
+            if (tbody) tbody.innerHTML = '<tr><td colspan="3" class="text-center p-8 text-gray-500"><i class="fas fa-folder-open text-2xl mb-2 block"></i> No applicants match your selected filters.</td></tr>';
+            
+            if (analyticsChartInstance) {
+                analyticsChartInstance.destroy();
+                analyticsChartInstance = null;
+            }
+            return; 
+        }
+
+        const activeViewBtn = document.querySelector('.an-view-btn.active');
+        const viewType = activeViewBtn ? activeViewBtn.dataset.view : 'bar';
+
+        const sortedLabels = analyticsDataCache.map(i => i.label);
+        const sortedValues = analyticsDataCache.map(i => i.value);
 
         if (viewType === 'table') {
             if(chartContainer) chartContainer.classList.add('hidden');
             if(tableContainer) tableContainer.classList.remove('hidden');
-            renderAnalyticsTable(sortedLabels, sortedValues, metric, data.length);
+            renderAnalyticsTable(sortedLabels, sortedValues, currentAnalyticsMetric, currentAnalyticsTotal);
         } else {
             if(chartContainer) chartContainer.classList.remove('hidden');
             if(tableContainer) tableContainer.classList.add('hidden');
-            renderAnalyticsChart(sortedLabels, sortedValues, viewType, metric);
+            renderAnalyticsChart(sortedLabels, sortedValues, viewType, currentAnalyticsMetric);
         }
     }
-    // 3. Render Chart
+
     function renderAnalyticsChart(labels, data, type, metric) {
         const ctx = document.getElementById('an_chartCanvas').getContext('2d');
         
@@ -4000,14 +3991,13 @@ document.addEventListener('DOMContentLoaded', function () {
             analyticsChartInstance.destroy();
         }
 
-        // Color Palette
         const colors = [
             '#625f9c', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', 
             '#ec4899', '#06b6d4', '#84cc16', '#6366f1', '#14b8a6'
         ];
 
         analyticsChartInstance = new Chart(ctx, {
-            type: type, // 'bar' or 'pie'
+            type: type, 
             data: {
                 labels: labels,
                 datasets: [{
@@ -4018,35 +4008,34 @@ document.addEventListener('DOMContentLoaded', function () {
                     borderWidth: 1
                 }]
             },
+            plugins: [ChartDataLabels], // FIX: Ensure datalabels plugin is attached to render
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
                     legend: { display: type === 'pie', position: 'right' },
-                    datalabels: { // Requires datalabels plugin we added earlier
+                    datalabels: { 
                         color: type === 'pie' ? '#fff' : '#000',
                         anchor: type === 'pie' ? 'center' : 'end',
                         align: type === 'pie' ? 'center' : 'top',
                         formatter: Math.round,
-                        display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0 // Hide 0s
+                        display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0
                     }
                 },
                 scales: type === 'bar' ? {
                     y: { beginAtZero: true, grid: { borderDash: [2, 2] } },
                     x: { grid: { display: false } }
-                } : {} // No scales for pie
+                } : {} 
             }
         });
     }
 
-    // 4. Render Table
     function renderAnalyticsTable(labels, values, metric, totalCount) {
         const tbody = document.getElementById('an_tableBody');
         tbody.innerHTML = '';
         
         labels.forEach((label, index) => {
             const val = values[index];
-            // Calc Percentage (only valid for Counts)
             let pct = metric === 'count' ? ((val / totalCount) * 100).toFixed(1) + '%' : '-';
             
             const tr = `
@@ -4060,7 +4049,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // 5. Export
     function exportAnalyticsData() {
         if (analyticsDataCache.length === 0) { Swal.fire('Error', 'No data to export', 'warning'); return; }
         

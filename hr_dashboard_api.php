@@ -209,52 +209,44 @@ function getAllApplicants($conn) {
         $is_archived = 1;
     } 
     elseif ($view === 'deployed') {
-        // Deployed View: Show ONLY Deployed (Status 13) and NOT Archived
+      
         $is_archived = 0;
-        $extraWhere = " AND recruitment_status = 13";
+        $extraWhere = " AND a.recruitment_status = 13";
     } 
     else {
-        // Active View: Show everything EXCEPT Deployed and Archived
         $is_archived = 0;
-        $extraWhere = " AND recruitment_status != 13";
+        $extraWhere = " AND a.recruitment_status != 13";
     }
 
     $sql = "
         SELECT 
-            application_id, surname, firstname, middlename, birthday, age, gender,
-            mobile_number, email, street_address, city, province, postcode,
-            position_applied, recruiter_name, status_date, application_source,
-            application_date, interview_dates, interviewers, feedback_comments,
-            offer_status, offer_date, joining_date, employee_id, Project,
-            facebook_account, instagram_account, twitter_account, viber_account,
-            education_level, college_degree,
-            experience_years, specific_skill, screening_score, screening_status, requirements_checklist,
-            entity, hdmf_id, sss_no, philhealth_no, tin_no, talento_id, requisition_status, requisition_id,initial_interviewer_id,final_interviewer_id, 
-            resume_path,location, marital_status, relatives_at_xbp, relatives_at_xbp_details,
-            worked_at_xbp, worked_at_xbp_details, father_name, father_address,
-            mother_name, mother_address, spouse_name, spouse_address,
-            children_info, employment_history, character_references, numeric_score, alphanumeric_score, written_exam_score, interview_rating,
-            CASE recruitment_status
-                WHEN 1 THEN 'Applied' WHEN 2 THEN 'Failed Speedtest' WHEN 3 THEN 'Initial Interview'
-                WHEN 4 THEN 'Failed L1 Interview' WHEN 5 THEN 'Final Interview' WHEN 6 THEN 'Failed L2 Interview'
-                WHEN 7 THEN 'For BGV' WHEN 8 THEN 'Job Offer' WHEN 9 THEN 'Processing Requirements'
-                WHEN 10 THEN 'Complete Requirements' WHEN 11 THEN 'Onboarding' WHEN 12 THEN 'Pooling'
-                WHEN 13 THEN 'Deployed' WHEN 14 THEN 'Withdrawn' WHEN 15 THEN 'Declined Offer'
-                WHEN 16 THEN 'Final Shortlist'
-                WHEN 17 THEN 'Done BGV'
-                WHEN 18 THEN 'Failed Written Exam'
-                ELSE 'Unknown'
-            END AS recruitment_status_text,
-            recruitment_status as recruitment_status_id
-        FROM applicants
-        WHERE is_archived = ? $extraWhere
+            a.application_id, a.surname, a.firstname, a.middlename, a.birthday, a.age, a.gender,
+            a.mobile_number, a.email, a.street_address, a.city, a.province, a.postcode,
+            a.position_applied, a.recruiter_name, a.status_date, a.application_source,
+            a.application_date, a.interview_dates, a.interviewers, a.feedback_comments,
+            a.offer_status, a.offer_date, a.joining_date, a.employee_id, a.Project,
+            a.facebook_account, a.instagram_account, a.twitter_account, a.viber_account,
+            a.education_level, a.college_degree,
+            a.experience_years, a.specific_skill, a.screening_score, a.screening_status, a.requirements_checklist,
+            a.entity, a.hdmf_id, a.sss_no, a.philhealth_no, a.tin_no, a.talento_id, a.requisition_status, a.requisition_id, a.initial_interviewer_id, a.final_interviewer_id, 
+            a.resume_path, a.location, a.marital_status, a.relatives_at_xbp, a.relatives_at_xbp_details,
+            a.worked_at_xbp, a.worked_at_xbp_details, a.father_name, a.father_address,
+            a.mother_name, a.mother_address, a.spouse_name, a.spouse_address,
+            a.children_info, a.employment_history, a.character_references, a.numeric_score, a.alphanumeric_score, a.written_exam_score, a.interview_rating,
+            
+            COALESCE(rs.status_name, 'Unknown') AS recruitment_status_text,
+            a.recruitment_status as recruitment_status_id
+            
+        FROM applicants a
+        LEFT JOIN ref_statuses rs ON a.recruitment_status = rs.id
+        WHERE a.is_archived = ? $extraWhere
     ";
     
     $params = [$is_archived];
     $types = 'i';
 
     if ($statusFilter !== 'all' && is_numeric($statusFilter)) {
-        $sql .= " AND recruitment_status = ?";
+        $sql .= " AND a.recruitment_status = ?";
         $params[] = intval($statusFilter);
         $types .= 'i';
     }
@@ -330,12 +322,13 @@ function getStatusCounts($conn) {
     $q_res = $conn->query("SELECT COUNT(*) as qcount FROM applicants WHERE screening_score >= 70 AND is_archived = 0");
     $counts['qualified_total'] = ($q_res) ? $q_res->fetch_assoc()['qcount'] : 0;
 
-    $statusMap = [
-        1 => 'Applied', 2 => 'Failed Speedtest', 3 => 'Initial Interview', 4 => 'Failed L1 Interview', 5 => 'Final Interview', 6 => 'Failed L2 Interview', 7 => 'For BGV', 8 => 'Job Offer', 9 => 'Processing Requirements', 10 => 'Complete Requirements', 11 => 'Onboarding', 12 => 'Pooling', 13 => 'Deployed', 14 => 'Withdrawn', 15 => 'Declined Offer',
-        16 => 'Final Shortlist',
-        17 => 'Done BGV',
-        18 => 'Failed Written Exam'
-    ];
+    $statusMap = [];
+    $mapResult = $conn->query("SELECT id, status_name FROM ref_statuses");
+    if ($mapResult) {
+        while($m = $mapResult->fetch_assoc()) {
+            $statusMap[$m['id']] = $m['status_name'];
+        }
+    }
     
     if ($result) {
         while($row = $result->fetch_assoc()) {
@@ -368,15 +361,13 @@ function getDropdownData($conn) {
     }
 
     // 3. GET STATUSES
-    $data['statuses'] = [
-        1 => 'Applied', 2 => 'Failed Speedtest', 3 => 'Initial Interview', 4 => 'Failed L1 Interview',
-        5 => 'Final Interview', 6 => 'Failed L2 Interview', 7 => 'For BGV', 8 => 'Job Offer',
-        9 => 'Processing Requirements', 10 => 'Complete Requirements', 11 => 'Onboarding', 12 => 'Pooling',
-        13 => 'Deployed', 14 => 'Withdrawn', 15 => 'Declined Offer',
-        16 => 'Final Shortlist',
-        17 => 'Done BGV',
-        18 => 'Failed Written Exam'
-    ];
+    $statusSql = "SELECT id, status_name FROM ref_statuses ORDER BY id ASC";
+    $statusResult = $conn->query($statusSql);
+    if ($statusResult) {
+        while ($row = $statusResult->fetch_assoc()) {
+            $data['statuses'][$row['id']] = $row['status_name'];
+        }
+    }
 
     // 4. GET INTERVIEWERS (Active Employees)
     $empSql = "SELECT EDS, FULLNAME FROM employee_listings WHERE emp_status = 'ACTIVE' AND PROJECT IN ('ADMIN','ADMIN, LHI') ORDER BY FULLNAME ASC";
@@ -559,15 +550,13 @@ function updateApplicant($conn, $userIdentifier) {
 
             // Log the specific change (Logic preserved from your previous file)
             if ($key === 'recruitment_status') {
-                $statusMap = [
-                    1 => 'Applied', 2 => 'Failed Speedtest', 3 => 'Initial Interview', 4 => 'Failed L1 Interview',
-                    5 => 'Final Interview', 6 => 'Failed L2 Interview', 7 => 'For BGV', 8 => 'Job Offer',
-                    9 => 'Processing Requirements', 10 => 'Complete Requirements', 11 => 'Onboarding', 12 => 'Pooling',
-                    13 => 'Deployed', 14 => 'Withdrawn', 15 => 'Declined Offer', 
-                    16 => 'Final Shortlist', 17 => 'Done BGV', 18 => 'Failed Written Exam'
-                ];
-                $oldTxt = $statusMap[$oldValue] ?? $oldValue;
-                $newTxt = $statusMap[$newValue] ?? $newValue;
+                // Fetch dynamic names for logging
+                $map = [];
+                $res = $conn->query("SELECT id, status_name FROM ref_statuses WHERE id IN ('$oldValue', '$newValue')");
+                while($r = $res->fetch_assoc()) $map[$r['id']] = $r['status_name'];
+                
+                $oldTxt = $map[$oldValue] ?? $oldValue;
+                $newTxt = $map[$newValue] ?? $newValue;
                 $changesLog[] = "Status: {$oldTxt} -> {$newTxt}";
             }
             elseif ($key !== 'feedback_comments' && $key !== 'status_date') {

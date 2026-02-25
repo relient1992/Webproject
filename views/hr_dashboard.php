@@ -530,7 +530,7 @@ if (!isset($_SESSION['employee_id'])) {
                     <form id="requisitionForm" class="space-y-4">
                         <input type="hidden" name="id" id="req_db_id"> <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1">Requisition ID</label>
-                            <input type="text" name="requisition_id" id="req_id_input" required class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-purple-500 outline-none uppercase" placeholder="REQ-2025-001">
+                            <input type="text" name="requisition_id" id="req_id_input" required class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-purple-500 outline-none propercase" placeholder="Req-2025-001">
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1">Project Name</label>

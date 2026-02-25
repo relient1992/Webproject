@@ -1780,7 +1780,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         content = `<span class="whitespace-nowrap">${formatDate(content)}</span>`; 
                     }
                     else if (colKey === 'recruiter_name' && currentView === 'active') {
-                        // CHANGE: r.split(',')[1] gets the Firstname. trim() removes the leading space.
+                        // Uses the Full Name as the value, but displays the First Name for a cleaner UI
                         let options = `<option value="">-</option>` + dropdownData.recruiters.map(r => {
                             const displayName = r.includes(',') ? r.split(',')[1].trim() : r; 
                             return `<option value="${r}" ${r === content ? 'selected' : ''}>${displayName}</option>`;
@@ -2731,8 +2731,15 @@ document.addEventListener('DOMContentLoaded', function () {
                     // 4. Default Logic (Recruiters, etc.)
                     else {
                         options = col.options || dropdownData[col.options_key] || [];
+                        
+                        // NEW: If the applicant's current value is custom and not in the list, 
+                        // dynamically add it as an option so it doesn't get erased!
+                        if (value && !options.includes(value)) {
+                            optionsHTML += `<option value="${value}" selected>${value} (Custom)</option>`;
+                        }
+
                         optionsHTML += options.map(opt => `<option value="${opt}" ${opt === value ? 'selected' : ''}>${opt}</option>`).join('');
-                    }          
+                    }       
 
                     // Apply disabled and class
                     inputHTML = `<select id="${formType}_${keyForEdit}" name="${keyForEdit === 'recruitment_status_id' ? 'recruitment_status' : keyForEdit}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm ${bgClass}" ${required} ${disabledAttr}>${optionsHTML}</select>`;

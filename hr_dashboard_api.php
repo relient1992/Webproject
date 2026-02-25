@@ -353,11 +353,16 @@ function getDropdownData($conn) {
     ];
 
     // 2. GET RECRUITERS
-    $result = $conn->query("SHOW COLUMNS FROM applicants WHERE Field = 'recruiter_name'");
-    if ($result && $result->num_rows > 0) {
-        $row = $result->fetch_assoc();
-        preg_match_all("/'([^']+)'/", $row['Type'], $matches);
-        $data['recruiters'] = $matches[1];
+    $recSql = "SELECT DISTINCT FULLNAME FROM employee_listings WHERE DEPARTMENT = 'HUMAN RESOURCE' AND emp_status = 'ACTIVE' ORDER BY FULLNAME ASC";
+    $recResult = $conn->query($recSql);
+    
+    if ($recResult) {
+        while ($row = $recResult->fetch_assoc()) {
+            $fullName = trim($row['FULLNAME']);
+            if (!empty($fullName)) {
+                $data['recruiters'][] = $fullName;
+            }
+        }
     }
 
     // 3. GET STATUSES

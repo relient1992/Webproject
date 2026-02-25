@@ -152,7 +152,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // 3. Column Definitions
     const ALL_COLUMNS = [
-        { key: 'select', label: '<input type="checkbox" id="selectAllCheckbox" />', editable: false },
+        { key: 'select', label: '<input type="checkbox" id="selectAllCheckbox" />', editable: false, hideFromSelection: true },
         { key: 'application_id', label: 'ID', editable: false },
         { key: 'requisition_id', label: 'Requisition ID', editable: true, type: 'text' },
         { key: 'entity', label: 'Entity', editable: true, type: 'select', options: ['Scorp', 'Lexicode'] },
@@ -2312,7 +2312,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function setupColumnSelector() { 
         columnCheckboxes.innerHTML = ''; 
-        ALL_COLUMNS.filter(c => c.key !== 'actions').forEach(col => { 
+        ALL_COLUMNS.filter(c => !c.hideFromSelection && c.key !== 'actions').forEach(col => { 
             const isChecked = visibleColumns.includes(col.key); 
             columnCheckboxes.innerHTML += `<label class="flex items-center space-x-2"><input type="checkbox" class="h-4 w-4" data-key="${col.key}" ${isChecked ? 'checked' : ''}><span>${col.label}</span></label>`; 
         }); 

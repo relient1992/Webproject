@@ -249,6 +249,7 @@ if (!isset($_SESSION['employee_id'])) {
                     <table class="w-full text-sm text-left">
                         <thead id="tableHead">
                             <tr>
+
                                 <th class="px-4 py-2 sortable" data-key="id">ID</th>
                                 <th class="px-4 py-2 sortable" data-key="firstname">Firstname</th>
                                 <th class="px-4 py-2 sortable" data-key="surname">Surname</th>

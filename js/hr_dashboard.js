@@ -211,7 +211,7 @@ document.addEventListener('DOMContentLoaded', function () {
         { key: 'worked_at_xbp_details', label: "Last Worked @ XBP", editable: true, type: 'text' },
         { key: 'employment_history', label: "Employment History", editable: true, type: 'textarea' },
         { key: 'character_references', label: "References", editable: true, type: 'textarea' },
-        { key: 'numeric_score', label: 'Numeric Score', editable: true, type: 'number' },
+        { key: 'numeric_score', label: 'Numeric Score', editable: true, type: 'text' },
         { key: 'alphanumeric_score', label: 'AlphaNumeric Score', editable: true, type: 'text' },
         { key: 'written_exam_score', label: 'Written Exam', editable: true, type: 'text' },
         { key: 'actions', label: 'Actions', editable: false },

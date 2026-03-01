@@ -1735,9 +1735,13 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                     } 
                     else if (colKey === 'actions') { 
-                        content = currentView === 'active' 
-                            ? `<button class="text-white bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded text-xs edit-btn" data-id="${applicant.application_id}">Edit</button>` 
-                            : `<button class="text-white bg-green-600 hover:bg-green-700 px-2 py-1 rounded text-xs restore-btn" data-id="${applicant.application_id}">Restore</button>`; 
+                        if (currentView === 'active') {
+                            content = `<button class="text-white bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded text-xs edit-btn" data-id="${applicant.application_id}">Edit</button>`;
+                        } else if (currentView === 'archived') {
+                            content = `<button class="text-white bg-green-600 hover:bg-green-700 px-2 py-1 rounded text-xs restore-btn" data-id="${applicant.application_id}">Restore</button>`;
+                        } else if (currentView === 'deployed') {
+                            content = `<button class="text-white bg-orange-500 hover:bg-orange-600 px-2 py-1 rounded text-xs undeploy-btn" title="Restore to Active" data-id="${applicant.application_id}">Restore</button>`;
+                        }
                     }
 
                     else if ((colKey === 'initial_interviewer_id' || colKey === 'final_interviewer_id') && currentView === 'active') {
@@ -3257,10 +3261,14 @@ document.addEventListener('DOMContentLoaded', function () {
         
             tableBody.addEventListener('click', e => { 
                 const target = e.target; 
+                
+                // 1. EDIT BUTTON
                 if(target.classList.contains('edit-btn')) { 
                     const applicant = window.allApplicants.find(a => a.application_id == target.dataset.id);
                     if(applicant) openEditModal(applicant); 
                 } 
+                
+                // 2. RESTORE FROM ARCHIVE BUTTON
                 if (target.classList.contains('restore-btn')) {
                     const id = target.dataset.id;
                     Swal.fire({
@@ -3287,6 +3295,43 @@ document.addEventListener('DOMContentLoaded', function () {
                                 fetchData(); 
                             })
                             .catch(err => { Swal.fire({ icon: 'error', title: 'Action Failed', text: err.message }); });
+                        }
+                    });
+                }
+
+                // 3. RESTORE FROM DEPLOYED BUTTON
+                if (target.classList.contains('undeploy-btn')) {
+                    const id = target.dataset.id;
+                    Swal.fire({
+                        title: 'Restore to Active List?',
+                        text: "This will remove the 'Deployed' status and move the applicant back to 'Pooling'.",
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonColor: '#f97316',
+                        cancelButtonColor: '#6b7280',
+                        confirmButtonText: 'Yes, move to Pooling',
+                        cancelButtonText: 'Cancel'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            Swal.showLoading();
+                            fetch(`${API_URL}?action=bulkUpdateStatus`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ 
+                                    application_ids: [id], 
+                                    new_status: 12 // 12 = Pooling status
+                                })
+                            })
+                            .then(res => res.json())
+                            .then(data => {
+                                if (data.status === 'success') {
+                                    Swal.fire({ icon: 'success', title: 'Restored!', text: 'Applicant moved to Pooling.', timer: 1500, showConfirmButton: false });
+                                    fetchData(); 
+                                } else {
+                                    throw new Error(data.message);
+                                }
+                            })
+                            .catch(err => { Swal.fire({ icon: 'error', title: 'Error!', text: err.message }); });
                         }
                     });
                 }

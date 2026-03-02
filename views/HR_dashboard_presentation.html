@@ -20,6 +20,29 @@
         }
     </script>
 </head>
+
+<div id="techLoader" class="fixed inset-0 z-[9999] bg-slate-900 flex flex-col items-center justify-center transition-opacity duration-700 ease-in-out">
+        
+    <div class="relative w-40 h-40 flex items-center justify-center mb-8">
+        <div class="absolute inset-0 rounded-full border-t-4 border-b-4 border-brandSecondary animate-[spin_2s_linear_infinite] shadow-[0_0_15px_#00a8ff]"></div>
+        <div class="absolute inset-3 rounded-full border-r-4 border-l-4 border-brandPrimary animate-[spin_3s_linear_infinite_reverse] opacity-80"></div>
+        <div class="w-16 h-16 bg-brandSecondary rounded-full animate-pulse shadow-[0_0_30px_#00a8ff]"></div>
+        <i class="fa-solid fa-network-wired absolute text-white text-2xl animate-pulse"></i>
+    </div>
+
+    <div class="text-center font-mono">
+        <h2 class="text-3xl text-brandSecondary font-bold tracking-[0.3em] mb-3 drop-shadow-[0_0_8px_rgba(0,168,255,0.8)]">R-AMS v1.0</h2>
+        <div class="h-6 overflow-hidden">
+            <p id="loaderText" class="text-sm text-emerald-400 tracking-widest font-bold">INITIALIZING...</p>
+        </div>
+        
+        <div class="w-72 h-1.5 bg-slate-800 rounded-full mt-5 overflow-hidden relative border border-slate-700">
+            <div class="absolute top-0 left-0 h-full bg-brandSecondary shadow-[0_0_10px_#00a8ff] tech-loading-bar"></div>
+        </div>
+    </div>
+</div>
+
+
 <body class="flex flex-col md:flex-row min-h-screen bg-slate-50 text-slate-800 font-sans">
 
     <nav class="w-full md:w-80 bg-gradient-to-br from-brandDark to-brandPrimary text-white flex flex-col transition-all shrink-0">
@@ -147,20 +170,118 @@
         </section>
 
         <section id="faq" class="content-section hidden animate-[fadeIn_0.5s_ease-out]">
-            <h1 class="text-4xl font-bold text-brandPrimary mb-8">Frequently Asked Questions</h1>
-            
-            <div class="bg-white rounded-xl p-6 mb-6 shadow-sm border-l-4 border-brandPrimary">
-                <h3 class="text-xl font-semibold text-brandPrimary mb-3">How is the Pre-Screening Logic Computed?</h3>
-                <p class="text-slate-600">The pre-screening computation uses a weighted scoring system based on the applicant's responses. For example:</p>
-                <div class="bg-slate-50 p-4 rounded-lg my-4 font-mono text-sm border border-slate-200 text-slate-700">
-                    Score = (Experience Years * 0.4) + (Education Level * 0.3) + (Skill Match % * 0.3)
-                </div>
-                <p class="text-slate-600">If the total score exceeds the defined threshold (e.g., 75%), the applicant is automatically moved to the "Passed Pre-Screening" bucket.</p>
+            <div class="mb-10 border-b-2 border-slate-200 pb-6">
+                <h1 class="text-4xl font-bold text-brandPrimary mb-3">System Logic & FAQ</h1>
+                <p class="text-xl text-slate-600">Deep dive into the mathematical algorithms, constraints, and operational logic powering R-AMS.</p>
             </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                <div class="bg-white rounded-xl p-6 shadow-sm border-l-4 border-brandPrimary hover:shadow-md transition-shadow">
+                    <div class="flex items-center gap-3 mb-4">
+                        <i class="fa-solid fa-calculator text-2xl text-brandPrimary"></i>
+                        <h3 class="text-xl font-bold text-slate-800">How is the Pre-Screening Score Calculated?</h3>
+                    </div>
+                    <p class="text-sm text-slate-600 mb-3">The system evaluates applicants instantly upon form submission based on four key metrics: Education, Experience, Skills, and Hard Gates. The core formula is:</p>
+                    
+                    <div class="bg-slate-50 p-3 rounded-lg mb-4 text-center border border-slate-200 overflow-x-auto">
+                        Total Score = Education + Experience + Skills
+                    </div>
+                    
+                    <ul class="text-sm text-slate-700 space-y-2 mb-4 list-disc pl-5">
+                        <li><b>Contextual Scoring:</b> Points adapt based on the role. Entry-level roles award higher points for lower education levels compared to Professional roles.</li>
+                        <li><b>Experience:</b> Weighted heavily as the primary predictor of readiness (e.g., 5+ Years = 50 pts, 0 Years = 5 pts).</li>
+                        <li><b>Intelligent Skill Mapping:</b> Awards +5 Premium points for exact category matches and +1 for general skills.</li>
+                    </ul>
+                    
+                    <div class="bg-red-50 border-l-4 border-red-500 p-3 rounded text-sm">
+                        <strong class="text-red-700"><i class="fa-solid fa-ban"></i> Hard Gate (Auto-Fail) Logic:</strong>
+                        <p class="text-slate-700 mt-1">If an applicant fails a strict requirement (e.g., applying for IT without an IT/CS degree, or Manager without experience), their score is forcefully reset to 0 and flagged as "Underqualified" regardless of other points.</p>
+                    </div>
+                </div>
 
-            <div class="bg-white rounded-xl p-6 mb-6 shadow-sm border-l-4 border-brandPrimary">
-                <h3 class="text-xl font-semibold text-brandPrimary mb-3">What happens during a Bulk Upload?</h3>
-                <p class="text-slate-600">When HR uploads a CSV file, the system maps the columns to the applicant database. Duplicate emails are flagged, and successful entries are immediately parsed into the Applicant Userform.</p>
+                <div class="bg-white rounded-xl p-6 shadow-sm border-l-4 border-emerald-500 hover:shadow-md transition-shadow">
+                    <div class="flex items-center gap-3 mb-4">
+                        <i class="fa-solid fa-chart-pie text-2xl text-emerald-500"></i>
+                        <h3 class="text-xl font-bold text-slate-800">How are Recruiters Scored / Evaluated?</h3>
+                    </div>
+                    <p class="text-sm text-slate-600 mb-3">Recruiter performance metrics are tracked dynamically based on pipeline movement. They are evaluated on:</p>
+                    <ul class="text-sm text-slate-700 space-y-2 mb-4 list-disc pl-5">
+                        <li><b>Total Handled vs. Deployed:</b> Tracks conversion volume.</li>
+                        <li><b>Acceptance & Withdrawal Rates:</b> Measures candidate retention.</li>
+                        <li><b>Average Time to Hire:</b> Calculates the velocity of the recruiter's pipeline using the formula:</li>
+                    </ul>
+                    <div class="bg-slate-50 p-3 rounded-lg mb-4 text-center border border-slate-200 overflow-x-auto font-mono text-sm text-slate-700">
+                        Avg Time to Hire = Total Sum of (Joining Date - Application Date) / Total Hired Applicants
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl p-6 shadow-sm border-l-4 border-purple-500 hover:shadow-md transition-shadow">
+                    <div class="flex items-center gap-3 mb-4">
+                        <i class="fa-solid fa-clipboard-list text-2xl text-purple-500"></i>
+                        <h3 class="text-xl font-bold text-slate-800">How does the Requisition feature work?</h3>
+                    </div>
+                    <p class="text-sm text-slate-600 mb-3">The Requisition Modal is a centralized tool for tracking approved headcount requests across various company projects. Its metrics update dynamically based on actions taken in the main HR table:</p>
+                    
+                    <ul class="text-sm text-slate-700 space-y-2 mb-4 list-disc pl-5">
+                        <li><b>Data Mapping:</b> When HR edits an applicant's profile, they assign them a specific <b>Requisition ID</b>. This links the applicant's progress directly to the job order.</li>
+                        <li><b>Offered:</b> The system automatically counts all applicants tied to the Requisition ID whose "Offer" field has been updated to <b>Accepted</b>.</li>
+                        <li><b>Joined:</b> The system counts applicants tied to the Requisition ID whose main recruitment status has successfully reached <b>Deployed</b>.</li>
+                    </ul>
+
+                    <p class="text-sm text-slate-600 mb-2">The system then calculates the remaining open slots <b>(Balance)</b> using this automated formula:</p>
+                    
+                    <div class="bg-slate-50 p-3 rounded-lg mb-4 text-center border border-slate-200 overflow-x-auto text-sm">
+                        Balance=Approved Headcount-Joined+Offered
+                    </div>
+                    
+                    <ul class="text-sm text-slate-700 space-y-2 list-disc pl-5">
+                        <li>It also tracks <b>Aging</b> to show exactly how many days a job order has remained open since its approval date, helping prioritize urgent hiring needs.</li>
+                    </ul>
+                    
+                </div>
+
+                <div class="bg-white rounded-xl p-6 shadow-sm border-l-4 border-orange-500 hover:shadow-md transition-shadow">
+                    <div class="flex items-center gap-3 mb-4">
+                        <i class="fa-solid fa-file-csv text-2xl text-orange-500"></i>
+                        <h3 class="text-xl font-bold text-slate-800">Bulk Upload: Guide & Limitations</h3>
+                    </div>
+                    <p class="text-sm text-slate-600 mb-3">The Bulk Upload module utilizes <i>PapaParse.js</i> to rapidly inject multiple records via CSV while validating formatting.</p>
+                    <ul class="text-sm text-slate-700 space-y-2 list-disc pl-5">
+                        <li><b>Pre-screening Sync:</b> Imported records automatically undergo the same scoring algorithm as manual web forms to maintain data integrity.</li>
+                        <li><b>Validation:</b> The system detects missing fields and flags duplicate email addresses to prevent corrupted data.</li>
+                        <li><b>Limitation:</b> Because processing occurs client-side within the browser, uploading excessively massive datasets (e.g., 10,000+ rows) simultaneously may cause temporary browser lag. Chunking files is recommended for massive imports.</li>
+                    </ul>
+                </div>
+
+                <div class="bg-white rounded-xl p-6 shadow-sm border-l-4 border-blue-400 hover:shadow-md transition-shadow">
+                    <div class="flex items-center gap-3 mb-4">
+                        <i class="fa-solid fa-chart-column text-2xl text-blue-400"></i>
+                        <h3 class="text-xl font-bold text-slate-800">How do Custom Analytics function?</h3>
+                    </div>
+                    <p class="text-sm text-slate-600 mb-3">Instead of static reports, the Custom Analytics suite allows HR to generate real-time visual data based on specific queries.</p>
+                    <ul class="text-sm text-slate-700 space-y-2 list-disc pl-5">
+                        <li>Users can define the <b>Group By</b> (e.g., Status, Source, Recruiter) and the <b>Metric</b> (e.g., Count, Average Score, Average Age).</li>
+                        <li>Data can be toggled instantly between Bar Charts, Doughnut Charts, or Data Datasheets using Chart.js.</li>
+                        <li>The engine respects active Smart Filters and can isolate data by specific date ranges or locations.</li>
+                    </ul>
+                </div>
+
+                <div class="bg-white rounded-xl p-6 shadow-sm border-l-4 border-yellow-400 hover:shadow-md transition-shadow">
+                    <div class="flex items-center gap-3 mb-4">
+                        <i class="fa-solid fa-bell text-2xl text-yellow-500"></i>
+                        <h3 class="text-xl font-bold text-slate-800">How do Interview Notifications trigger?</h3>
+                    </div>
+                    <p class="text-sm text-slate-600 mb-3">The notification bell serves as a proactive reminder for scheduled assessments. The logic requires two conditions to trigger:</p>
+                    <ul class="text-sm text-slate-700 space-y-2 list-disc pl-5">
+                        <li>The applicant must have an assigned <b>Interview Date/Time</b>.</li>
+                        <li>Their status must currently be set to <b>Initial Interview</b> or <b>Final Interview</b>.</li>
+                    </ul>
+                    <div class="mt-3 p-3 bg-yellow-50 rounded border border-yellow-200 text-sm text-slate-700">
+                        <b>Role-Based Access (RBAC):</b> For Department Managers on the Interviewer Dashboard, the logic strictly filters the notification feed to display <i>only</i> the specific applicants mapped to their unique Employee ID.
+                    </div>
+                </div>
+
             </div>
         </section>
 
@@ -259,6 +380,31 @@
                 closeModal();
             }
         }
+
+        window.addEventListener('load', () => {
+            const loader = document.getElementById('techLoader');
+            const loaderText = document.getElementById('loaderText');
+            
+            // Terminal text sequence00);
+            
+            setTimeout(() => { 
+                loaderText.innerText = "LOADING..."; 
+            }, 4800);
+
+            setTimeout(() => { 
+                loaderText.innerText = "SYSTEM READY."; 
+                loaderText.classList.replace('text-emerald-400', 'text-brandSecondary'); 
+            }, 3000);
+
+            // Fade out and remove after 3.3 seconds
+            setTimeout(() => {
+                loader.classList.add('opacity-0'); // Trigger the fade-out
+                setTimeout(() => {
+                    loader.style.display = 'none'; // Remove it from the layout entirely
+                }, 700); // Wait for the fade-out transition to finish
+            }, 3300);
+        });
+
     </script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 <?php
-require_once 'log_functions.php'; 
-// session_start();
+require_once 'log_functions.php';
+//session_start();
 
 // $servername = "10.200.168.89";
 // $username   = "supersu";
@@ -87,19 +87,96 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $safeName = htmlspecialchars($user['FIRSTNAME'], ENT_QUOTES, 'UTF-8');
             $safeRole = htmlspecialchars($roleName, ENT_QUOTES, 'UTF-8');
 
-            // 2. Now print the script using the safe variables
-            echo "<script>
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Login Successful!',
-                    html: 'Welcome <b>$safeName</b><br>Your role: <b>$safeRole</b>',
-                    timer: 2500,
-                    showConfirmButton: false
-                }).then(() => {
-                    // Use the dynamic variable here
-                    window.location.href = '$redirectPage';
-                });
-            </script>";
+            // --- ADVANCED TECH LOADING SCREEN ---
+            echo "
+            <style>
+                body {
+                    margin: 0; padding: 0; 
+                    background-color: #223562; /* Dark sleek slate background */
+                    display: flex; justify-content: center; align-items: center; 
+                    height: 100vh; overflow: hidden;
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                }
+                .tech-loader-container {
+                    text-align: center;
+                    display: flex; flex-direction: column; align-items: center;
+                }
+                .spinner-wrapper {
+                    position: relative; width: 80px; height: 80px; margin-bottom: 30px;
+                }
+                .spinner-outer {
+                    width: 80px; height: 80px;
+                    border: 3px solid transparent;
+                    border-top: 3px solid #06b6d4; /* Cyan glow */
+                    border-right: 3px solid #06b6d4;
+                    border-radius: 50%;
+                    animation: spin 1s linear infinite;
+                    box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
+                }
+                .spinner-inner {
+                    width: 56px; height: 56px;
+                    border: 3px solid transparent;
+                    border-bottom: 3px solid #6366f1; /* Indigo glow */
+                    border-left: 3px solid #6366f1;
+                    border-radius: 50%;
+                    position: absolute; top: 12px; left: 12px;
+                    animation: spin-reverse 0.75s linear infinite;
+                    box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
+                }
+                .tech-text {
+                    color: #06b6d4; font-family: monospace; font-size: 1.2rem;
+                    letter-spacing: 3px; text-transform: uppercase;
+                    animation: pulse 1.5s ease-in-out infinite;
+                    margin-bottom: 10px;
+                }
+                .sub-text {
+                    color: #94a3b8; font-family: monospace; font-size: 0.85rem;
+                    letter-spacing: 1px;
+                }
+                .user-highlight { color: #f8fafc; font-weight: bold; }
+                
+                @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                @keyframes spin-reverse { 0% { transform: rotate(360deg); } 100% { transform: rotate(0deg); } }
+                @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+            </style>
+
+            <div class='tech-loader-container'>
+                <div class='spinner-wrapper'>
+                    <div class='spinner-outer'></div>
+                    <div class='spinner-inner'></div>
+                </div>
+                <div class='tech-text' id='status-text'>AUTHENTICATING...</div>
+                <div class='sub-text'>USER: <span class='user-highlight'>$safeName</span> | ROLE: <span class='user-highlight'>$safeRole</span></div>
+            </div>
+
+            <script>
+                // Terminal-style loading sequence
+                const sequences = [
+                    'AUTHENTICATING...',
+                    'VERIFYING CLEARANCE...',
+                    'ESTABLISHING SECURE CONNECTION...',
+                    'ACCESS GRANTED'
+                ];
+                
+                let step = 0;
+                const textEl = document.getElementById('status-text');
+                
+                const loadInterval = setInterval(() => {
+                    step++;
+                    if (step < sequences.length) {
+                        textEl.innerText = sequences[step];
+                        // Turn green on final step
+                        if (step === sequences.length - 1) {
+                            textEl.style.color = '#10b981'; 
+                            textEl.style.textShadow = '0 0 10px rgba(16, 185, 129, 0.5)';
+                        }
+                    } else {
+                        clearInterval(loadInterval);
+                        window.location.href = '$redirectPage';
+                    }
+                }, 700); // Transitions every 700ms
+            </script>
+            ";
         } else {
             echo "<script>
                 Swal.fire({

@@ -49,16 +49,16 @@
         
         <div class="flex justify-between items-center gap-4 p-6 border-b border-white/10">
             
-            <img 
+            <!-- <img 
                 src="../images/school-logo.png" 
                 alt="School Logo" 
                 class="w-20 h-20 object-contain bg-white rounded-full border-2 border-white/50 p-1 shadow-md shrink-0"
             >
-            
+             -->
             <img 
                 src="../images/company-logo.png" 
                 alt="Company Logo" 
-                class="h-12 w-auto max-w-[140px] object-contain bg-white rounded-lg border-2 border-white/50 p-1 shadow-md"
+                class="h-12 w-auto max-w-[240px] object-contain bg-white rounded-lg border-2 border-white/50 p-1 shadow-md"
             >
             
         </div>
@@ -67,6 +67,7 @@
             <button onclick="showSection('home', this)" class="nav-btn active-nav text-left px-6 py-4 hover:bg-white/10 border-b-4 md:border-b-0 md:border-l-4 border-transparent transition-all whitespace-nowrap">Introduction</button>
             <button onclick="showSection('features', this)" class="nav-btn text-left px-6 py-4 hover:bg-white/10 border-b-4 md:border-b-0 md:border-l-4 border-transparent transition-all whitespace-nowrap">R-AMS Features</button>
             <button onclick="showSection('faq', this)" class="nav-btn text-left px-6 py-4 hover:bg-white/10 border-b-4 md:border-b-0 md:border-l-4 border-transparent transition-all whitespace-nowrap">FAQ & Logic</button>
+            <button onclick="showSection('about', this)" class="nav-btn text-left px-6 py-4 hover:bg-white/10 border-b-4 md:border-b-0 md:border-l-4 border-transparent transition-all whitespace-nowrap">About the Project</button>
         </div>
     </nav>
 
@@ -279,6 +280,59 @@
                     </ul>
                     <div class="mt-3 p-3 bg-yellow-50 rounded border border-yellow-200 text-sm text-slate-700">
                         <b>Role-Based Access (RBAC):</b> For Department Managers on the Interviewer Dashboard, the logic strictly filters the notification feed to display <i>only</i> the specific applicants mapped to their unique Employee ID.
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+
+        <section id="about" class="content-section hidden animate-[fadeIn_0.5s_ease-out]">
+            <div class="mb-10 border-b-2 border-slate-200 pb-6">
+                <h1 class="text-4xl font-bold text-brandPrimary mb-3">About the Project</h1>
+                <p class="text-xl text-slate-600">Academic background and developer information.</p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8 items-stretch">
+                
+                <div class="bg-white rounded-xl shadow-md border border-slate-200 p-8 text-center flex flex-col items-center justify-center relative overflow-hidden">
+                    <div class="absolute -top-10 -right-10 text-slate-50 opacity-50"><i class="fa-solid fa-building-columns text-9xl"></i></div>
+                    
+                    <img src="../images/School-logo.png" alt="TUP Logo" class="w-28 h-28 object-contain mb-6 relative z-10 drop-shadow-md">
+                    
+                    <h2 class="text-2xl font-bold text-brandDark mb-1 relative z-10">Technological University of the Philippines</h2>
+                    <p class="text-slate-600 font-semibold mb-1 relative z-10">College of Science</p>
+                    <p class="text-sm text-slate-500 mb-6 relative z-10">Expanded Tertiary Education, Equivalency and Accreditation Program (ETEEAP)</p>
+                    
+                    <div class="w-full bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm text-slate-700 relative z-10">
+                        <p class="mb-2 italic">A Thesis Presented in Partial Fulfillment of the Requirements for the Degree</p>
+                        <p class="font-bold text-brandPrimary text-lg">Bachelor of Science in Information Systems</p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-md border border-slate-200 p-8 flex flex-col justify-center">
+                    <h3 class="text-xl font-bold text-slate-800 mb-6 border-b-2 border-slate-100 pb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-code text-brandSecondary"></i> Project Profile
+                    </h3>
+                    
+                    <ul class="space-y-4 text-slate-700 mb-8">
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-user-graduate text-brandPrimary mt-1 mr-3 w-5 text-center"></i>
+                            <div><strong class="block text-slate-800">Developer / Researcher</strong> Daryl T. Roallos</div>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-building text-brandPrimary mt-1 mr-3 w-5 text-center"></i>
+                            <div><strong class="block text-slate-800">Client / Beneficiary</strong> XBP Global Company</div>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-chalkboard-user text-brandPrimary mt-1 mr-3 w-5 text-center"></i>
+                            <div><strong class="block text-slate-800">Capstone Adviser</strong> Professor May Garcia</div>
+                        </li>
+
+                    </ul>
+
+                    <div class="bg-brandPrimary/5 border-l-4 border-brandPrimary p-4 rounded text-sm text-slate-700">
+                        <p class="italic">"Dedicated to my family, my fiancée Kim, my work colleagues/friends, and the ETEEAP administration for granting me the opportunity to pursue my studies and fulfill my lifelong dream of graduating."</p>
                     </div>
                 </div>
 

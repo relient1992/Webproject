@@ -379,9 +379,27 @@
                             <h2 class="text-xl font-semibold text-gray-800 border-b border-gray-200 pb-3 mb-6 flex items-center">
                                 <i class="fas fa-user-check mr-2 text-blue-600"></i> Character References
                             </h2>
-                            <p class="text-sm text-gray-500 mb-4 bg-yellow-50 p-2 rounded border border-yellow-200 text-yellow-700">
-                                <i class="fas fa-info-circle"></i> Please provide at least 3 references. Name and Contact Number are required. Kindly note that the HR team may conduct a background check and contact the provided references as part of the verification process.
-                            </p>
+                            <div class="mb-4">
+                                <p class="text-sm text-yellow-700 bg-yellow-50 p-3 rounded border border-yellow-200 mb-3">
+                                    <i class="fas fa-info-circle mr-1"></i> Please provide at least 3 references. <strong>Name and Contact Number are required.</strong>
+                                </p>
+                                
+                                <label for="reference_consent" class="flex items-start bg-gray-50 p-3 rounded border border-gray-200 cursor-pointer hover:bg-gray-100 transition duration-150">
+                                    <div class="flex items-center h-5 mt-0.5">
+                                        <input id="reference_consent" name="reference_consent" type="checkbox" required 
+                                               class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer">
+                                    </div>
+                                    <div class="ml-3 text-sm text-gray-700">
+                                        To proceed further with your employment application with us, please
+                                        allow Scorp Philippines Inc., Human Resources Professional to conduct
+                                        Background Investigation for your Former Employer.
+                                        <br>    
+                                        <br> 
+                                        By signing this statement, I hereby agree to collect, use and disclose
+                                        personal data relating to your previous employment.. <span class="text-red-500 font-bold" title="Required">*</span>
+                                    </div>
+                                </label>
+                            </div>
                             <div id="referencesContainer" class="space-y-6">
                                 <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 relative">
                                     <span class="absolute top-2 right-2 text-xs font-bold text-gray-400">Ref 1</span>

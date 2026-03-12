@@ -95,9 +95,10 @@ if (!isset($_SESSION['employee_id'])) {
                     </div>
                 </div>
                 <div class="right-controls">
+                    <button id="xlsx-export-btn" class="control-btn"><i class="fas fa-file-excel"></i> Detailed Export</button>
                     <button id="toggle-chart-btn" class="control-btn"><i class="fas fa-eye-slash"></i> Hide Chart</button>
                     <button id="csv-export-btn" class="control-btn"><i class="fas fa-file-csv"></i> Table Export</button>
-                    <button id="xlsx-export-btn" class="control-btn"><i class="fas fa-file-excel"></i> Detailed Export</button>
+                    
                 </div>
             </div>
 

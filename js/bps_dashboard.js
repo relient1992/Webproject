@@ -717,17 +717,35 @@ $(function() { // Use jQuery's ready function for initialization
         URL.revokeObjectURL(url);
     });
 
-    xlsxExportBtn.on('click', async function() {
+    // 1. Initialize the Date Range Picker directly on the Export button
+    xlsxExportBtn.daterangepicker({
+        opens: 'left', // Adjust to 'right' or 'center' depending on your UI layout
+        // You can add your typical daterangepicker options here (ranges, locale, etc.)
+    });
+
+    // 2. Listen for the 'apply' event instead of 'click'
+    xlsxExportBtn.on('apply.daterangepicker', async function(ev, picker) {
         const originalButtonHtml = $(this).html();
+        
+        // Disable the button and show the loading spinner
         $(this).html('<i class="fas fa-spinner fa-spin"></i> Downloading...').prop('disabled', true);
         
+        const FETCH_TIMEOUT = 60000; // 60 seconds
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+
         try {
-            const datePicker = $('#date-range-picker').data('daterangepicker');
-            const startDate = datePicker.startDate.format('YYYY-MM-DD');
-            const endDate = datePicker.endDate.format('YYYY-MM-DD');
+            // 3. Grab the dates directly from the 'picker' object passed by the event
+            const startDate = picker.startDate.format('YYYY-MM-DD');
+            const endDate = picker.endDate.format('YYYY-MM-DD');
             
             const params = new URLSearchParams({ get_export_data: 'true', startDate, endDate });
-            const response = await fetch(`../bps_dashboard.php?${params.toString()}`);
+            
+            const response = await fetch(`../bps_dashboard.php?${params.toString()}`, {
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
 
             if (!response.ok) {
                 throw new Error('Failed to fetch export data.');
@@ -746,9 +764,16 @@ $(function() { // Use jQuery's ready function for initialization
             XLSX.writeFile(workbook, `bps_dashboard_raw_export_${startDate}_to_${endDate}.xlsx`);
 
         } catch (error) {
-            console.error("Export failed:", error);
-            alert("An error occurred during the export.");
+            if (error.name === 'AbortError') {
+                console.error("Export failed: Request timed out");
+                alert(`The export took longer than ${FETCH_TIMEOUT / 1000} seconds and was canceled. Please try a smaller date range.`);
+            } else {
+                console.error("Export failed:", error);
+                alert("An error occurred during the export.");
+            }
         } finally {
+            clearTimeout(timeoutId);
+            // Re-enable the button and restore original text/icon
             $(this).html(originalButtonHtml).prop('disabled', false);
         }
     });

@@ -3171,6 +3171,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 window.open('../views/recruitment_userform.html', '_blank'); 
             });
         }
+        if (guideBtn) {
+            guideBtn.addEventListener('click', () => {
+                window.open('../views/HR_dashboard_presentation.html', '_blank'); 
+            });
+        }
         if (cancelAddBtn) cancelAddBtn.addEventListener('click', () => addApplicantModal.classList.add('hidden'));
         
         if (columnCheckboxes) {

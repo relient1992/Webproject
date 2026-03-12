@@ -110,6 +110,7 @@ if (!isset($_SESSION['employee_id'])) {
                      </div>
                      <button id="viewLogsBtn" class="bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300"><i class="fas fa-history mr-2"></i>Logs</button>
                      <button id="newApplicantBtn" class="bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700"><i class="fas fa-plus mr-2"></i>New</button>
+                     <button id="guideBtn" class="bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300"><i class="fas fa-history mr-2"></i>Guide</button>
                      <button id="logoutBtn" class="bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600 border border-red-600 shadow-sm ml-2">
                         <i class="fas fa-sign-out-alt mr-2"></i>Logout</button>  
                 </div>

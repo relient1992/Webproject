@@ -6,6 +6,8 @@ ini_set('display_errors', 0);
 ini_set('display_startup_errors', 0);
 error_reporting(E_ALL); // Keep logging errors to file, but don't show them
 
+
+
 // Start session
 session_start();
 
@@ -13,16 +15,18 @@ header('Content-Type: application/json');
 
 // --- DATABASE CONNECTION ---
 // Live Server
-// $servername = "10.200.168.89";
-// $username   = "supersu";
-// $password   = "H110mds2!";
-// $database   = "database_rda";
+$servername = "10.200.168.89";
+$username   = "supersu";
+$password   = "H110mds2!";
+$database   = "database_rda";
 
 // Localhost
-$servername = "localhost";
-$username = "root";
-$password = "";
-$database = "database_rda";
+// $servername = "localhost";
+// $username = "root";
+// $password = "";
+// $database = "database_rda";
+
+
 
 $conn = new mysqli($servername, $username, $password, $database);
 
@@ -860,7 +864,7 @@ function bulkInsertApplicants($conn, $userIdentifier) {
     ];
     
     $placeholders = rtrim(str_repeat('?,', count($columns)), ',');
-    $sql = "INSERT INTO applicants (" . implode(', ', array_map(fn($c) => "`$c`", $columns)) . ") VALUES ({$placeholders})";
+    $sql = "INSERT INTO applicants (" . implode(', ', array_map(function($c) { return "`$c`"; }, $columns)) . ") VALUES ({$placeholders})";
     
     $stmt = $conn->prepare($sql);
     $types = str_repeat('s', count($columns));

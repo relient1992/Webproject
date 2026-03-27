@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XBP Global - Pre-Employment Assessment</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+        .option-label:has(input:checked) { background-color: #eff6ff; border-color: #3b82f6; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+
+    <div class="mb-8 text-center">
+        <h1 class="text-3xl font-bold text-gray-800 tracking-tight">
+            <i class="fas fa-exchange-alt text-blue-600 mr-2"></i>XBP GLOBAL
+        </h1>
+        <p class="text-gray-500 mt-2">Pre-Employment Written Assessment</p>
+    </div>
+
+    <div class="glass-panel w-full max-w-3xl rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+        
+        <div class="bg-blue-600 px-6 py-4 flex justify-between items-center text-white">
+            <div class="flex items-center gap-3">
+                <i class="fas fa-clipboard-list text-xl"></i>
+                <span class="font-semibold tracking-wide" id="progress-text">Question 1 of 5</span>
+            </div>
+            <div class="flex items-center gap-2 bg-blue-800 px-3 py-1.5 rounded-lg font-mono font-bold shadow-inner">
+                <i class="fas fa-stopwatch animate-pulse text-red-300"></i>
+                <span id="timer-display">10:00</span>
+            </div>
+        </div>
+
+        <div class="w-full bg-gray-200 h-1.5">
+            <div id="progress-bar" class="bg-green-400 h-1.5 transition-all duration-500" style="width: 20%;"></div>
+        </div>
+
+        <div class="p-8">
+            <div id="question-container" class="animate-fade-in">
+                <h2 id="question-title" class="text-xl font-bold text-gray-800 mb-6 leading-relaxed">
+                    Loading question...
+                </h2>
+                
+                <div id="options-container" class="space-y-3">
+                    </div>
+            </div>
+
+            <div class="mt-10 flex justify-between items-center border-t border-gray-100 pt-6">
+                <button id="btn-prev" class="hidden px-5 py-2.5 rounded-lg border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition">
+                    <i class="fas fa-arrow-left mr-2"></i> Previous
+                </button>
+                
+                <button id="btn-next" class="ml-auto px-6 py-2.5 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-md hover:shadow-lg transition transform active:scale-95">
+                    Next <i class="fas fa-arrow-right ml-2"></i>
+                </button>
+                
+                <button id="btn-submit" class="hidden ml-auto px-8 py-2.5 rounded-lg bg-green-600 text-white font-bold hover:bg-green-700 shadow-md hover:shadow-lg transition transform active:scale-95">
+                    <i class="fas fa-check-circle mr-2"></i> Submit Exam
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. EXAM DATA ---
+        const examQuestions = [
+            {
+                question: "Which of the following is the most appropriate way to handle an irate customer?",
+                options: ["Argue back to prove the company is right.", "Remain calm, listen actively, and offer a solution.", "Transfer the call immediately without explaining.", "Hang up the phone."],
+                answer: 1 // Index of correct option
+            },
+            {
+                question: "If a project takes 4 workers 6 hours to complete, how long would it take 3 workers to complete the same project?",
+                options: ["4.5 hours", "8 hours", "10 hours", "12 hours"],
+                answer: 1
+            },
+            {
+                question: "Identify the correct sentence:",
+                options: ["Their going to the meeting tomorrow.", "There going to the meeting tomorrow.", "They're going to the meeting tomorrow.", "They going to the meeting tomorrow."],
+                answer: 2
+            },
+            {
+                question: "In Microsoft Excel, which function is used to find the highest value in a range?",
+                options: ["=TOP()", "=HIGH()", "=MAX()", "=PEAK()"],
+                answer: 2
+            },
+            {
+                question: "Data Entry Accuracy: Which of the following matches exactly with 'XBP-Global_2026-A'?",
+                options: ["XPB-Global_2026-A", "XBP-Global_2026-a", "XBP-Global_2026-A", "XBP_Global-2026-A"],
+                answer: 2
+            }
+        ];
+
+        // --- 2. STATE VARIABLES ---
+        let currentQuestionIndex = 0;
+        let userAnswers = new Array(examQuestions.length).fill(null);
+        let timeLeft = 600; // 10 minutes in seconds
+        let timerInterval;
+        const PASSING_SCORE = 70; // 70% to pass
+
+        // --- 3. DOM ELEMENTS ---
+        const questionTitle = document.getElementById('question-title');
+        const optionsContainer = document.getElementById('options-container');
+        const btnNext = document.getElementById('btn-next');
+        const btnPrev = document.getElementById('btn-prev');
+        const btnSubmit = document.getElementById('btn-submit');
+        const progressText = document.getElementById('progress-text');
+        const progressBar = document.getElementById('progress-bar');
+        const timerDisplay = document.getElementById('timer-display');
+
+        // --- 4. INITIALIZATION ---
+        function initExam() {
+            renderQuestion();
+            startTimer();
+        }
+
+        // --- 5. TIMER LOGIC ---
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    autoSubmitExam();
+                } else {
+                    timeLeft--;
+                    let minutes = Math.floor(timeLeft / 60);
+                    let seconds = timeLeft % 60;
+                    timerDisplay.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+                    if (timeLeft < 60) timerDisplay.classList.add('text-red-400');
+                }
+            }, 1000);
+        }
+
+        // --- 6. RENDER QUESTION ---
+        function renderQuestion() {
+            const q = examQuestions[currentQuestionIndex];
+            questionTitle.textContent = `${currentQuestionIndex + 1}. ${q.question}`;
+            
+            optionsContainer.innerHTML = '';
+            q.options.forEach((option, index) => {
+                const isChecked = userAnswers[currentQuestionIndex] === index ? 'checked' : '';
+                
+                const optionHTML = `
+                    <label class="option-label flex items-center p-4 border-2 border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition duration-200">
+                        <input type="radio" name="answer" value="${index}" class="w-5 h-5 text-blue-600 focus:ring-blue-500 border-gray-300" ${isChecked} onchange="saveAnswer(${index})">
+                        <span class="ml-4 text-gray-700 font-medium">${option}</span>
+                    </label>
+                `;
+                optionsContainer.innerHTML += optionHTML;
+            });
+
+            // Update UI State
+            progressText.textContent = `Question ${currentQuestionIndex + 1} of ${examQuestions.length}`;
+            progressBar.style.width = `${((currentQuestionIndex + 1) / examQuestions.length) * 100}%`;
+
+            btnPrev.classList.toggle('hidden', currentQuestionIndex === 0);
+            
+            if (currentQuestionIndex === examQuestions.length - 1) {
+                btnNext.classList.add('hidden');
+                btnSubmit.classList.remove('hidden');
+            } else {
+                btnNext.classList.remove('hidden');
+                btnSubmit.classList.add('hidden');
+            }
+        }
+
+        // --- 7. EVENT HANDLERS ---
+        window.saveAnswer = function(val) { userAnswers[currentQuestionIndex] = val; }
+
+        btnNext.addEventListener('click', () => {
+            if (userAnswers[currentQuestionIndex] === null) {
+                Swal.fire({ icon: 'warning', title: 'Wait!', text: 'Please select an answer before proceeding.', toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
+                return;
+            }
+            currentQuestionIndex++;
+            renderQuestion();
+        });
+
+        btnPrev.addEventListener('click', () => {
+            currentQuestionIndex--;
+            renderQuestion();
+        });
+
+        btnSubmit.addEventListener('click', () => {
+            Swal.fire({
+                title: 'Submit Exam?',
+                text: "Are you sure you want to submit your answers?",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#10b981',
+                confirmButtonText: 'Yes, submit it!'
+            }).then((result) => {
+                if (result.isConfirmed) processExamResults();
+            });
+        });
+
+        function autoSubmitExam() {
+            Swal.fire({ icon: 'error', title: 'Time is Up!', text: 'Your exam has been automatically submitted.', allowOutsideClick: false }).then(() => {
+                processExamResults();
+            });
+        }
+
+        // --- 8. THE CRITICAL HANDOFF LOGIC ---
+        function processExamResults() {
+            clearInterval(timerInterval);
+            
+            // Calculate Score
+            let correctAnswers = 0;
+            userAnswers.forEach((ans, index) => {
+                if (ans === examQuestions[index].answer) correctAnswers++;
+            });
+            
+            let finalScore = Math.round((correctAnswers / examQuestions.length) * 100);
+
+            if (finalScore >= PASSING_SCORE) {
+                // PASS LOGIC: Save to Session Storage and Redirect
+                sessionStorage.setItem('r_ams_exam_passed', 'true');
+                sessionStorage.setItem('r_ams_exam_score', finalScore);
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Congratulations!',
+                    text: `You passed with a score of ${finalScore}%. Proceeding to the application form...`,
+                    allowOutsideClick: false,
+                    confirmButtonText: 'Proceed to Application'
+                }).then(() => {
+                    // Redirect to your actual recruitment user form
+                    window.location.href = 'recruitment_userform.html';
+                });
+
+            } else {
+                // FAIL LOGIC: Block access
+                sessionStorage.removeItem('r_ams_exam_passed');
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Did Not Pass',
+                    text: `Your score was ${finalScore}%. Unfortunately, you did not meet the minimum requirement of ${PASSING_SCORE}%. Thank you for your interest in XBP Global.`,
+                    confirmButtonText: 'Close',
+                    allowOutsideClick: false
+                }).then(() => {
+                    window.location.href = '../index.html'; // Redirect to homepage or career page
+                });
+            }
+        }
+
+        // Start the engine
+        initExam();
+    </script>
+</body>
+</html>

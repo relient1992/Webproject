@@ -6,16 +6,20 @@
     <title>Angelie's Hardware</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         
         /* Custom scrollbar for tables */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; rounded: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 8px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Modal styling */
+        .modal { display: none; }
+        .modal.active { display: flex; }
     </style>
 </head>
 <body class="bg-gray-100 flex h-screen overflow-hidden">
@@ -26,22 +30,22 @@
             <span class="block text-sm text-slate-400 font-normal mt-1">Manager Access</span>
         </div>
         <nav class="flex-1 p-4 space-y-2" id="sidebar-nav">
-            <button onclick="switchTab('dashboard')" class="nav-btn w-full text-left px-4 py-3 bg-blue-600 rounded-lg font-semibold text-white transition">Dashboard</button>
+            <button onclick="switchTab('dashboard')" class="nav-btn w-full text-left px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition">Dashboard</button>
             <button onclick="switchTab('pos')" class="nav-btn w-full text-left px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition">Terminal (POS)</button>
-            <button onclick="switchTab('inventory')" class="nav-btn w-full text-left px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition">Inventory</button>
+            <button onclick="switchTab('inventory')" class="nav-btn w-full text-left px-4 py-3 bg-blue-600 rounded-lg font-semibold text-white transition">Inventory</button>
             <button onclick="switchTab('analytics')" class="nav-btn w-full text-left px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition">Sales & P&L</button>
             <button onclick="switchTab('staff')" class="nav-btn w-full text-left px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition">Staff Scheduling</button>
         </nav>
     </aside>
 
-    <main class="flex-1 flex flex-col h-full overflow-y-auto">
+    <main class="flex-1 flex flex-col h-full overflow-y-auto relative">
         
         <header class="lg:hidden bg-slate-800 text-white p-4 flex justify-between items-center shadow-md">
             <h1 class="text-xl font-bold">Hardware Hub</h1>
             <select onchange="switchTab(this.value)" class="bg-slate-700 text-white border-none p-2 rounded focus:outline-none">
                 <option value="dashboard">Dashboard</option>
                 <option value="pos">Terminal (POS)</option>
-                <option value="inventory">Inventory</option>
+                <option value="inventory" selected>Inventory</option>
                 <option value="analytics">Sales & P&L</option>
                 <option value="staff">Staff Scheduling</option>
             </select>
@@ -49,7 +53,7 @@
 
         <div class="p-4 md:p-8">
 
-            <div id="dashboard" class="tab-content active">
+            <div id="dashboard" class="tab-content">
                 <h2 class="text-2xl font-bold text-gray-800 mb-6">Welcome back, Manager</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
                     <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
@@ -74,37 +78,18 @@
             <div id="pos" class="tab-content">
                 <h2 class="text-2xl font-bold text-gray-800 mb-6">Terminal (POS)</h2>
                 <div class="flex flex-col lg:flex-row gap-6">
-                    
                     <div class="flex-1">
                         <input type="text" placeholder="Scan barcode or search item name..." class="w-full p-4 rounded-xl border border-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-6">
-                        
                         <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
                             <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md cursor-pointer transition">
                                 <div class="h-24 bg-gray-100 rounded-lg mb-3 flex items-center justify-center text-gray-400">Image</div>
                                 <h4 class="font-semibold text-gray-800 text-sm">DeWalt 20V Max Drill</h4>
                                 <p class="text-blue-600 font-bold mt-1">$129.99</p>
                             </div>
-                            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md cursor-pointer transition">
-                                <div class="h-24 bg-gray-100 rounded-lg mb-3 flex items-center justify-center text-gray-400">Image</div>
-                                <h4 class="font-semibold text-gray-800 text-sm">Claw Hammer 16oz</h4>
-                                <p class="text-blue-600 font-bold mt-1">$14.50</p>
-                            </div>
-                            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md cursor-pointer transition">
-                                <div class="h-24 bg-gray-100 rounded-lg mb-3 flex items-center justify-center text-gray-400">Image</div>
-                                <h4 class="font-semibold text-gray-800 text-sm">Drywall Screws (1lb)</h4>
-                                <p class="text-blue-600 font-bold mt-1">$8.99</p>
-                            </div>
-                            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md cursor-pointer transition">
-                                <div class="h-24 bg-gray-100 rounded-lg mb-3 flex items-center justify-center text-gray-400">Image</div>
-                                <h4 class="font-semibold text-gray-800 text-sm">Tape Measure 25ft</h4>
-                                <p class="text-blue-600 font-bold mt-1">$12.00</p>
-                            </div>
                         </div>
                     </div>
-
                     <div class="w-full lg:w-96 bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col min-h-[500px]">
                         <h3 class="font-bold text-gray-800 border-b pb-4 mb-4">Current Order</h3>
-                        
                         <div class="flex-1 overflow-y-auto space-y-4 mb-4">
                             <div class="flex justify-between items-center">
                                 <div>
@@ -113,24 +98,8 @@
                                 </div>
                                 <p class="font-bold text-gray-800">$29.00</p>
                             </div>
-                            <div class="flex justify-between items-center">
-                                <div>
-                                    <p class="font-semibold text-gray-800 text-sm">Tape Measure 25ft</p>
-                                    <p class="text-gray-500 text-xs">Qty: 1 @ $12.00</p>
-                                </div>
-                                <p class="font-bold text-gray-800">$12.00</p>
-                            </div>
                         </div>
-
                         <div class="border-t pt-4 space-y-2">
-                            <div class="flex justify-between text-sm text-gray-600">
-                                <span>Subtotal</span>
-                                <span>$41.00</span>
-                            </div>
-                            <div class="flex justify-between text-sm text-gray-600">
-                                <span>Tax (8%)</span>
-                                <span>$3.28</span>
-                            </div>
                             <div class="flex justify-between text-xl font-bold text-gray-800 mt-2">
                                 <span>Total</span>
                                 <span>$44.28</span>
@@ -141,80 +110,146 @@
                 </div>
             </div>
 
-            <div id="inventory" class="tab-content">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold text-gray-800">Inventory Management</h2>
-                    <button class="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-500 transition">+ Add Item</button>
+            <div id="inventory" class="tab-content active">
+                
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">Inventory Management</h2>
+                        <p class="text-sm text-gray-500 mt-1">Manage products, track stock levels, and record transactions.</p>
+                    </div>
+                    <div class="flex flex-wrap gap-3">
+                        <button onclick="toggleModal('transactionModal')" class="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-500 transition shadow-sm flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                            Stock In / Out
+                        </button>
+                        <button onclick="toggleModal('addItemModal')" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-500 transition shadow-sm flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                            Add New Item
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 flex flex-col lg:flex-row justify-between items-center gap-4">
+                    <div class="flex w-full lg:w-1/2 gap-3">
+                        <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="Search by item name or SKU..." class="flex-1 bg-gray-50 border border-gray-200 text-sm rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        
+                        <select id="categoryFilter" onchange="filterTable()" class="bg-gray-50 border border-gray-200 text-sm rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">All Categories</option>
+                            <option value="tools">Tools</option>
+                            <option value="plumbing">Plumbing</option>
+                            <option value="electrical">Electrical</option>
+                            <option value="fasteners">Nails & Fasteners</option>
+                            <option value="paint">Paint</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 px-4 py-2 rounded-lg border border-amber-100 w-full lg:w-auto">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        <span class="font-bold">2 items</span> are running low on stock!
+                    </div>
                 </div>
                 
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
+                    <table class="w-full text-left border-collapse whitespace-nowrap" id="inventoryTable">
                         <thead class="bg-gray-50 border-b border-gray-200">
                             <tr>
-                                <th class="p-4 font-semibold text-gray-600 text-sm">SKU</th>
-                                <th class="p-4 font-semibold text-gray-600 text-sm">Item Name</th>
-                                <th class="p-4 font-semibold text-gray-600 text-sm">Category</th>
-                                <th class="p-4 font-semibold text-gray-600 text-sm">Price</th>
-                                <th class="p-4 font-semibold text-gray-600 text-sm">Stock</th>
-                                <th class="p-4 font-semibold text-gray-600 text-sm">Status</th>
+                                <th class="p-4 font-semibold text-gray-600 text-sm cursor-pointer hover:bg-gray-200 transition select-none" onclick="sortTable(0, 'text')">SKU ↕</th>
+                                <th class="p-4 font-semibold text-gray-600 text-sm cursor-pointer hover:bg-gray-200 transition select-none" onclick="sortTable(1, 'text')">Product Info ↕</th>
+                                <th class="p-4 font-semibold text-gray-600 text-sm cursor-pointer hover:bg-gray-200 transition select-none" onclick="sortTable(2, 'text')">Category ↕</th>
+                                <th class="p-4 font-semibold text-gray-600 text-sm cursor-pointer hover:bg-gray-200 transition select-none" onclick="sortTable(3, 'text')">Supplier ↕</th>
+                                <th class="p-4 font-semibold text-gray-600 text-sm cursor-pointer hover:bg-gray-200 transition select-none" onclick="sortTable(4, 'price')">Cost / Sell ↕</th>
+                                <th class="p-4 font-semibold text-gray-600 text-sm cursor-pointer hover:bg-gray-200 transition select-none" onclick="sortTable(5, 'number')">Stock Level ↕</th>
+                                <th class="p-4 font-semibold text-gray-600 text-sm text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-100">
+                        <tbody id="inventoryTableBody" class="divide-y divide-gray-100">
                             <tr class="hover:bg-gray-50 transition">
-                                <td class="p-4 text-gray-500 text-sm">SKU-00142</td>
-                                <td class="p-4 font-medium text-gray-800">DeWalt 20V Max Drill</td>
+                                <td class="p-4 text-gray-500 text-sm font-mono">SKU-00142</td>
+                                <td class="p-4"><p class="font-bold text-gray-800">DeWalt 20V Max Drill</p></td>
                                 <td class="p-4 text-gray-600 text-sm">Power Tools</td>
-                                <td class="p-4 font-medium text-gray-800">$129.99</td>
-                                <td class="p-4 text-gray-800">45</td>
-                                <td class="p-4"><span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">In Stock</span></td>
+                                <td class="p-4 text-gray-600 text-sm">DeWalt Ind.</td>
+                                <td class="p-4">
+                                    <p class="text-xs text-gray-500">Cost: $85.00</p>
+                                    <p class="font-bold text-gray-800">Sell: $129.99</p>
+                                </td>
+                                <td class="p-4">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-bold text-gray-800">45</span> <span class="text-xs text-gray-500">pcs</span>
+                                        <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">Good</span>
+                                    </div>
+                                </td>
+                                <td class="p-4 text-right space-x-2">
+                                    <button class="text-blue-600 hover:text-blue-800 text-sm font-medium">Edit</button>
+                                    <button class="text-red-600 hover:text-red-800 text-sm font-medium">Del</button>
+                                </td>
                             </tr>
                             <tr class="hover:bg-gray-50 transition">
-                                <td class="p-4 text-gray-500 text-sm">SKU-00891</td>
-                                <td class="p-4 font-medium text-gray-800">Claw Hammer 16oz</td>
-                                <td class="p-4 text-gray-600 text-sm">Hand Tools</td>
-                                <td class="p-4 font-medium text-gray-800">$14.50</td>
-                                <td class="p-4 text-gray-800">12</td>
-                                <td class="p-4"><span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">In Stock</span></td>
+                                <td class="p-4 text-gray-500 text-sm font-mono">SKU-03319</td>
+                                <td class="p-4"><p class="font-bold text-gray-800">Drywall Screws</p></td>
+                                <td class="p-4 text-gray-600 text-sm">Fasteners</td>
+                                <td class="p-4 text-gray-600 text-sm">Local Hardware Co.</td>
+                                <td class="p-4">
+                                    <p class="text-xs text-gray-500">Cost: $3.50</p>
+                                    <p class="font-bold text-gray-800">Sell: $8.99</p>
+                                </td>
+                                <td class="p-4">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-bold text-gray-800">120</span> <span class="text-xs text-gray-500">boxes</span>
+                                        <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">Good</span>
+                                    </div>
+                                </td>
+                                <td class="p-4 text-right space-x-2">
+                                    <button class="text-blue-600 hover:text-blue-800 text-sm font-medium">Edit</button>
+                                    <button class="text-red-600 hover:text-red-800 text-sm font-medium">Del</button>
+                                </td>
                             </tr>
-                            <tr class="hover:bg-gray-50 transition">
-                                <td class="p-4 text-gray-500 text-sm">SKU-01022</td>
-                                <td class="p-4 font-medium text-gray-800">PVC Pipe 2" (10ft)</td>
+                            <tr class="hover:bg-amber-50 transition bg-amber-50/30">
+                                <td class="p-4 text-gray-500 text-sm font-mono">SKU-01022</td>
+                                <td class="p-4"><p class="font-bold text-gray-800">PVC Pipe 2" (10ft)</p></td>
                                 <td class="p-4 text-gray-600 text-sm">Plumbing</td>
-                                <td class="p-4 font-medium text-gray-800">$8.20</td>
-                                <td class="p-4 text-red-600 font-bold">3</td>
-                                <td class="p-4"><span class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">Low Stock</span></td>
+                                <td class="p-4 text-gray-600 text-sm">Pipes R Us</td>
+                                <td class="p-4">
+                                    <p class="text-xs text-gray-500">Cost: $4.10</p>
+                                    <p class="font-bold text-gray-800">Sell: $8.20</p>
+                                </td>
+                                <td class="p-4">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-bold text-red-600">3</span> <span class="text-xs text-gray-500">pcs</span>
+                                        <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">Low</span>
+                                    </div>
+                                </td>
+                                <td class="p-4 text-right space-x-2">
+                                    <button class="text-blue-600 hover:text-blue-800 text-sm font-medium">Edit</button>
+                                    <button class="text-red-600 hover:text-red-800 text-sm font-medium">Del</button>
+                                </td>
                             </tr>
-                            <tr class="hover:bg-gray-50 transition">
-                                <td class="p-4 text-gray-500 text-sm">SKU-04410</td>
-                                <td class="p-4 font-medium text-gray-800">LED Work Light</td>
-                                <td class="p-4 text-gray-600 text-sm">Electrical</td>
-                                <td class="p-4 font-medium text-gray-800">$35.00</td>
-                                <td class="p-4 text-gray-800">0</td>
-                                <td class="p-4"><span class="bg-gray-200 text-gray-600 px-2 py-1 rounded text-xs font-bold">Out of Stock</span></td>
+                            <tr class="hover:bg-red-50 transition bg-red-50/30">
+                                <td class="p-4 text-gray-500 text-sm font-mono">SKU-04410</td>
+                                <td class="p-4"><p class="font-bold text-gray-800">Exterior White Paint</p></td>
+                                <td class="p-4 text-gray-600 text-sm">Paint</td>
+                                <td class="p-4 text-gray-600 text-sm">ColorTech</td>
+                                <td class="p-4">
+                                    <p class="text-xs text-gray-500">Cost: $18.00</p>
+                                    <p class="font-bold text-gray-800">Sell: $35.00</p>
+                                </td>
+                                <td class="p-4">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-bold text-gray-400">0</span> <span class="text-xs text-gray-500">gal</span>
+                                        <span class="bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">Out</span>
+                                    </div>
+                                </td>
+                                <td class="p-4 text-right space-x-2">
+                                    <button class="text-blue-600 hover:text-blue-800 text-sm font-medium">Edit</button>
+                                    <button class="text-red-600 hover:text-red-800 text-sm font-medium">Del</button>
+                                </td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
-            </div>
 
             <div id="analytics" class="tab-content">
-                
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                     <div>
                         <h2 class="text-2xl font-bold text-gray-800">Financial Analytics</h2>
-                        <p class="text-sm text-gray-500 mt-1">Track revenue, expenses, and inventory performance.</p>
-                    </div>
-                    <div class="flex gap-3 w-full md:w-auto">
-                        <select class="bg-white border border-gray-200 text-gray-700 py-2 px-4 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option>This Month (MTD)</option>
-                            <option>Last Month</option>
-                            <option>Year to Date (YTD)</option>
-                            <option>Custom Range...</option>
-                        </select>
-                        <button class="bg-slate-800 text-white px-4 py-2 rounded-lg font-semibold hover:bg-slate-700 transition shadow-sm flex items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                            Export
-                        </button>
                     </div>
                 </div>
                 
@@ -223,246 +258,149 @@
                         <div class="absolute right-0 top-0 h-full w-1 bg-blue-500"></div>
                         <h3 class="text-gray-500 text-xs font-bold uppercase tracking-wider">Gross Revenue</h3>
                         <p class="text-3xl font-extrabold text-gray-800 mt-2">$46,500</p>
-                        <p class="text-sm text-green-600 font-medium mt-2 flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
-                            +12.5% from last mo.
-                        </p>
                     </div>
-                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 relative overflow-hidden">
+                     <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 relative overflow-hidden">
                         <div class="absolute right-0 top-0 h-full w-1 bg-red-500"></div>
                         <h3 class="text-gray-500 text-xs font-bold uppercase tracking-wider">Total Expenses</h3>
                         <p class="text-3xl font-extrabold text-gray-800 mt-2">$28,150</p>
-                        <p class="text-sm text-red-500 font-medium mt-2 flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path></svg>
-                            +4.2% from last mo.
-                        </p>
-                    </div>
-                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 relative overflow-hidden">
-                        <div class="absolute right-0 top-0 h-full w-1 bg-green-500"></div>
-                        <h3 class="text-gray-500 text-xs font-bold uppercase tracking-wider">Net Profit</h3>
-                        <p class="text-3xl font-extrabold text-green-600 mt-2">$17,050</p>
-                        <p class="text-sm text-green-600 font-medium mt-2 flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
-                            +8.1% from last mo.
-                        </p>
-                    </div>
-                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 relative overflow-hidden">
-                        <div class="absolute right-0 top-0 h-full w-1 bg-purple-500"></div>
-                        <h3 class="text-gray-500 text-xs font-bold uppercase tracking-wider">Gross Margin</h3>
-                        <p class="text-3xl font-extrabold text-gray-800 mt-2">42.8%</p>
-                        <p class="text-sm text-gray-500 font-medium mt-2">Target: 45.0%</p>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                    <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                        <h3 class="text-lg font-bold text-gray-800 mb-4">Revenue vs. Expenses (Weekly)</h3>
-                        <div class="h-64 flex items-end gap-4 border-b border-gray-200 pb-2 relative">
-                            <div class="absolute left-0 top-0 h-full flex flex-col justify-between text-xs text-gray-400 pb-2">
-                                <span>$15k</span><span>$10k</span><span>$5k</span><span>$0</span>
-                            </div>
-                            <div class="ml-10 flex-1 flex justify-around items-end h-full">
-                                <div class="flex gap-1 items-end group cursor-pointer">
-                                    <div class="w-8 bg-blue-500 rounded-t-sm h-[60%] hover:opacity-80 transition"></div>
-                                    <div class="w-8 bg-red-400 rounded-t-sm h-[40%] hover:opacity-80 transition"></div>
-                                </div>
-                                <div class="flex gap-1 items-end group cursor-pointer">
-                                    <div class="w-8 bg-blue-500 rounded-t-sm h-[80%] hover:opacity-80 transition"></div>
-                                    <div class="w-8 bg-red-400 rounded-t-sm h-[45%] hover:opacity-80 transition"></div>
-                                </div>
-                                <div class="flex gap-1 items-end group cursor-pointer">
-                                    <div class="w-8 bg-blue-500 rounded-t-sm h-[70%] hover:opacity-80 transition"></div>
-                                    <div class="w-8 bg-red-400 rounded-t-sm h-[35%] hover:opacity-80 transition"></div>
-                                </div>
-                                <div class="flex gap-1 items-end group cursor-pointer">
-                                    <div class="w-8 bg-blue-500 rounded-t-sm h-[90%] hover:opacity-80 transition"></div>
-                                    <div class="w-8 bg-red-400 rounded-t-sm h-[50%] hover:opacity-80 transition"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex justify-around ml-10 mt-3 text-sm text-gray-500 font-medium">
-                            <span>Week 1</span><span>Week 2</span><span>Week 3</span><span>Week 4</span>
-                        </div>
-                        <div class="flex justify-center gap-6 mt-4 text-sm">
-                            <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-blue-500"></span> Revenue</span>
-                            <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-400"></span> Expenses</span>
-                        </div>
-                    </div>
-
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col">
-                        <h3 class="text-lg font-bold text-gray-800 mb-4">Sales by Category</h3>
-                        <div class="flex-1 flex items-center justify-center relative">
-                            <div class="w-40 h-40 rounded-full border-[16px] border-gray-100 relative">
-                                <div class="absolute inset-[-16px] rounded-full border-[16px] border-blue-500 border-r-transparent border-b-transparent transform rotate-45"></div>
-                                <div class="absolute inset-[-16px] rounded-full border-[16px] border-yellow-400 border-l-transparent border-t-transparent border-b-transparent transform -rotate-45"></div>
-                                <div class="absolute inset-[-16px] rounded-full border-[16px] border-green-500 border-l-transparent border-t-transparent border-r-transparent"></div>
-                                <div class="absolute inset-0 flex items-center justify-center flex-col">
-                                    <span class="text-2xl font-bold text-gray-800">4</span>
-                                    <span class="text-xs text-gray-500 uppercase">Depts</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="mt-6 space-y-3">
-                            <div class="flex justify-between items-center text-sm">
-                                <span class="flex items-center gap-2 text-gray-600"><span class="w-3 h-3 rounded bg-blue-500"></span> Power Tools</span>
-                                <span class="font-bold text-gray-800">45%</span>
-                            </div>
-                            <div class="flex justify-between items-center text-sm">
-                                <span class="flex items-center gap-2 text-gray-600"><span class="w-3 h-3 rounded bg-yellow-400"></span> Plumbing</span>
-                                <span class="font-bold text-gray-800">25%</span>
-                            </div>
-                            <div class="flex justify-between items-center text-sm">
-                                <span class="flex items-center gap-2 text-gray-600"><span class="w-3 h-3 rounded bg-green-500"></span> Lumber</span>
-                                <span class="font-bold text-gray-800">20%</span>
-                            </div>
-                            <div class="flex justify-between items-center text-sm">
-                                <span class="flex items-center gap-2 text-gray-600"><span class="w-3 h-3 rounded bg-gray-300"></span> Fasteners</span>
-                                <span class="font-bold text-gray-800">10%</span>
-                            </div>
-                        </div>
                     </div>
                 </div>
               
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                         <div class="p-5 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
                             <h3 class="font-bold text-gray-800">Itemized Income Statement</h3>
-                            <button class="text-blue-600 text-sm font-semibold hover:underline">View Full PDF</button>
                         </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse">
-                                <tbody>
-                                    <tr class="border-b border-gray-50"><td class="p-3 pl-5 font-semibold text-gray-800">Gross Sales</td><td class="p-3 pr-5 text-right font-semibold">$46,500.00</td></tr>
-                                    <tr class="text-sm border-b border-gray-50"><td class="p-3 pl-8 text-gray-500">Returns & Discounts</td><td class="p-3 pr-5 text-right text-red-500">-$1,300.00</td></tr>
-                                    <tr class="bg-blue-50/50 border-b-2 border-blue-100"><td class="p-3 pl-5 font-bold text-blue-900">Net Revenue</td><td class="p-3 pr-5 text-right font-bold text-blue-900">$45,200.00</td></tr>
-                                    
-                                    <tr class="border-b border-gray-50"><td class="p-3 pl-5 font-semibold text-gray-800 mt-2">Cost of Goods Sold (COGS)</td><td class="p-3 pr-5 text-right"></td></tr>
-                                    <tr class="text-sm border-b border-gray-50"><td class="p-3 pl-8 text-gray-500">Hardware Purchases (POs)</td><td class="p-3 pr-5 text-right text-gray-700">$17,200.00</td></tr>
-                                    <tr class="text-sm border-b border-gray-50"><td class="p-3 pl-8 text-gray-500">Inbound Freight / Shipping</td><td class="p-3 pr-5 text-right text-gray-700">$1,200.00</td></tr>
-                                    <tr class="bg-gray-50 border-b-2 border-gray-200"><td class="p-3 pl-5 font-bold text-gray-800">Gross Profit</td><td class="p-3 pr-5 text-right font-bold text-gray-800">$26,800.00</td></tr>
-                                    
-                                    <tr class="border-b border-gray-50"><td class="p-3 pl-5 font-semibold text-gray-800">Operating Expenses</td><td class="p-3 pr-5 text-right"></td></tr>
-                                    <tr class="text-sm border-b border-gray-50"><td class="p-3 pl-8 text-gray-500">Payroll (Staff Tracking)</td><td class="p-3 pr-5 text-right text-gray-700">$6,200.00</td></tr>
-                                    <tr class="text-sm border-b border-gray-50"><td class="p-3 pl-8 text-gray-500">Rent & Utilities</td><td class="p-3 pr-5 text-right text-gray-700">$3,550.00</td></tr>
-                                    <tr class="bg-red-50/50 border-b-2 border-red-100"><td class="p-3 pl-5 font-bold text-red-900">Total Expenses</td><td class="p-3 pr-5 text-right font-bold text-red-900">$28,150.00</td></tr>
-                                    
-                                    <tr class="bg-green-50"><td class="p-4 pl-5 text-lg font-bold text-green-900">Net Operating Income</td><td class="p-4 pr-5 text-right text-lg font-bold text-green-900">$17,050.00</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
+                        <div class="p-4"><p class="text-gray-500 text-sm">Income statement details...</p></div>
                     </div>    
 
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
                         <div class="p-5 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
                             <h3 class="font-bold text-gray-800">Top Selling Items</h3>
-                            <span class="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded">Action: Reorder Soon</span>
                         </div>
-                        <div class="flex-1 overflow-x-auto">
-                            <table class="w-full text-left border-collapse">
-                                <thead>
-                                    <tr class="text-xs text-gray-400 uppercase tracking-wider border-b border-gray-100">
-                                        <th class="p-3 pl-5 font-medium">Item Name</th>
-                                        <th class="p-3 font-medium text-center">Units Sold</th>
-                                        <th class="p-3 pr-5 font-medium text-right">Revenue</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="text-sm">
-                                    <tr class="border-b border-gray-50 hover:bg-gray-50 transition">
-                                        <td class="p-3 pl-5">
-                                            <p class="font-bold text-gray-800">DeWalt 20V Max Drill</p>
-                                            <p class="text-xs text-gray-500">SKU-00142</p>
-                                        </td>
-                                        <td class="p-3 text-center font-semibold text-gray-700">42</td>
-                                        <td class="p-3 pr-5 text-right font-bold text-green-600">$5,459.58</td>
-                                    </tr>
-                                    <tr class="border-b border-gray-50 hover:bg-gray-50 transition">
-                                        <td class="p-3 pl-5">
-                                            <p class="font-bold text-gray-800">Claw Hammer 16oz</p>
-                                            <p class="text-xs text-gray-500">SKU-00891</p>
-                                        </td>
-                                        <td class="p-3 text-center font-semibold text-gray-700">115</td>
-                                        <td class="p-3 pr-5 text-right font-bold text-green-600">$1,667.50</td>
-                                    </tr>
-                                    <tr class="border-b border-gray-50 hover:bg-gray-50 transition">
-                                        <td class="p-3 pl-5">
-                                            <p class="font-bold text-gray-800">PVC Pipe 2" (10ft)</p>
-                                            <p class="text-xs text-red-500 font-semibold">Low Stock (3 left)</p>
-                                        </td>
-                                        <td class="p-3 text-center font-semibold text-gray-700">89</td>
-                                        <td class="p-3 pr-5 text-right font-bold text-green-600">$729.80</td>
-                                    </tr>
-                                    <tr class="hover:bg-gray-50 transition">
-                                        <td class="p-3 pl-5">
-                                            <p class="font-bold text-gray-800">Drywall Screws (1lb)</p>
-                                            <p class="text-xs text-gray-500">SKU-03319</p>
-                                        </td>
-                                        <td class="p-3 text-center font-semibold text-gray-700">64</td>
-                                        <td class="p-3 pr-5 text-right font-bold text-green-600">$575.36</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
+                        <div class="p-4"><p class="text-gray-500 text-sm">Top selling items details...</p></div>
+                    </div>
+                </div> </div>
 
             <div id="staff" class="tab-content">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-2xl font-bold text-gray-800">Staff Scheduling & Time Tracking</h2>
                     <button class="bg-slate-800 text-white px-4 py-2 rounded-lg font-semibold hover:bg-slate-700 transition">Publish Schedule</button>
                 </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <div class="flex justify-between items-start mb-4">
-                            <div>
-                                <h3 class="font-bold text-lg text-gray-800">Sarah Jenkins</h3>
-                                <p class="text-sm text-gray-500">Cashier / Floor Staff</p>
-                            </div>
-                            <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-2">
-                                <span class="w-2 h-2 rounded-full bg-green-500"></span> Clocked In
-                            </span>
-                        </div>
-                        <div class="space-y-2 border-t pt-4">
-                            <div class="flex justify-between text-sm">
-                                <span class="text-gray-600">Today's Shift:</span>
-                                <span class="font-medium text-gray-800">8:00 AM - 4:00 PM</span>
-                            </div>
-                            <div class="flex justify-between text-sm">
-                                <span class="text-gray-600">Hours This Week:</span>
-                                <span class="font-medium text-gray-800">32 / 40 hrs</span>
-                            </div>
-                            <div class="flex justify-between text-sm">
-                                <span class="text-gray-600">Break Status:</span>
-                                <span class="font-medium text-gray-800">Lunch taken (30m)</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <div class="flex justify-between items-start mb-4">
-                            <div>
-                                <h3 class="font-bold text-lg text-gray-800">Marcus Reed</h3>
-                                <p class="text-sm text-gray-500">Inventory Specialist</p>
-                            </div>
-                            <span class="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-2">
-                                <span class="w-2 h-2 rounded-full bg-gray-400"></span> Off Duty
-                            </span>
-                        </div>
-                        <div class="space-y-2 border-t pt-4">
-                            <div class="flex justify-between text-sm">
-                                <span class="text-gray-600">Next Shift:</span>
-                                <span class="font-medium text-gray-800">Tomorrow, 10:00 AM</span>
-                            </div>
-                            <div class="flex justify-between text-sm">
-                                <span class="text-gray-600">Hours This Week:</span>
-                                <span class="font-medium text-gray-800">24 / 40 hrs</span>
-                            </div>
-                        </div>
-                    </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <p>Staff tracking interface goes here...</p>
                 </div>
             </div>
 
         </div>
     </main>
+
+    <div id="addItemModal" class="modal fixed inset-0 bg-black/50 z-50 items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <h3 class="text-lg font-bold text-gray-800">Add / Edit Product</h3>
+                <button onclick="toggleModal('addItemModal')" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Item Name</label>
+                        <input type="text" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="e.g., Claw Hammer 16oz">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">SKU / Item Code</label>
+                        <input type="text" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="e.g., SKU-00123">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                        <select class="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                            <option>Tools</option><option>Nails & Fasteners</option><option>Paint</option><option>Electrical</option><option>Plumbing</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Cost Price ($)</label>
+                        <input type="number" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="0.00">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Selling Price ($)</label>
+                        <input type="number" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="0.00">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Initial Stock Qty</label>
+                        <input type="number" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="0">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Unit of Measure</label>
+                        <select class="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                            <option>pcs</option><option>boxes</option><option>kg</option><option>meters</option><option>gallons</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Supplier Info</label>
+                        <input type="text" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Supplier Name or Contact">
+                    </div>
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50">
+                <button onclick="toggleModal('addItemModal')" class="px-4 py-2 text-gray-600 font-medium hover:bg-gray-200 rounded-lg transition">Cancel</button>
+                <button class="px-4 py-2 bg-blue-600 text-white font-medium hover:bg-blue-500 rounded-lg transition shadow-sm">Save Product</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="transactionModal" class="modal fixed inset-0 bg-black/50 z-50 items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
+            <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <h3 class="text-lg font-bold text-gray-800">Record Stock / Sale</h3>
+                <button onclick="toggleModal('transactionModal')" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Transaction Type</label>
+                    <select class="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium">
+                        <option value="sale" class="text-green-600">🛍️ Record Sale (Stock Out)</option>
+                        <option value="restock" class="text-blue-600">📦 Restock (Stock In)</option>
+                        <option value="damage" class="text-red-600">⚠️ Damage / Loss (Stock Out)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Select Item</label>
+                    <select class="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                        <option>DeWalt 20V Max Drill (SKU-00142)</option>
+                        <option>Drywall Screws (SKU-03319)</option>
+                        <option>PVC Pipe 2" (SKU-01022)</option>
+                    </select>
+                </div>
+                <div class="flex gap-4">
+                    <div class="flex-1">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                        <input type="number" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" value="1">
+                    </div>
+                    <div class="flex-1">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                        <select class="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                            <option>Cash</option>
+                            <option>GCash</option>
+                            <option>Bank Transfer</option>
+                            <option>N/A (Restock/Damage)</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Notes / Invoice Ref (Optional)</label>
+                    <input type="text" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="e.g., INV-8821">
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50">
+                <button onclick="toggleModal('transactionModal')" class="px-4 py-2 text-gray-600 font-medium hover:bg-gray-200 rounded-lg transition">Cancel</button>
+                <button class="px-4 py-2 bg-green-600 text-white font-medium hover:bg-green-500 rounded-lg transition shadow-sm">Confirm Transaction</button>
+            </div>
+        </div>
+    </div>
 
     <script>
         function switchTab(tabId) {
@@ -482,6 +420,85 @@
                 activeBtn.classList.remove('text-slate-300', 'hover:bg-slate-700', 'hover:text-white');
                 activeBtn.classList.add('bg-blue-600', 'text-white');
             }
+        }
+
+        // Modal Toggle
+        function toggleModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal.classList.contains('active')) {
+                modal.classList.remove('active');
+            } else {
+                modal.classList.add('active');
+            }
+        }
+
+        // --- NEW INVENTORY FEATURES ---
+
+        // 1. Smart Filter (Search + Category)
+        function filterTable() {
+            const searchInput = document.getElementById('searchInput').value.toLowerCase();
+            const categoryFilter = document.getElementById('categoryFilter').value.toLowerCase();
+            const rows = document.querySelectorAll('#inventoryTableBody tr');
+
+            rows.forEach(row => {
+                // Get text from SKU (column 0), Product Info (column 1), and Category (column 2)
+                const sku = row.cells[0].innerText.toLowerCase();
+                const productInfo = row.cells[1].innerText.toLowerCase();
+                const category = row.cells[2].innerText.toLowerCase();
+
+                // Check if the row matches the text search and the category dropdown
+                const matchesSearch = sku.includes(searchInput) || productInfo.includes(searchInput);
+                const matchesCategory = categoryFilter === "" || category.includes(categoryFilter);
+
+                // Show or hide the row based on the filters
+                if (matchesSearch && matchesCategory) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        // 2. Column Sorting
+        let sortDirections = [true, true, true, true, true, true]; // Tracks asc/desc for each column
+
+        function sortTable(columnIndex, type) {
+            const tbody = document.getElementById('inventoryTableBody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            
+            // Toggle sorting direction
+            const isAscending = sortDirections[columnIndex];
+            sortDirections[columnIndex] = !isAscending;
+
+            rows.sort((a, b) => {
+                let valA = a.cells[columnIndex].innerText.trim();
+                let valB = b.cells[columnIndex].innerText.trim();
+
+                if (type === 'number') {
+                    // Strip out text (like "pcs", "boxes") and parse the raw number for Stock Level
+                    valA = parseFloat(valA.replace(/[^0-9.-]+/g, ""));
+                    valB = parseFloat(valB.replace(/[^0-9.-]+/g, ""));
+                } 
+                else if (type === 'price') {
+                    // Extract the selling price from the cell text (e.g., "Sell: $129.99")
+                    const matchA = valA.match(/Sell:\s*\$([\d.]+)/);
+                    const matchB = valB.match(/Sell:\s*\$([\d.]+)/);
+                    valA = matchA ? parseFloat(matchA[1]) : 0;
+                    valB = matchB ? parseFloat(matchB[1]) : 0;
+                } 
+                else {
+                    // Standard text sorting
+                    valA = valA.toLowerCase();
+                    valB = valB.toLowerCase();
+                }
+
+                if (valA < valB) return isAscending ? -1 : 1;
+                if (valA > valB) return isAscending ? 1 : -1;
+                return 0;
+            });
+
+            // Re-attach sorted rows to the table body
+            rows.forEach(row => tbody.appendChild(row));
         }
     </script>
 </body>

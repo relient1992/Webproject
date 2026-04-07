@@ -2,6 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <script>
+        // --- INSTANT HARD GATE ---
+        // This runs before the browser even looks at the <body>
+        if (sessionStorage.getItem('r_ams_exam_passed') !== 'true') {
+            // Replace the URL instantly so they can't even use the "Back" button to return here
+            window.location.replace('hr_written_exam.html'); 
+        }
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>XBP Global Application Form</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -636,6 +644,28 @@
     
 
     <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('recruitmentForm');
+            const examScore = sessionStorage.getItem('r_ams_exam_score');
+            const examHistory = sessionStorage.getItem('r_ams_exam_history');
+            
+            if (form && examScore && examHistory) {
+                // Inject the numerical score
+                const scoreInput = document.createElement('input');
+                scoreInput.type = 'hidden';
+                scoreInput.name = 'written_exam_score'; 
+                scoreInput.value = examScore;
+                form.appendChild(scoreInput);
+
+                // Inject the detailed exam history 
+                const historyInput = document.createElement('input');
+                historyInput.type = 'hidden';
+                historyInput.name = 'exam_history'; 
+                historyInput.value = examHistory;
+                form.appendChild(historyInput);
+            }
+        });
+
         function validateNumbers(input) {
                 const errorMsg = document.getElementById('number-error');                
                 if (/[^0-9]/.test(input.value)) {

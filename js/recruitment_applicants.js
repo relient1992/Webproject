@@ -542,6 +542,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 const formData = new FormData(form);
 
+                // --- ADD THIS EXAM DATA BLOCK ---
+                const examScore = sessionStorage.getItem('r_ams_exam_score');
+                const examHistory = sessionStorage.getItem('r_ams_exam_history');
+                
+                if (examScore && examHistory) {
+                    formData.append('written_exam_score', examScore);
+                    formData.append('exam_history', examHistory);
+                }
+                // --------------------------------
+
                 try {
                     // --- SAFETY WRAPPER START ---
                     const screening = calculatePrescreening();
@@ -570,6 +580,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     
                     if (result.status === 'success') {
+                        
+                        // --- DESTROY EXAM TOKENS ON SUCCESS ---
+                        sessionStorage.removeItem('r_ams_exam_passed');
+                        sessionStorage.removeItem('r_ams_exam_score');
+                        sessionStorage.removeItem('r_ams_exam_history');
+                        // --------------------------------------
+
                         if(responseModal) {
                             modalTitle.textContent = 'Success!';
                             modalTitle.className = 'text-2xl font-bold text-green-600 mb-4';

@@ -3,160 +3,199 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>XBP Global - Pre-Employment Assessment</title>
+    <title>XBP Global - Skills Assessment</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
-        .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
-        .option-label:has(input:checked) { background-color: #eff6ff; border-color: #3b82f6; }
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #f0fdf4 0%, #dbeafe 100%); }
+        .glass-panel { background: rgba(255, 255, 255, 0.95); box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1); border-radius: 1rem; border: 1px solid rgba(255, 255, 255, 0.18); }
+        .option-label:has(input:checked) { background-color: #eff6ff; border-color: #3b82f6; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.1); }
+        .unselectable { user-select: none; -moz-user-select: none; -webkit-user-select: none; -ms-user-select: none; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center p-4">
+<body class="min-h-screen flex flex-col items-center justify-center p-4 unselectable" oncontextmenu="return false;">
 
-    <div class="mb-8 text-center">
-        <h1 class="text-3xl font-bold text-gray-800 tracking-tight">
-            <i class="fas fa-exchange-alt text-blue-600 mr-2"></i>XBP GLOBAL
-        </h1>
-        <p class="text-gray-500 mt-2">Pre-Employment Written Assessment</p>
+    <div id="setup-screen" class="glass-panel w-full max-w-md p-8 text-center animate-fade-in">
+        <img src="../images/xbp-global.png" alt="XBP Global" class="h-12 mx-auto mb-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">Pre-Employment Assessment</h2>
+        
+        <div class="bg-yellow-50 border border-yellow-200 p-3 rounded-lg text-xs text-yellow-700 text-left mb-6">
+            <strong><i class="fas fa-shield-alt mr-1"></i> Security Notice:</strong>
+            <ul class="list-disc pl-4 mt-1">
+                <li>You have <strong>30 minutes</strong> to complete this exam.</li>
+                <li>Do not switch tabs or open other windows. Doing so 3 times will result in an automatic failure.</li>
+            </ul>
+        </div>
+
+        <select id="role-selector" class="w-full p-3 border-2 border-blue-200 rounded-xl text-gray-700 font-semibold focus:border-blue-500 focus:ring-0 transition mb-6">
+            <option value="">- Select Position -</option>
+        </select>
+
+        <button id="start-exam-btn" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition shadow-lg disabled:opacity-50">
+            Start Exam
+        </button>
+
+        <button id="exempt-btn" class="mt-4 text-xs font-bold text-gray-400 hover:text-blue-600 transition">
+            I have an exemption code
+        </button>
     </div>
 
-    <div class="glass-panel w-full max-w-3xl rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+    <div id="exam-screen" class="hidden glass-panel w-full max-w-3xl overflow-hidden">
         
         <div class="bg-blue-600 px-6 py-4 flex justify-between items-center text-white">
-            <div class="flex items-center gap-3">
-                <i class="fas fa-clipboard-list text-xl"></i>
-                <span class="font-semibold tracking-wide" id="progress-text">Question 1 of 5</span>
-            </div>
+            <span class="font-bold tracking-wide" id="progress-text">Question 1</span>
             <div class="flex items-center gap-2 bg-blue-800 px-3 py-1.5 rounded-lg font-mono font-bold shadow-inner">
                 <i class="fas fa-stopwatch animate-pulse text-red-300"></i>
-                <span id="timer-display">10:00</span>
+                <span id="timer-display">30:00</span>
             </div>
         </div>
 
         <div class="w-full bg-gray-200 h-1.5">
-            <div id="progress-bar" class="bg-green-400 h-1.5 transition-all duration-500" style="width: 20%;"></div>
+            <div id="progress-bar" class="bg-green-400 h-1.5 transition-all duration-500" style="width: 0%;"></div>
         </div>
 
         <div class="p-8">
-            <div id="question-container" class="animate-fade-in">
-                <h2 id="question-title" class="text-xl font-bold text-gray-800 mb-6 leading-relaxed">
-                    Loading question...
-                </h2>
-                
-                <div id="options-container" class="space-y-3">
-                    </div>
+            <h2 id="question-title" class="text-xl font-bold text-gray-800 mb-6 leading-relaxed">Loading question...</h2>
+            <div id="options-container" class="space-y-3 flex flex-col">
             </div>
 
             <div class="mt-10 flex justify-between items-center border-t border-gray-100 pt-6">
-                <button id="btn-prev" class="hidden px-5 py-2.5 rounded-lg border border-gray-300 text-gray-600 font-semibold hover:bg-gray-50 transition">
+                <button id="btn-prev" class="hidden px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-bold hover:bg-gray-100 shadow-sm transition">
                     <i class="fas fa-arrow-left mr-2"></i> Previous
                 </button>
-                
-                <button id="btn-next" class="ml-auto px-6 py-2.5 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-md hover:shadow-lg transition transform active:scale-95">
-                    Next <i class="fas fa-arrow-right ml-2"></i>
+
+                <button id="btn-next" class="ml-auto px-8 py-2.5 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-md transition">
+                    Next Question <i class="fas fa-arrow-right ml-2"></i>
                 </button>
-                
-                <button id="btn-submit" class="hidden ml-auto px-8 py-2.5 rounded-lg bg-green-600 text-white font-bold hover:bg-green-700 shadow-md hover:shadow-lg transition transform active:scale-95">
-                    <i class="fas fa-check-circle mr-2"></i> Submit Exam
+
+                <button id="btn-submit" class="hidden ml-auto px-8 py-2.5 rounded-xl bg-green-600 text-white font-bold hover:bg-green-700 shadow-md transition">
+                    <i class="fas fa-check-double mr-2"></i> Submit Exam
                 </button>
             </div>
         </div>
     </div>
 
     <script>
-        // --- 1. EXAM DATA ---
-        const examQuestions = [
-            {
-                question: "Which of the following is the most appropriate way to handle an irate customer?",
-                options: ["Argue back to prove the company is right.", "Remain calm, listen actively, and offer a solution.", "Transfer the call immediately without explaining.", "Hang up the phone."],
-                answer: 1 // Index of correct option
-            },
-            {
-                question: "If a project takes 4 workers 6 hours to complete, how long would it take 3 workers to complete the same project?",
-                options: ["4.5 hours", "8 hours", "10 hours", "12 hours"],
-                answer: 1
-            },
-            {
-                question: "Identify the correct sentence:",
-                options: ["Their going to the meeting tomorrow.", "There going to the meeting tomorrow.", "They're going to the meeting tomorrow.", "They going to the meeting tomorrow."],
-                answer: 2
-            },
-            {
-                question: "In Microsoft Excel, which function is used to find the highest value in a range?",
-                options: ["=TOP()", "=HIGH()", "=MAX()", "=PEAK()"],
-                answer: 2
-            },
-            {
-                question: "Data Entry Accuracy: Which of the following matches exactly with 'XBP-Global_2026-A'?",
-                options: ["XPB-Global_2026-A", "XBP-Global_2026-a", "XBP-Global_2026-A", "XBP_Global-2026-A"],
-                answer: 2
-            }
-        ];
-
-        // --- 2. STATE VARIABLES ---
+        // CORE VARIABLES
+        let examQuestions = [];
         let currentQuestionIndex = 0;
-        let userAnswers = new Array(examQuestions.length).fill(null);
-        let timeLeft = 600; // 10 minutes in seconds
+        let userAnswers = [];
+        let passingScore = 70;
+        const API_URL = '../hr_dashboard_api.php';
+
+        // TIMER & SECURITY VARIABLES
+        let endTime; // Absolute time tracking
         let timerInterval;
-        const PASSING_SCORE = 70; // 70% to pass
+        let cheatWarnings = 0;
+        let examActive = false;
+        const TIME_LIMIT_MINUTES = 30;
 
-        // --- 3. DOM ELEMENTS ---
-        const questionTitle = document.getElementById('question-title');
+        // DOM ELEMENTS
+        const setupScreen = document.getElementById('setup-screen');
+        const examScreen = document.getElementById('exam-screen');
+        const roleSelector = document.getElementById('role-selector');
+        const startBtn = document.getElementById('start-exam-btn');
         const optionsContainer = document.getElementById('options-container');
-        const btnNext = document.getElementById('btn-next');
         const btnPrev = document.getElementById('btn-prev');
+        const btnNext = document.getElementById('btn-next');
         const btnSubmit = document.getElementById('btn-submit');
-        const progressText = document.getElementById('progress-text');
-        const progressBar = document.getElementById('progress-bar');
-        const timerDisplay = document.getElementById('timer-display');
 
-        // --- 4. INITIALIZATION ---
-        function initExam() {
-            renderQuestion();
-            startTimer();
-        }
-
-        // --- 5. TIMER LOGIC ---
-        function startTimer() {
-            timerInterval = setInterval(() => {
-                if (timeLeft <= 0) {
-                    clearInterval(timerInterval);
-                    autoSubmitExam();
-                } else {
-                    timeLeft--;
-                    let minutes = Math.floor(timeLeft / 60);
-                    let seconds = timeLeft % 60;
-                    timerDisplay.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-                    if (timeLeft < 60) timerDisplay.classList.add('text-red-400');
+        // --- EXEMPTION LOGIC ---
+        document.getElementById('exempt-btn').addEventListener('click', () => {
+            Swal.fire({
+                title: 'Exemption Override',
+                text: 'Enter the bypass code provided by HR:',
+                input: 'password',
+                showCancelButton: true,
+                confirmButtonText: 'Verify Code',
+                confirmButtonColor: '#3b82f6'
+            }).then(result => {
+                if (result.isConfirmed) {
+                    if (result.value === 'XBP-EXEMPT-2026') {
+                        sessionStorage.setItem('r_ams_exam_passed', 'true');
+                        sessionStorage.setItem('r_ams_exam_score', 'Exempt');
+                        sessionStorage.setItem('r_ams_exam_history', JSON.stringify([]));
+                        window.location.href = 'recruitment_userform.html';
+                    } else {
+                        Swal.fire('Access Denied', 'Invalid exemption code.', 'error');
+                    }
                 }
-            }, 1000);
-        }
+            });
+        });
 
-        // --- 6. RENDER QUESTION ---
+        // --- 1. LOAD CATEGORIES ---
+        async function loadCategories() {
+            try {
+                const res = await fetch(`${API_URL}?action=getExamCategories`);
+                const categories = await res.json();
+                categories.forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat.id;
+                    option.dataset.passing = cat.passing_score;
+                    option.textContent = cat.category_name;
+                    roleSelector.appendChild(option);
+                });
+            } catch (e) { console.error("API Error:", e); }
+        }
+        loadCategories();
+
+        // --- 2. START EXAM ---
+        startBtn.addEventListener('click', async () => {
+            const categoryId = roleSelector.value;
+            if(!categoryId) return Swal.fire('Required', 'Please select a position.', 'warning');
+            
+            passingScore = parseInt(roleSelector.options[roleSelector.selectedIndex].dataset.passing);
+
+            Swal.fire({ title: 'Preparing Exam...', didOpen: () => Swal.showLoading() });
+
+            try {
+                const res = await fetch(`${API_URL}?action=getApplicantExam&category_id=${categoryId}`);
+                examQuestions = await res.json();
+                
+                if(examQuestions.length === 0) throw new Error("No active questions available for this role.");
+                
+                userAnswers = new Array(examQuestions.length).fill(null);
+                
+                Swal.close();
+                setupScreen.classList.add('hidden');
+                examScreen.classList.remove('hidden');
+                
+                examActive = true;
+                
+                // Initialize Absolute Timer (30 Minutes)
+                endTime = Date.now() + (TIME_LIMIT_MINUTES * 60 * 1000);
+                startTimer();
+                renderQuestion();
+                
+            } catch (e) {
+                Swal.fire('Error', e.message, 'error');
+            }
+        });
+
+        // --- 3. RENDER QUESTION ---
         function renderQuestion() {
             const q = examQuestions[currentQuestionIndex];
-            questionTitle.textContent = `${currentQuestionIndex + 1}. ${q.question}`;
-            
+            document.getElementById('question-title').textContent = `${currentQuestionIndex + 1}. ${q.question_text}`;
             optionsContainer.innerHTML = '';
-            q.options.forEach((option, index) => {
-                const isChecked = userAnswers[currentQuestionIndex] === index ? 'checked' : '';
-                
-                const optionHTML = `
-                    <label class="option-label flex items-center p-4 border-2 border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition duration-200">
-                        <input type="radio" name="answer" value="${index}" class="w-5 h-5 text-blue-600 focus:ring-blue-500 border-gray-300" ${isChecked} onchange="saveAnswer(${index})">
-                        <span class="ml-4 text-gray-700 font-medium">${option}</span>
+            
+            const optionsMap = { 'A': q.option_a, 'B': q.option_b, 'C': q.option_c, 'D': q.option_d };
+            
+            Object.keys(optionsMap).forEach(key => {
+                const isChecked = userAnswers[currentQuestionIndex] === key ? 'checked' : '';
+                optionsContainer.innerHTML += `
+                    <label class="option-label flex items-center p-4 border-2 border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition">
+                        <input type="radio" name="answer" value="${key}" class="w-5 h-5 text-blue-600 focus:ring-blue-500 border-gray-300" ${isChecked} onchange="userAnswers[${currentQuestionIndex}] = this.value">
+                        <span class="ml-4 text-gray-700 font-medium">${optionsMap[key]}</span>
                     </label>
                 `;
-                optionsContainer.innerHTML += optionHTML;
             });
 
-            // Update UI State
-            progressText.textContent = `Question ${currentQuestionIndex + 1} of ${examQuestions.length}`;
-            progressBar.style.width = `${((currentQuestionIndex + 1) / examQuestions.length) * 100}%`;
+            document.getElementById('progress-text').textContent = `Question ${currentQuestionIndex + 1} of ${examQuestions.length}`;
+            document.getElementById('progress-bar').style.width = `${((currentQuestionIndex + 1) / examQuestions.length) * 100}%`;
 
+            // Handle Buttons Visibility
             btnPrev.classList.toggle('hidden', currentQuestionIndex === 0);
             
             if (currentQuestionIndex === examQuestions.length - 1) {
@@ -168,14 +207,8 @@
             }
         }
 
-        // --- 7. EVENT HANDLERS ---
-        window.saveAnswer = function(val) { userAnswers[currentQuestionIndex] = val; }
-
+        // --- 4. NAVIGATION ---
         btnNext.addEventListener('click', () => {
-            if (userAnswers[currentQuestionIndex] === null) {
-                Swal.fire({ icon: 'warning', title: 'Wait!', text: 'Please select an answer before proceeding.', toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
-                return;
-            }
             currentQuestionIndex++;
             renderQuestion();
         });
@@ -186,70 +219,112 @@
         });
 
         btnSubmit.addEventListener('click', () => {
-            Swal.fire({
-                title: 'Submit Exam?',
-                text: "Are you sure you want to submit your answers?",
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#10b981',
-                confirmButtonText: 'Yes, submit it!'
-            }).then((result) => {
-                if (result.isConfirmed) processExamResults();
-            });
+            // Check for unanswered questions
+            const unanswered = userAnswers.filter(a => a === null).length;
+            if (unanswered > 0) {
+                Swal.fire({
+                    title: 'Incomplete',
+                    text: `You have ${unanswered} unanswered question(s). Are you sure you want to submit?`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Yes, Submit',
+                    confirmButtonColor: '#10b981'
+                }).then(res => { if (res.isConfirmed) processExam(false); });
+            } else {
+                processExam(false);
+            }
         });
 
-        function autoSubmitExam() {
-            Swal.fire({ icon: 'error', title: 'Time is Up!', text: 'Your exam has been automatically submitted.', allowOutsideClick: false }).then(() => {
-                processExamResults();
-            });
+        // --- 5. ABSOLUTE TIMER ---
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                // Calculate remaining seconds based on real time
+                let remainingSeconds = Math.round((endTime - Date.now()) / 1000);
+                
+                if (remainingSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    processExam(true, 'Time is up! Your exam has been automatically submitted.');
+                } else {
+                    let m = Math.floor(remainingSeconds / 60);
+                    let s = remainingSeconds % 60;
+                    document.getElementById('timer-display').textContent = `${m}:${s < 10 ? '0' : ''}${s}`;
+                    
+                    if (remainingSeconds < 60) {
+                        document.getElementById('timer-display').classList.add('text-red-400');
+                    }
+                }
+            }, 1000);
         }
 
-        // --- 8. THE CRITICAL HANDOFF LOGIC ---
-        function processExamResults() {
+        // --- 6. ANTI-CHEAT SYSTEM (Tab Tracking) ---
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && examActive) {
+                cheatWarnings++;
+                if (cheatWarnings >= 3) {
+                    // Force Termination
+                    processExam(true, 'Exam terminated due to multiple tab switching violations.');
+                } else {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Warning!',
+                        text: `Please do not leave the exam tab. This is warning ${cheatWarnings} of 3.`,
+                        confirmButtonColor: '#ef4444'
+                    });
+                }
+            }
+        });
+
+        // --- 7. PROCESS & SCORE ---
+        function processExam(forceFail = false, forceMessage = null) {
             clearInterval(timerInterval);
+            examActive = false;
+            let correct = 0;
+            let examHistory = [];
             
-            // Calculate Score
-            let correctAnswers = 0;
             userAnswers.forEach((ans, index) => {
-                if (ans === examQuestions[index].answer) correctAnswers++;
+                let q = examQuestions[index];
+                if (ans === q.correct_option) correct++;
+                
+                examHistory.push({
+                    question: q.question_text,
+                    options: { A: q.option_a, B: q.option_b, C: q.option_c, D: q.option_d },
+                    user_answer: ans,
+                    correct_answer: q.correct_option
+                });
             });
             
-            let finalScore = Math.round((correctAnswers / examQuestions.length) * 100);
+            let percentage = Math.round((correct / examQuestions.length) * 100);
+            
+            // NEW FORMAT: "11/15 73%"
+            let formattedScore = `${correct}/${examQuestions.length} ${percentage}%`;
 
-            if (finalScore >= PASSING_SCORE) {
-                // PASS LOGIC: Save to Session Storage and Redirect
+            if (!forceFail && percentage >= passingScore) {
                 sessionStorage.setItem('r_ams_exam_passed', 'true');
-                sessionStorage.setItem('r_ams_exam_score', finalScore);
+                sessionStorage.setItem('r_ams_exam_score', formattedScore);
+                sessionStorage.setItem('r_ams_exam_history', JSON.stringify(examHistory));
 
                 Swal.fire({
                     icon: 'success',
-                    title: 'Congratulations!',
-                    text: `You passed with a score of ${finalScore}%. Proceeding to the application form...`,
-                    allowOutsideClick: false,
-                    confirmButtonText: 'Proceed to Application'
-                }).then(() => {
-                    // Redirect to your actual recruitment user form
-                    window.location.href = 'recruitment_userform.html';
-                });
-
+                    title: 'Exam Passed!',
+                    text: `Score: ${percentage}%. Routing to application form...`,
+                    confirmButtonText: 'Proceed',
+                    allowOutsideClick: false
+                }).then(() => window.location.href = 'recruitment_userform.html'); 
             } else {
-                // FAIL LOGIC: Block access
                 sessionStorage.removeItem('r_ams_exam_passed');
+                sessionStorage.removeItem('r_ams_exam_history');
+                
+                const msg = forceMessage || `Your score: ${percentage}%. Required: ${passingScore}%. Thank you for your interest.`;
                 
                 Swal.fire({
                     icon: 'error',
-                    title: 'Did Not Pass',
-                    text: `Your score was ${finalScore}%. Unfortunately, you did not meet the minimum requirement of ${PASSING_SCORE}%. Thank you for your interest in XBP Global.`,
+                    title: 'Exam Failed',
+                    text: msg,
                     confirmButtonText: 'Close',
                     allowOutsideClick: false
-                }).then(() => {
-                    window.location.href = '../index.html'; // Redirect to homepage or career page
-                });
+                }).then(() => window.location.href = '../views/hr_written_exam.html');
             }
         }
-
-        // Start the engine
-        initExam();
     </script>
 </body>
 </html>

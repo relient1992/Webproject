@@ -62,12 +62,13 @@ if ($action === 'getSkills') {
 }
 
 // --- ROLE-BASED ACCESS CONTROL ---
-if (!isset($_SESSION['employee_id'])) {
+$public_actions = ['getExamCategories', 'getApplicantExam'];
+
+if (!isset($_SESSION['employee_id']) && !in_array($action, $public_actions)) {
     http_response_code(401); 
     echo json_encode(['status' => 'error', 'message' => 'Authentication required. Please log in first.']);
     exit();
 }
-
 $loggedInUser = $_SESSION['employee_id'];
 
 // Default values
@@ -91,6 +92,8 @@ if ($stmt_role) {
     }
     $stmt_role->close();
 }
+
+
 
 // --- API ROUTER ---
 switch ($action) {
@@ -168,7 +171,28 @@ switch ($action) {
         // USE THE VALUES FETCHED FROM DB ABOVE
         // Do not rely on $_SESSION['role'] which might be missing/stale
         getNotifications($conn, $loggedInUser, $detectedRoleName, $detectedRoleId); 
-        break;        
+        break;
+    case 'getExamCategories':
+        getExamCategories($conn);
+        break;
+    case 'getApplicantExam':
+        getApplicantExam($conn);
+        break;
+    case 'saveExamQuestion':
+        saveExamQuestion($conn, $loggedInUser);
+        break;
+    case 'addExamCategory':
+        addExamCategory($conn, $loggedInUser);
+        break;
+    case 'deleteExamCategory':
+        deleteExamCategory($conn, $loggedInUser);
+        break;
+    case 'deleteExamQuestion':
+        deleteExamQuestion($conn, $loggedInUser);
+        break;
+    case 'getExamHistory':
+        getExamHistory($conn);
+        break;      
 }
 $conn->close();
 
@@ -1312,3 +1336,186 @@ function checkEmployeeId($conn) {
     }
     $stmt->close();
 }
+
+function getExamCategories($conn) {
+    $sql = "SELECT id, category_name, passing_score, time_limit_minutes FROM exam_categories";
+    $result = $conn->query($sql);
+    
+    $categories = [];
+    if ($result) {
+        while ($row = $result->fetch_assoc()) {
+            $categories[] = $row;
+        }
+    }
+    
+    echo json_encode($categories);
+}
+
+function getApplicantExam($conn) {
+    $category_id = $_GET['category_id'] ?? 1;
+    
+    // ORDER BY RAND() ensures questions are shuffled at the database level!
+    $sql = "SELECT id, question_text, option_a, option_b, option_c, option_d, correct_option 
+            FROM exam_questions 
+            WHERE category_id = ? AND is_active = 1 
+            ORDER BY RAND() LIMIT 20";
+            
+    $stmt = $conn->prepare($sql);
+    if ($stmt) {
+        $stmt->bind_param("i", $category_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        $questions = [];
+        while ($row = $result->fetch_assoc()) {
+            $questions[] = $row;
+        }
+        
+        echo json_encode($questions);
+        $stmt->close();
+    } else {
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to prepare exam query.']);
+    }
+}
+
+function saveExamQuestion($conn, $userIdentifier) {
+    $data = json_decode(file_get_contents("php://input"), true);
+    
+    $qId = intval($data['question_id'] ?? 0); // Check if we are updating
+    $categoryId = intval($data['category_id'] ?? 0);
+    $qText = $data['question_text'] ?? '';
+    $optA = $data['option_a'] ?? '';
+    $optB = $data['option_b'] ?? '';
+    $optC = $data['option_c'] ?? '';
+    $optD = $data['option_d'] ?? '';
+    $correct = $data['correct_option'] ?? 'A';
+
+    if ($categoryId <= 0 || empty($qText)) {
+        echo json_encode(['status' => 'error', 'message' => 'Missing required fields.']);
+        exit();
+    }
+
+    if ($qId > 0) {
+        // UPDATE EXISTING QUESTION
+        $sql = "UPDATE exam_questions SET category_id=?, question_text=?, option_a=?, option_b=?, option_c=?, option_d=?, correct_option=? WHERE id=?";
+        $stmt = $conn->prepare($sql);
+        if ($stmt) {
+            $stmt->bind_param("issssssi", $categoryId, $qText, $optA, $optB, $optC, $optD, $correct, $qId);
+            if ($stmt->execute()) {
+                logAction($conn, $userIdentifier, 'UPDATE_EXAM_Q', "Updated exam question ID {$qId}.");
+                echo json_encode(['status' => 'success']);
+            } else {
+                echo json_encode(['status' => 'error', 'message' => 'Database execution failed.']);
+            }
+            $stmt->close();
+        }
+    } else {
+        // INSERT NEW QUESTION
+        $sql = "INSERT INTO exam_questions (category_id, question_text, option_a, option_b, option_c, option_d, correct_option) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        $stmt = $conn->prepare($sql);
+        if ($stmt) {
+            $stmt->bind_param("issssss", $categoryId, $qText, $optA, $optB, $optC, $optD, $correct);
+            if ($stmt->execute()) {
+                logAction($conn, $userIdentifier, 'ADD_EXAM_Q', "Added new exam question for category ID {$categoryId}.");
+                echo json_encode(['status' => 'success']);
+            } else {
+                echo json_encode(['status' => 'error', 'message' => 'Database execution failed.']);
+            }
+            $stmt->close();
+        }
+    }
+}
+
+function deleteExamQuestion($conn, $userIdentifier) {
+    $data = json_decode(file_get_contents("php://input"), true);
+    $id = intval($data['id'] ?? 0);
+
+    if ($id <= 0) {
+        echo json_encode(['status' => 'error', 'message' => 'Invalid Question ID.']);
+        exit();
+    }
+
+    // Permanently delete the question from the bank
+    $sql = "DELETE FROM exam_questions WHERE id = ?";
+    $stmt = $conn->prepare($sql);
+    
+    if ($stmt) {
+        $stmt->bind_param("i", $id);
+        if ($stmt->execute()) {
+            logAction($conn, $userIdentifier, 'DEL_EXAM_Q', "Deleted exam question ID: {$id}");
+            echo json_encode(['status' => 'success']);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Failed to delete question.']);
+        }
+        $stmt->close();
+    }
+}
+
+function addExamCategory($conn, $userIdentifier) {
+    $data = json_decode(file_get_contents("php://input"), true);
+    
+    $catName = strtoupper(trim($data['category_name'] ?? ''));
+    $passing = intval($data['passing_score'] ?? 70);
+    $timeLimit = intval($data['time_limit_minutes'] ?? 10);
+
+    if (empty($catName)) {
+        echo json_encode(['status' => 'error', 'message' => 'Category name is required.']);
+        exit();
+    }
+
+    $sql = "INSERT INTO exam_categories (category_name, passing_score, time_limit_minutes) VALUES (?, ?, ?)";
+    $stmt = $conn->prepare($sql);
+    
+    if ($stmt) {
+        $stmt->bind_param("sii", $catName, $passing, $timeLimit);
+        if ($stmt->execute()) {
+            logAction($conn, $userIdentifier, 'ADD_EXAM_CAT', "Created new exam role: {$catName}");
+            echo json_encode(['status' => 'success']);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Failed to add category.']);
+        }
+        $stmt->close();
+    }
+}
+
+function deleteExamCategory($conn, $userIdentifier) {
+    $data = json_decode(file_get_contents("php://input"), true);
+    $id = intval($data['id'] ?? 0);
+
+    if ($id <= 0) {
+        echo json_encode(['status' => 'error', 'message' => 'Invalid ID.']);
+        exit();
+    }
+
+    $sql = "DELETE FROM exam_categories WHERE id = ?";
+    $stmt = $conn->prepare($sql);
+    
+    if ($stmt) {
+        $stmt->bind_param("i", $id);
+        if ($stmt->execute()) {
+            logAction($conn, $userIdentifier, 'DEL_EXAM_CAT', "Deleted exam category ID: {$id}");
+            echo json_encode(['status' => 'success']);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Failed to delete category.']);
+        }
+        $stmt->close();
+    }
+}
+
+function getExamHistory($conn) {
+    $appId = intval($_GET['application_id'] ?? 0);
+    $stmt = $conn->prepare("SELECT exam_data FROM applicant_exam_results WHERE application_id = ?");
+    if ($stmt) {
+        $stmt->bind_param("i", $appId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($row = $result->fetch_assoc()) {
+            echo $row['exam_data']; // Already JSON string
+        } else {
+            echo json_encode(['error' => 'No exam history found.']);
+        }
+        $stmt->close();
+    }
+}
+

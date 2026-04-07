@@ -104,6 +104,72 @@ window.openResumeModal = function(applicant) {
     modal.classList.remove('hidden');
 };
 
+window.viewApplicantExam = async function(applicationId, applicantName) {
+    Swal.fire({ title: 'Fetching Exam Data...', didOpen: () => Swal.showLoading() });
+
+    try {
+        const response = await fetch(`../hr_dashboard_api.php?action=getExamHistory&application_id=${applicationId}`);
+        const text = await response.text();
+        
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            throw new Error("Invalid response from server.");
+        }
+
+        if (data.error) {
+            Swal.fire('Not Found', 'This applicant does not have a detailed written exam history on record.', 'info');
+            return;
+        }
+
+        // Build the HTML for the viewer
+        let htmlContent = `<div class="text-left space-y-4 max-h-[60vh] overflow-y-auto p-2">`;
+        
+        data.forEach((item, index) => {
+            // Determine if they got it right
+            const isCorrect = item.user_answer === item.correct_answer;
+            const badgeColor = isCorrect ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+            const icon = isCorrect ? '<i class="fas fa-check-circle"></i> Correct' : '<i class="fas fa-times-circle"></i> Incorrect';
+
+            htmlContent += `
+                <div class="p-3 border rounded-lg bg-gray-50 shadow-sm">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="font-bold text-gray-800 text-sm">Q${index + 1}: ${item.question}</span>
+                        <span class="text-[10px] font-bold px-2 py-1 rounded ${badgeColor}">${icon}</span>
+                    </div>
+                    <div class="text-xs text-gray-600 pl-2 border-l-2 border-gray-300 space-y-1">
+                        <p class="${item.correct_answer === 'A' ? 'font-bold text-green-600' : ''}">A) ${item.options.A}</p>
+                        <p class="${item.correct_answer === 'B' ? 'font-bold text-green-600' : ''}">B) ${item.options.B}</p>
+                        <p class="${item.correct_answer === 'C' ? 'font-bold text-green-600' : ''}">C) ${item.options.C}</p>
+                        <p class="${item.correct_answer === 'D' ? 'font-bold text-green-600' : ''}">D) ${item.options.D}</p>
+                    </div>
+                    <div class="mt-2 text-xs bg-white p-2 rounded border border-gray-200 flex justify-between">
+                        <div>
+                            <span class="font-semibold text-gray-700">Applicant Answered:</span> 
+                            <span class="font-bold ${isCorrect ? 'text-green-600' : 'text-red-600'}">Option ${item.user_answer || 'None'}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        htmlContent += `</div>`;
+
+        Swal.fire({
+            title: `Exam Results: ${applicantName}`,
+            html: htmlContent,
+            width: '800px',
+            showCloseButton: true,
+            confirmButtonText: 'Close Viewer',
+            confirmButtonColor: '#4f46e5'
+        });
+
+    } catch (e) {
+        console.error(e);
+        Swal.fire('Error', 'Failed to load exam history.', 'error');
+    }
+};
+
 document.addEventListener('DOMContentLoaded', function () {
 
     function escapeHtml(text) {
@@ -1687,6 +1753,12 @@ document.addEventListener('DOMContentLoaded', function () {
                         } else {
                             content = '<span class="text-gray-300">-</span>';
                         }
+                    }
+
+                    else if (colKey === 'application_id') {
+                        // Make the ID a clickable link to view the exam history
+                        const fullName = `${applicant.surname}, ${applicant.firstname}`;
+                        content = `<button onclick="window.viewApplicantExam(${content}, '${escapeHtml(fullName)}')" class="text-blue-600 font-bold hover:underline hover:text-blue-800 transition cursor-pointer" title="View Written Exam Details">#${content}</button>`;
                     }
 
                     else if (colKey === 'surname') {

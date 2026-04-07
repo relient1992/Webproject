@@ -98,6 +98,9 @@ if (!isset($_SESSION['employee_id'])) {
             <header class="bg-white shadow-sm p-4 flex justify-between items-center">
                 <h1 class="text-2xl font-semibold text-gray-800">Applicant Dashboard</h1>
                 <div class="flex items-center gap-2 flex-wrap">
+                    <button id="openExamManagerBtn" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-150 ease-in-out flex items-center">
+                        <i class="fas fa-file-signature mr-2"></i> Exams
+                    </button>
                     <button id="btnOpenRequisition" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-150 ease-in-out flex items-center"><i class="fas fa-clipboard-list mr-2"></i> Requisitions</button>
                     <button id="openAnalyticsBtn" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 shadow-md transition">
                         <i class="fas fa-chart-pie mr-2"></i> Analytics
@@ -505,6 +508,98 @@ if (!isset($_SESSION['employee_id'])) {
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <div id="examManagerModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-60 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+            
+            <div class="bg-indigo-600 px-6 py-4 flex justify-between items-center text-white">
+                <div>
+                    <h2 class="text-xl font-bold"><i class="fas fa-file-signature mr-2"></i>Manage Written Exams</h2>
+                    <p class="text-indigo-200 text-xs mt-1">Create and edit role-specific assessment questions.</p>
+                </div>
+                <button onclick="document.getElementById('examManagerModal').classList.add('hidden')" class="text-white hover:text-red-300 transition">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+
+            <div class="flex flex-1 overflow-hidden">
+                <div class="w-1/2 p-6 bg-gray-50 border-r overflow-y-auto">
+                    <h3 class="text-sm font-bold text-gray-700 uppercase mb-4 border-b pb-2">Add New Question</h3>
+                    <form id="addQuestionForm" class="space-y-4">
+                        <input type="hidden" id="edit_q_id" value="">
+                            <div>
+                                <div class="flex justify-between items-end mb-1">
+                                    <label class="block text-xs font-semibold text-gray-600">Target Role (Category)</label>
+                                    <button type="button" id="toggleCategoryManagerBtn" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 transition">
+                                        <i class="fas fa-cog"></i> Manage Roles
+                                    </button>
+                                </div>
+                                
+                                <select id="exam_category_select" class="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" required>
+                                    </select>
+
+                                <div id="categoryManagerPanel" class="hidden mt-3 p-3 bg-indigo-50 border border-indigo-100 rounded-lg shadow-inner space-y-3 transition-all">
+                                    
+                                    <div>
+                                        <p class="text-[10px] font-bold text-indigo-800 mb-1 uppercase"><i class="fas fa-plus-circle"></i> Add New Role</p>
+                                        <div class="flex gap-2">
+                                            <input type="text" id="new_cat_name" placeholder="Role Name (e.g. IT Support)" class="w-full p-1.5 text-xs border border-gray-300 rounded focus:ring-indigo-500 outline-none">
+                                            <input type="number" id="new_cat_score" placeholder="Pass %" class="w-16 p-1.5 text-xs border border-gray-300 rounded focus:ring-indigo-500 outline-none" title="Passing Score (Default 70)">
+                                            <input type="number" id="new_cat_time" placeholder="Mins" class="w-16 p-1.5 text-xs border border-gray-300 rounded focus:ring-indigo-500 outline-none" title="Time Limit (Default 10 mins)">
+                                            <button type="button" id="saveCategoryBtn" class="bg-indigo-600 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-indigo-700 transition shadow">Add</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="border-t border-indigo-200 pt-2">
+                                        <p class="text-[10px] font-bold text-red-600 mb-1 uppercase"><i class="fas fa-trash-alt"></i> Delete Existing Role</p>
+                                        <div class="flex gap-2">
+                                            <select id="delete_category_select" class="w-full p-1.5 text-xs border border-red-200 rounded focus:ring-red-500 outline-none bg-white"></select>
+                                            <button type="button" id="deleteCategoryBtn" class="bg-red-500 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-red-600 transition shadow">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                        <p class="text-[9px] text-red-500 mt-1 leading-tight"><i class="fas fa-exclamation-triangle"></i> Warning: Deleting a role will permanently erase ALL questions inside it.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Question Text</label>
+                                <textarea id="q_text" rows="3" class="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" required placeholder="Type the question here..."></textarea>
+                            </div>
+                            
+                            <div class="space-y-2">
+                                <label class="block text-xs font-semibold text-gray-600">Options</label>
+                                <div class="flex items-center gap-2"><span class="font-bold text-gray-400 w-4">A</span><input type="text" id="opt_a" class="w-full p-2 border rounded-md text-sm" required></div>
+                                <div class="flex items-center gap-2"><span class="font-bold text-gray-400 w-4">B</span><input type="text" id="opt_b" class="w-full p-2 border rounded-md text-sm" required></div>
+                                <div class="flex items-center gap-2"><span class="font-bold text-gray-400 w-4">C</span><input type="text" id="opt_c" class="w-full p-2 border rounded-md text-sm" required></div>
+                                <div class="flex items-center gap-2"><span class="font-bold text-gray-400 w-4">D</span><input type="text" id="opt_d" class="w-full p-2 border rounded-md text-sm" required></div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-green-600 mb-1">Correct Answer</label>
+                                <select id="correct_opt" class="w-full p-2 border-2 border-green-400 rounded-lg text-sm font-bold text-green-700 focus:ring-2 focus:ring-green-500" required>
+                                    <option value="A">Option A</option>
+                                    <option value="B">Option B</option>
+                                    <option value="C">Option C</option>
+                                    <option value="D">Option D</option>
+                                </select>
+                            </div>
+
+                            <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-2.5 rounded-lg shadow-md hover:bg-indigo-700 transition">
+                                <i class="fas fa-save mr-2"></i> Save Question
+                            </button>
+                    </form>
+                </div>
+
+                <div class="w-1/2 p-6 overflow-y-auto bg-white">
+                    <h3 class="text-sm font-bold text-gray-700 uppercase mb-4 border-b pb-2">Active Question Bank</h3>
+                    <div id="questionBankList" class="space-y-3">
+                        <p class="text-xs text-gray-400 italic">Select a category on the left to view its questions.</p>
+                        </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -981,5 +1076,6 @@ if (!isset($_SESSION['employee_id'])) {
     <script src="../js/hr_bulk_upload.js"></script>
     <script src="../js/hr_logs.js"></script>
     <script src="../js/hr_dashboard_bulk_actions.js"></script>
+    <script src="../js/hr_exam_manager.js"></script>
 </body>
 </html>

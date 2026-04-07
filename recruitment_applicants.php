@@ -98,6 +98,7 @@ try {
     $specific_skill = getPost('specific_skill');
     $screening_score = $_POST['screening_score'] ?? 0;
     $screening_status = $_POST['screening_status'] ?? 'Pending';
+    $written_exam_score = getPost('written_exam_score');
 
     // Birthday Logic: Ensure valid date or NULL
     $birthYear = $_POST['birthYear'] ?? 0;
@@ -163,9 +164,9 @@ try {
         location, marital_status, relatives_at_xbp, relatives_at_xbp_details,
         worked_at_xbp, worked_at_xbp_details, father_name, father_address,
         mother_name, mother_address, spouse_name, spouse_address,
-        children_info, employment_history, character_references
+        children_info, employment_history, character_references, written_exam_score
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Open', 
-              ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+              ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     $stmt = $conn->prepare($sql);
     if (!$stmt) throw new Exception("Database Prepare Error: " . $conn->error);
@@ -173,7 +174,7 @@ try {
     // BIND PARAMS: USE 's' FOR EVERYTHING
     // This prevents crashes when passing NULL to integer fields. MySQL handles the type conversion safely.
     $stmt->bind_param(
-        str_repeat('s', 44), 
+        str_repeat('s', 45), 
         $surname, $firstname, $middlename, $birthday, $age, $gender, $mobile_number, $email, 
         $street_address, $city, $province, $postcode, $position_applied, $application_source,
         $facebook_account, $instagram_account, $twitter_account, $viber_account,
@@ -183,10 +184,25 @@ try {
         $location, $marital_status, $relatives_xbp, $relatives_details,
         $worked_xbp, $worked_details, $father_name, $father_address,
         $mother_name, $mother_address, $spouse_name, $spouse_address,
-        $children_json, $employment_json, $references_json
+        $children_json, $employment_json, $references_json, $written_exam_score
     );
 
     if ($stmt->execute()) {
+        // 1. Get the newly generated Application ID
+        $newAppId = $conn->insert_id; 
+
+        // 2. Catch the Exam History Briefcase and Save it!
+        $exam_history = $_POST['exam_history'] ?? null;
+        if (!empty($exam_history)) {
+            $history_sql = "INSERT INTO applicant_exam_results (application_id, exam_data) VALUES (?, ?)";
+            $h_stmt = $conn->prepare($history_sql);
+            if ($h_stmt) {
+                $h_stmt->bind_param("is", $newAppId, $exam_history);
+                $h_stmt->execute();
+                $h_stmt->close();
+            }
+        }
+
         ob_clean();
         echo json_encode(['status' => 'success', 'message' => 'Application submitted successfully!']);
     } else {

@@ -102,6 +102,19 @@
         const btnNext = document.getElementById('btn-next');
         const btnSubmit = document.getElementById('btn-submit');
 
+        window.zoomImage = function(url) {
+            Swal.fire({
+                imageUrl: url,
+                imageAlt: 'Exam Visual',
+                width: 'auto',
+                padding: '1em',
+                showConfirmButton: false,
+                showCloseButton: true,
+                background: 'rgba(255, 255, 255, 0.95)',
+                backdrop: `rgba(0,0,0,0.85)`
+            });
+        }
+
         // --- EXEMPTION LOGIC ---
         document.getElementById('exempt-btn').addEventListener('click', () => {
             Swal.fire({
@@ -177,17 +190,37 @@
         // --- 3. RENDER QUESTION ---
         function renderQuestion() {
             const q = examQuestions[currentQuestionIndex];
-            document.getElementById('question-title').textContent = `${currentQuestionIndex + 1}. ${q.question_text}`;
+            
+            // Check if there is an image to display
+            let imageHTML = '';
+            if (q.image_path) {
+                imageHTML = `
+                    <div class="relative inline-block w-full text-center group cursor-zoom-in" onclick="zoomImage('../${q.image_path}')">
+                        <img src="../${q.image_path}" class="w-auto max-h-56 mx-auto mb-2 rounded-lg shadow-sm border border-gray-200 transition-transform transform group-hover:scale-[1.02]">
+                        <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-6 group-hover:text-blue-500 transition"><i class="fas fa-search-plus"></i> Click image to enlarge</p>
+                    </div>
+                `;
+            }
+            
+            document.getElementById('question-title').innerHTML = `
+                ${imageHTML}
+                <span class="text-blue-600 mr-2">${currentQuestionIndex + 1}.</span> 
+                ${q.question_text}
+            `;
+            
             optionsContainer.innerHTML = '';
             
             const optionsMap = { 'A': q.option_a, 'B': q.option_b, 'C': q.option_c, 'D': q.option_d };
             
             Object.keys(optionsMap).forEach(key => {
                 const isChecked = userAnswers[currentQuestionIndex] === key ? 'checked' : '';
+                
+                // Added the A, B, C, D explicit labels here!
                 optionsContainer.innerHTML += `
                     <label class="option-label flex items-center p-4 border-2 border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition">
                         <input type="radio" name="answer" value="${key}" class="w-5 h-5 text-blue-600 focus:ring-blue-500 border-gray-300" ${isChecked} onchange="userAnswers[${currentQuestionIndex}] = this.value">
-                        <span class="ml-4 text-gray-700 font-medium">${optionsMap[key]}</span>
+                        <span class="ml-4 font-bold text-blue-600 w-6">${key})</span>
+                        <span class="text-gray-700 font-medium flex-1">${optionsMap[key]}</span>
                     </label>
                 `;
             });

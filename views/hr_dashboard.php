@@ -568,7 +568,19 @@ if (!isset($_SESSION['employee_id'])) {
                                 <label class="block text-xs font-semibold text-gray-600 mb-1">Question Text</label>
                                 <textarea id="q_text" rows="3" class="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" required placeholder="Type the question here..."></textarea>
                             </div>
-                            
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1 mt-2">Optional Image (Logic/Visual Tests)</label>
+                                <input type="file" id="q_image" accept="image/*" class="w-full p-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500">
+                                
+                                <div id="image_preview_container" class="hidden mt-3 relative inline-block">
+                                    <p class="text-[10px] text-gray-400 mb-1 font-bold uppercase">Image Preview:</p>
+                                    <img id="image_preview" src="" class="max-h-32 rounded border border-gray-300 shadow-sm">
+                                    <button type="button" id="remove_image_btn" class="absolute top-4 -right-3 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 shadow-md transition" title="Remove Image">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                    <input type="hidden" id="remove_image_flag" value="0">
+                                </div>
+                            </div>
                             <div class="space-y-2">
                                 <label class="block text-xs font-semibold text-gray-600">Options</label>
                                 <div class="flex items-center gap-2"><span class="font-bold text-gray-400 w-4">A</span><input type="text" id="opt_a" class="w-full p-2 border rounded-md text-sm" required></div>

@@ -1354,8 +1354,8 @@ function getExamCategories($conn) {
 function getApplicantExam($conn) {
     $category_id = $_GET['category_id'] ?? 1;
     
-    // ORDER BY RAND() ensures questions are shuffled at the database level!
-    $sql = "SELECT id, question_text, option_a, option_b, option_c, option_d, correct_option 
+    // Now fetching image_path as well
+    $sql = "SELECT id, question_text, image_path, option_a, option_b, option_c, option_d, correct_option 
             FROM exam_questions 
             WHERE category_id = ? AND is_active = 1 
             ORDER BY RAND() LIMIT 20";
@@ -1380,49 +1380,78 @@ function getApplicantExam($conn) {
 }
 
 function saveExamQuestion($conn, $userIdentifier) {
-    $data = json_decode(file_get_contents("php://input"), true);
+    $qId = intval($_POST['question_id'] ?? 0); 
+    $categoryId = intval($_POST['category_id'] ?? 0);
+    $qText = $_POST['question_text'] ?? '';
+    $optA = $_POST['option_a'] ?? '';
+    $optB = $_POST['option_b'] ?? '';
+    $optC = $_POST['option_c'] ?? '';
+    $optD = $_POST['option_d'] ?? '';
+    $correct = $_POST['correct_option'] ?? 'A';
     
-    $qId = intval($data['question_id'] ?? 0); // Check if we are updating
-    $categoryId = intval($data['category_id'] ?? 0);
-    $qText = $data['question_text'] ?? '';
-    $optA = $data['option_a'] ?? '';
-    $optB = $data['option_b'] ?? '';
-    $optC = $data['option_c'] ?? '';
-    $optD = $data['option_d'] ?? '';
-    $correct = $data['correct_option'] ?? 'A';
+    // NEW: Check if HR clicked "Remove Image"
+    $removeImage = intval($_POST['remove_image'] ?? 0); 
 
     if ($categoryId <= 0 || empty($qText)) {
         echo json_encode(['status' => 'error', 'message' => 'Missing required fields.']);
         exit();
     }
 
-    if ($qId > 0) {
-        // UPDATE EXISTING QUESTION
-        $sql = "UPDATE exam_questions SET category_id=?, question_text=?, option_a=?, option_b=?, option_c=?, option_d=?, correct_option=? WHERE id=?";
-        $stmt = $conn->prepare($sql);
-        if ($stmt) {
-            $stmt->bind_param("issssssi", $categoryId, $qText, $optA, $optB, $optC, $optD, $correct, $qId);
-            if ($stmt->execute()) {
-                logAction($conn, $userIdentifier, 'UPDATE_EXAM_Q', "Updated exam question ID {$qId}.");
-                echo json_encode(['status' => 'success']);
-            } else {
-                echo json_encode(['status' => 'error', 'message' => 'Database execution failed.']);
+    // Handle Image Upload
+    $imagePath = null;
+    if (isset($_FILES['q_image']) && $_FILES['q_image']['error'] === UPLOAD_ERR_OK) {
+        $file = $_FILES['q_image'];
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        
+        if (in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
+            $filename = "exam_q_" . time() . "_" . rand(1000,9999) . "." . $ext;
+            $targetDir = "uploads/exam_images/";
+            if (!is_dir($targetDir)) mkdir($targetDir, 0777, true); 
+            
+            $targetPath = $targetDir . $filename;
+            if (move_uploaded_file($file['tmp_name'], $targetPath)) {
+                $imagePath = $targetPath;
             }
-            $stmt->close();
+        }
+    }
+
+    if ($qId > 0) {
+        // UPDATE EXISTING
+        if ($imagePath) {
+            // Overwrite with new image
+            $sql = "UPDATE exam_questions SET category_id=?, question_text=?, image_path=?, option_a=?, option_b=?, option_c=?, option_d=?, correct_option=? WHERE id=?";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("isssssssi", $categoryId, $qText, $imagePath, $optA, $optB, $optC, $optD, $correct, $qId);
+        } else if ($removeImage === 1) {
+            // Delete image from DB
+            $sql = "UPDATE exam_questions SET category_id=?, question_text=?, image_path=NULL, option_a=?, option_b=?, option_c=?, option_d=?, correct_option=? WHERE id=?";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("issssssi", $categoryId, $qText, $optA, $optB, $optC, $optD, $correct, $qId);
+        } else {
+            // Keep existing image untouched
+            $sql = "UPDATE exam_questions SET category_id=?, question_text=?, option_a=?, option_b=?, option_c=?, option_d=?, correct_option=? WHERE id=?";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("issssssi", $categoryId, $qText, $optA, $optB, $optC, $optD, $correct, $qId);
+        }
+
+        if ($stmt && $stmt->execute()) {
+            logAction($conn, $userIdentifier, 'UPDATE_EXAM_Q', "Updated exam question ID {$qId}.");
+            echo json_encode(['status' => 'success']);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Database execution failed.']);
         }
     } else {
-        // INSERT NEW QUESTION
-        $sql = "INSERT INTO exam_questions (category_id, question_text, option_a, option_b, option_c, option_d, correct_option) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        // INSERT NEW
+        $sql = "INSERT INTO exam_questions (category_id, question_text, image_path, option_a, option_b, option_c, option_d, correct_option) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $conn->prepare($sql);
         if ($stmt) {
-            $stmt->bind_param("issssss", $categoryId, $qText, $optA, $optB, $optC, $optD, $correct);
+            $stmt->bind_param("isssssss", $categoryId, $qText, $imagePath, $optA, $optB, $optC, $optD, $correct);
             if ($stmt->execute()) {
                 logAction($conn, $userIdentifier, 'ADD_EXAM_Q', "Added new exam question for category ID {$categoryId}.");
                 echo json_encode(['status' => 'success']);
             } else {
                 echo json_encode(['status' => 'error', 'message' => 'Database execution failed.']);
             }
-            $stmt->close();
         }
     }
 }

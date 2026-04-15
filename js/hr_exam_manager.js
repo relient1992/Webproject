@@ -14,6 +14,36 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const API_URL = '../hr_dashboard_api.php';
 
+    const qImageInput = document.getElementById('q_image');
+    const imgPreviewContainer = document.getElementById('image_preview_container');
+    const imgPreview = document.getElementById('image_preview');
+    const removeImgBtn = document.getElementById('remove_image_btn');
+    const removeImgFlag = document.getElementById('remove_image_flag');
+
+    if (qImageInput) {
+        qImageInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imgPreview.src = e.target.result;
+                    imgPreviewContainer.classList.remove('hidden');
+                    removeImgFlag.value = "0"; // Reset remove flag
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
+    if (removeImgBtn) {
+        removeImgBtn.addEventListener('click', function() {
+            qImageInput.value = ''; // Clear file input
+            imgPreview.src = '';
+            imgPreviewContainer.classList.add('hidden');
+            removeImgFlag.value = "1"; // Tell PHP to wipe the image from the DB
+        });
+    }
+
     // --- 1. Open Modal & Initialize ---
     if (openExamBtn) {
         openExamBtn.addEventListener('click', () => {
@@ -115,28 +145,33 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // Build payload
-            const payload = {
-                question_id: document.getElementById('edit_q_id').value,
-                category_id: categoryId,
-                question_text: document.getElementById('q_text').value,
-                option_a: document.getElementById('opt_a').value,
-                option_b: document.getElementById('opt_b').value,
-                option_c: document.getElementById('opt_c').value,
-                option_d: document.getElementById('opt_d').value,
-                correct_option: document.getElementById('correct_opt').value
-            };
+            const formData = new FormData();
+            formData.append('question_id', document.getElementById('edit_q_id').value);
+            formData.append('category_id', categoryId);
+            formData.append('question_text', document.getElementById('q_text').value);
+            formData.append('option_a', document.getElementById('opt_a').value);
+            formData.append('option_b', document.getElementById('opt_b').value);
+            formData.append('option_c', document.getElementById('opt_c').value);
+            formData.append('option_d', document.getElementById('opt_d').value);
+            formData.append('correct_option', document.getElementById('correct_opt').value);
+            formData.append('remove_image', document.getElementById('remove_image_flag').value);
+            
+            // Attach the file if one was selected
+            const fileInput = document.getElementById('q_image');
+            if (fileInput.files.length > 0) {
+                formData.append('q_image', fileInput.files[0]);
+            }
 
-            // Show saving state
             const submitBtn = questionForm.querySelector('button[type="submit"]');
             const originalBtnText = submitBtn.innerHTML;
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saving...';
             submitBtn.disabled = true;
 
             try {
+                // DO NOT set 'Content-Type': 'application/json' when sending FormData
                 const response = await fetch(`${API_URL}?action=saveExamQuestion`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    body: formData 
                 });
                 
                 const result = await response.json();
@@ -145,8 +180,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Question Saved!', showConfirmButton: false, timer: 1500 });
                     
                     // Reset form fields
-                    document.getElementById('edit_q_id').value = ''; // Reset ID
+                    document.getElementById('edit_q_id').value = ''; 
                     document.getElementById('q_text').value = '';
+                    document.getElementById('q_image').value = ''; // Clear file input
                     document.getElementById('opt_a').value = '';
                     document.getElementById('opt_b').value = '';
                     document.getElementById('opt_c').value = '';
@@ -158,17 +194,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     submitBtn.classList.replace('bg-orange-500', 'bg-indigo-600');
                     submitBtn.classList.replace('hover:bg-orange-600', 'hover:bg-indigo-700');
                     
-                    // Reload the question bank
                     loadQuestionBank(categoryId);
                 } else {
-                    throw new Error("Server returned an error status.");
+                    throw new Error(result.message || "Server error.");
                 }
 
             } catch (error) {
                 console.error("Error saving question:", error);
-                Swal.fire('Error', 'Failed to save the question. Check your database connection.', 'error');
+                Swal.fire('Error', 'Failed to save the question.', 'error');
             } finally {
-                // Restore button state
                 submitBtn.innerHTML = originalBtnText;
                 submitBtn.disabled = false;
             }
@@ -277,6 +311,19 @@ window.editExamQuestion = function(index) {
     
     // Highlight the form to draw attention
     document.getElementById('addQuestionForm').scrollIntoView({ behavior: 'smooth' });
+
+    const previewContainer = document.getElementById('image_preview_container');
+    const previewImg = document.getElementById('image_preview');
+    document.getElementById('remove_image_flag').value = "0";
+    document.getElementById('q_image').value = ""; // Clear any pending uploads
+
+    if (q.image_path) {
+        previewImg.src = '../' + q.image_path; // Adjust relative path if needed
+        previewContainer.classList.remove('hidden');
+    } else {
+        previewImg.src = '';
+        previewContainer.classList.add('hidden');
+    }
 };
 
 window.deleteExamQuestion = function(id) {

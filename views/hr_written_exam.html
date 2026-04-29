@@ -4,16 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>XBP Global - Skills Assessment</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <style>
+    <script src="../tailwind.js"></script>
+    <!-- <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet"> -->
+    <script src="../sweetalert.js"></script>
+    <!-- <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #f0fdf4 0%, #dbeafe 100%); }
         .glass-panel { background: rgba(255, 255, 255, 0.95); box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1); border-radius: 1rem; border: 1px solid rgba(255, 255, 255, 0.18); }
         .option-label:has(input:checked) { background-color: #eff6ff; border-color: #3b82f6; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.1); }
         .unselectable { user-select: none; -moz-user-select: none; -webkit-user-select: none; -ms-user-select: none; }
-    </style>
+    </style> -->
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-4 unselectable" oncontextmenu="return false;">
 
@@ -126,7 +126,7 @@
                 confirmButtonColor: '#3b82f6'
             }).then(result => {
                 if (result.isConfirmed) {
-                    if (result.value === 'XBP-EXEMPT-2026') {
+                    if (result.value === 'XBP-EXEMPT') {
                         sessionStorage.setItem('r_ams_exam_passed', 'true');
                         sessionStorage.setItem('r_ams_exam_score', 'Exempt');
                         sessionStorage.setItem('r_ams_exam_history', JSON.stringify([]));

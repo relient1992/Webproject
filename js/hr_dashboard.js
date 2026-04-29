@@ -123,17 +123,35 @@ window.viewApplicantExam = async function(applicationId, applicantName) {
             return;
         }
 
-        // Build the HTML for the viewer
-        let htmlContent = `<div class="text-left space-y-4 max-h-[60vh] overflow-y-auto p-2">`;
+        // Build the HTML with a Download Button and a designated PDF Container
+        let htmlContent = `
+            <div class="flex justify-end mb-3">
+                <button id="exportExamPdfBtn" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center shadow-md transition">
+                    <i class="fas fa-file-pdf mr-2"></i> Download as PDF
+                </button>
+            </div>
+            
+            <div class="max-h-[60vh] overflow-y-auto p-1">
+                <div id="examPdfContent" class="text-left space-y-4 bg-white p-6 rounded-lg">
+                    
+                    <div class="hidden print-header mb-6 pb-4 border-b-2 border-gray-200">
+                        <img src="../assets/logo.png" alt="XBP Global" style="height: 40px; margin-bottom: 10px;">
+                        <h2 class="text-2xl font-bold text-gray-800">Pre-Employment Assessment Results</h2>
+                        <div class="mt-2 text-sm text-gray-600">
+                            <p><strong>Applicant Name:</strong> ${applicantName}</p>
+                            <p><strong>Application ID:</strong> #${applicationId}</p>
+                            <p><strong>Date Exported:</strong> ${new Date().toLocaleDateString()}</p>
+                        </div>
+                    </div>
+        `;
         
         data.forEach((item, index) => {
-            // Determine if they got it right
             const isCorrect = item.user_answer === item.correct_answer;
             const badgeColor = isCorrect ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
             const icon = isCorrect ? '<i class="fas fa-check-circle"></i> Correct' : '<i class="fas fa-times-circle"></i> Incorrect';
 
             htmlContent += `
-                <div class="p-3 border rounded-lg bg-gray-50 shadow-sm">
+                <div class="p-3 border rounded-lg shadow-sm" style="page-break-inside: avoid; background-color: #f9fafb;">
                     <div class="flex justify-between items-start mb-2">
                         <span class="font-bold text-gray-800 text-sm">Q${index + 1}: ${item.question}</span>
                         <span class="text-[10px] font-bold px-2 py-1 rounded ${badgeColor}">${icon}</span>
@@ -144,24 +162,57 @@ window.viewApplicantExam = async function(applicationId, applicantName) {
                         <p class="${item.correct_answer === 'C' ? 'font-bold text-green-600' : ''}">C) ${item.options.C}</p>
                         <p class="${item.correct_answer === 'D' ? 'font-bold text-green-600' : ''}">D) ${item.options.D}</p>
                     </div>
-                    <div class="mt-2 text-xs bg-white p-2 rounded border border-gray-200 flex justify-between">
-                        <div>
-                            <span class="font-semibold text-gray-700">Applicant Answered:</span> 
-                            <span class="font-bold ${isCorrect ? 'text-green-600' : 'text-red-600'}">Option ${item.user_answer || 'None'}</span>
-                        </div>
+                    <div class="mt-2 text-xs bg-white p-2 rounded border border-gray-200">
+                        <span class="font-semibold text-gray-700">Applicant Answered:</span> 
+                        <span class="font-bold ${isCorrect ? 'text-green-600' : 'text-red-600'}">Option ${item.user_answer || 'None'}</span>
                     </div>
                 </div>
             `;
         });
-        htmlContent += `</div>`;
+        
+        htmlContent += `</div></div>`; // Close PDF container and Scroll container
 
         Swal.fire({
-            title: `Exam Results: ${applicantName}`,
+            title: `Exam Results`,
             html: htmlContent,
             width: '800px',
             showCloseButton: true,
-            confirmButtonText: 'Close Viewer',
-            confirmButtonColor: '#4f46e5'
+            showConfirmButton: false, // Hidden because we use our custom PDF button
+            didOpen: () => {
+                // Attach the PDF Export Logic once the modal opens
+                const pdfBtn = document.getElementById('exportExamPdfBtn');
+                if (pdfBtn) {
+                    pdfBtn.addEventListener('click', () => {
+                        const element = document.getElementById('examPdfContent');
+                        const header = element.querySelector('.print-header');
+                        
+                        // 1. Temporarily unhide the header for the PDF
+                        if (header) header.classList.remove('hidden');
+                        
+                        // 2. Update button state
+                        const originalText = pdfBtn.innerHTML;
+                        pdfBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Generating PDF...';
+                        pdfBtn.disabled = true;
+
+                        // 3. Configure PDF Options
+                        const opt = {
+                            margin:       0.4,
+                            filename:     `Exam_Result_${applicantName.replace(/[^a-z0-9]/gi, '_')}.pdf`,
+                            image:        { type: 'jpeg', quality: 0.98 },
+                            html2canvas:  { scale: 2, useCORS: true }, // scale 2 ensures high resolution
+                            jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+                        };
+
+                        // 4. Generate and Save!
+                        html2pdf().set(opt).from(element).save().then(() => {
+                            // Restore original UI state after download completes
+                            pdfBtn.innerHTML = originalText;
+                            pdfBtn.disabled = false;
+                            if (header) header.classList.add('hidden');
+                        });
+                    });
+                }
+            }
         });
 
     } catch (e) {

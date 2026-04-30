@@ -1,12 +1,52 @@
-<div class="header-container">
-    <h1>BPS Financial</h1>
-    <a href="https://drive.google.com/drive/folders/1UlQgk6yiWao7K_hwLp3n6zIUFezQcmdu?usp=drive_link" 
-       target="_blank" 
-       rel="noopener noreferrer" 
-       class="google-link">
-      Click here for CPT file
-    </a>
+<div class="bps-financial-view animate-fade-in p-4 w-full">
+    
+  <div class="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+          <h1 class="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+              <span class="w-2 h-8 bg-blue-700 rounded-full inline-block"></span>
+              BPS Financial Intelligence
+          </h1>
+          <p class="text-slate-500 dark:text-slate-400 mt-1 ml-5 text-sm font-medium">
+              Real-time financial tracking, P&L metrics, and CPT archives.
+          </p>
+      </div>
+
+      <div class="flex items-center gap-3 md:ml-auto">
+          <a href="https://drive.google.com/drive/folders/1UlQgk6yiWao7K_hwLp3n6zIUFezQcmdu?usp=drive_link" 
+             target="_blank" 
+             rel="noopener noreferrer" 
+             class="group inline-flex items-center justify-center gap-2 text-sm font-bold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800/50 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white px-5 py-2.5 rounded-xl shadow-sm transition-all">
+              <span class="material-icons-sharp text-lg group-hover:scale-110 transition-transform">folder_zip</span>
+              Access CPT Files
+          </a>
+      </div>
   </div>
 
-<iframe width="100%" height="100%" src="https://lookerstudio.google.com/embed/reporting/1a5bf2af-b4da-4a4e-b961-48f1c7921a6a/page/1pxcD" frameborder="0" style="border:0" allowfullscreen sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>
+  <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200/50 dark:border-slate-800 overflow-hidden relative">
+      
+      <div class="px-6 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+              <div class="flex gap-1.5">
+                  <div class="w-3 h-3 rounded-full bg-slate-300 dark:bg-slate-600"></div>
+                  <div class="w-3 h-3 rounded-full bg-slate-300 dark:bg-slate-600"></div>
+                  <div class="w-3 h-3 rounded-full bg-slate-300 dark:bg-slate-600"></div>
+              </div>
+              <span class="ml-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Looker Studio Enterprise Embed</span>
+          </div>
+          
+          <div class="flex items-center gap-2 px-3 py-1 bg-blue-50 dark:bg-blue-900/20 rounded-full border border-blue-100 dark:border-blue-800/50">
+              <span class="material-icons-sharp text-[12px] text-blue-600 dark:text-blue-400">verified_user</span>
+              <span class="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-tight">Secure Connection</span>
+          </div>
+      </div>
 
+      <div class="relative w-full min-h-[850px] bg-white">
+          <iframe 
+              src="https://lookerstudio.google.com/embed/reporting/1a5bf2af-b4da-4a4e-b961-48f1c7921a6a/page/1pxcD" 
+              class="absolute inset-0 w-full h-full border-none"
+              allowfullscreen 
+              sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox">
+          </iframe>
+      </div>
+  </div>
+</div>

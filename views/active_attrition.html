@@ -1,146 +1,227 @@
-<h1>Active & Attrition Dashboard</h1>
+<style>
+  /* Styles the dynamic rows injected by your JS */
+  #employee-updates-table tbody tr {
+      @apply border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors duration-200 cursor-default;
+  }
+  #employee-updates-table tbody td {
+      @apply px-5 py-4 text-sm font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap;
+  }
+  /* Specific styling for the right-side summary table */
+  .employee-count tbody tr {
+      @apply border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors duration-200;
+  }
+  .employee-count tbody td {
+      @apply py-3 px-2 text-sm font-medium text-slate-600 dark:text-slate-300;
+  }
+  /* Hide native date picker icon to use our custom one */
+  input[type="date"]::-webkit-calendar-picker-indicator {
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      cursor: pointer;
+  }
+</style>
 
-    <div class="top-bar">
-      <div class="filters">
-        <div class="date-range">
-          <div class="date">
-            <label for="start-date">Start Date:</label>
-            <input type="date" id="start-date" name="start-date">
-          </div>
-          <div class="date">
-            <label for="end-date">End Date:</label>
-            <input type="date" id="end-date" name="end-date">
-          </div>
-        </div>
-
-        <div class="entity">
-          <label for="entity-select">Choose Entity:</label>
-          <select id="entity-select" class="entity">
-            <option value="ALL">ALL</option>
-            <option value="LHI">LHI</option>
-            <option value="BPS">BPS</option>
-          </select>
-        </div>
-
-        <div class="apply">
-            <button id="apply-btn">Apply</button>
-        </div>
-
-        <div class="apply-active-attrition">
-          <a href="https://drive.google.com/drive/folders/12LWiZCju-8_5JO-xm1E4QL5X4bgbBErk?usp=drive_link"
-            target="_blank"
-            rel="noopener noreferrer"
-            id="active-attrition-btn"
-            class="google-link">
-            Active and Attrition link
-          </a>
-        </div>
-
+<div class="active-attrition-view animate-fade-in p-4 w-full">
+  
+  <div class="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+          <h1 class="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+              <span class="w-2 h-8 bg-blue-600 rounded-full inline-block"></span>
+              Active & Attrition
+          </h1>
+          <p class="text-slate-500 dark:text-slate-400 mt-1 ml-5 text-sm font-medium">Monitor employee lifecycles and roster statistics.</p>
       </div>
-    </div>
+  </div>
 
-    <div class="main-layout">
-      <!-- LEFT PANEL CONTENT -->
-      <div class="left-content">
-        <div class="insights">
-          <div class="activelist">
-            <span class="material-icons-sharp">groups</span>
-            <div class="middle">
-              <div class="left">
-                <h3>Total Active</h3>
-                <h1 id="activelist"></h1>
-                <div id="active-employee-form" class="hidden"></div>
-                <div class="modal-overlay hidden"></div>
-              </div>
-            </div>
-            <small class="text-muted">Active</small>
-          </div>
-
-          <div class="attritionlist">
-            <span class="material-icons-sharp">person_remove</span>
-            <div class="middle">
-              <div class="left">
-                <h3>Total Resigned</h3>
-                <h1 id="attritionlist"></h1>
-                <div id="inactive-employee-form" class="hidden"></div>
-                <div class="modal-overlay hidden"></div>
-              </div>
-            </div>
-            <small class="text-muted">Based on selected date</small>
-          </div>
-          
-          <div class="newlyhiredlist">
-            <span class="material-icons-sharp">person_add</span>
-            <div class="middle">
-              <div class="left">
-                <h3>Total Newly Hired</h3>
-                <h1 id="newlyhiredlist"></h1>
-                <div id="newlyhired-employee-form" class="hidden"></div>
-                <div class="modal-overlay hidden"></div>
-              </div>
-            </div>
-            <small class="text-muted">Based on selected date</small>
-          </div>
-        </div>
-
-
-        <div class="recent-updates">
-          <h2>Recent Updates</h2>
-          <div class="search-bar-container">
-            <input type="text" id="employee-update-search" placeholder="Search by EDS, Name, or Supervisor...">
-          </div>
-          <table id="employee-updates-table">
-            <thead>
-              <tr>
-                <th>EDS</th>
-                <th>FULL NAME</th>
-                <th>PROJECT</th>
-                <th>POSITION</th>
-                <th>SITE</th>
-                <th>SUPERVISOR</th>
-                <th>STATUS</th>
-                <th>HIRED DATE</th>
-                <th>RESIGNED DATE</th>
-              </tr>
-            </thead>
-            <tbody>
-              
-              </tbody>
-          </table>
-          <div id="pagination"></div>
-          
-        </div>
-      </div>
-
-      <!-- RIGHT PANEL (Same Column Level as Left) -->
-      <div class="right-container">
-        <div class="employee-count">
-          <div id="project-employee-modal" class="hidden"></div>
-          <div class="modal-overlay hidden"></div> 
-          <h2>Total Project Employees</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Project</th>
-                <th>Employee Count</th>
-                <th>Site</th>
-              </tr>
-            </thead>
-            <tbody>
-              <!-- JS Injected Data -->
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div id="success-popup" class="popup hidden">
-      <span class="message"></span>
-      </div>
-
+  <div class="top-bar bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200/60 dark:border-slate-700/60 p-4 mb-8 flex flex-wrap lg:flex-nowrap items-end gap-4 relative z-20">
       
+      <div class="date-range flex flex-wrap sm:flex-nowrap gap-4 w-full lg:w-auto">
+          <div class="date flex flex-col flex-1 sm:flex-auto group">
+              <label for="start-date" class="text-[11px] font-bold text-slate-400 dark:text-slate-500 mb-1.5 uppercase tracking-wider ml-1">Start Date</label>
+              <div class="relative flex items-center">
+                  <span class="material-icons-sharp absolute left-3 text-slate-400 group-focus-within:text-blue-600 transition-colors pointer-events-none z-10">event</span>
+                  <input type="date" id="start-date" name="start-date" class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 shadow-sm dark:text-white text-sm font-medium transition-all relative">
+              </div>
+          </div>
+          
+          <div class="date flex flex-col flex-1 sm:flex-auto group">
+              <label for="end-date" class="text-[11px] font-bold text-slate-400 dark:text-slate-500 mb-1.5 uppercase tracking-wider ml-1">End Date</label>
+              <div class="relative flex items-center">
+                  <span class="material-icons-sharp absolute left-3 text-slate-400 group-focus-within:text-blue-600 transition-colors pointer-events-none z-10">event</span>
+                  <input type="date" id="end-date" name="end-date" class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 shadow-sm dark:text-white text-sm font-medium transition-all relative">
+              </div>
+          </div>
+      </div>
 
-    </div>
+      <div class="entity flex flex-col w-full sm:w-auto flex-1 lg:flex-none">
+          <label for="entity-select" class="text-[11px] font-bold text-slate-400 dark:text-slate-500 mb-1.5 uppercase tracking-wider ml-1">Entity</label>
+          <div class="relative flex items-center">
+              <span class="material-icons-sharp absolute left-3 text-slate-400 z-10 pointer-events-none">domain</span>
+              <select id="entity-select" class="w-full pl-10 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 shadow-sm dark:text-white text-sm font-medium appearance-none cursor-pointer transition-all">
+                  <option value="ALL">All Entities</option>
+                  <option value="LHI">LHI</option>
+                  <option value="BPS">BPS</option>
+              </select>
+              <span class="material-icons-sharp absolute right-3 text-slate-400 pointer-events-none z-10">expand_more</span>
+          </div>
+      </div>
 
-    
+      <div class="apply w-full sm:w-auto mt-2 lg:mt-0">
+          <button id="apply-btn" class="w-full sm:w-auto bg-slate-900 dark:bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-xl font-bold shadow-lg shadow-slate-900/20 dark:shadow-blue-900/30 transform hover:-translate-y-0.5 active:translate-y-0 transition-all text-sm flex items-center justify-center gap-2">
+              <span class="material-icons-sharp text-sm">filter_list</span>
+              Apply
+          </button>
+      </div>
 
-    
+      <div class="apply-active-attrition lg:ml-auto w-full lg:w-auto text-right lg:text-left mt-2 lg:mt-0 flex justify-end">
+          <a href="https://drive.google.com/drive/folders/12LWiZCju-8_5JO-xm1E4QL5X4bgbBErk?usp=drive_link" 
+             target="_blank" 
+             rel="noopener noreferrer" 
+             id="active-attrition-btn" 
+             class="google-link group inline-flex items-center justify-center gap-2 text-sm font-bold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 px-5 py-2.5 rounded-xl shadow-sm hover:shadow transition-all w-full sm:w-auto">
+              <span class="material-icons-sharp text-lg group-hover:scale-110 transition-transform">cloud_queue</span>
+              Source Files
+          </a>
+      </div>
+  </div>
+
+  <div class="main-layout grid grid-cols-1 xl:grid-cols-12 gap-8">
+      
+      <div class="left-content xl:col-span-9 flex flex-col gap-8">
+          
+            <div class="insights grid grid-cols-1 md:grid-cols-3 gap-4">
+        
+              <div class="activelist cursor-pointer bg-white dark:bg-slate-900 rounded-2xl px-5 py-4 relative overflow-hidden border border-slate-200/50 dark:border-slate-800 shadow-sm hover:shadow-lg transition-all duration-300 group">
+                  <div class="absolute -right-8 -top-8 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-colors"></div>
+                  <div class="flex items-center gap-4 relative z-10">
+                      <div class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform duration-300">
+                          <span class="material-icons-sharp text-xl">groups</span>
+                      </div>
+                      <div>
+                          <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active</h3>
+                          <h1 id="activelist" class="text-2xl font-black text-slate-800 dark:text-white tracking-tight leading-none mt-1">...</h1>
+                      </div>
+                  </div>
+              </div>
+          
+              <div class="attritionlist cursor-pointer bg-white dark:bg-slate-900 rounded-2xl px-5 py-4 relative overflow-hidden border border-slate-200/50 dark:border-slate-800 shadow-sm hover:shadow-lg transition-all duration-300 group">
+                  <div class="absolute -right-8 -top-8 w-24 h-24 bg-rose-500/10 rounded-full blur-2xl group-hover:bg-rose-500/20 transition-colors"></div>
+                  <div class="flex items-center gap-4 relative z-10">
+                      <div class="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform duration-300">
+                          <span class="material-icons-sharp text-xl">person_remove</span>
+                      </div>
+                      <div>
+                          <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Resigned</h3>
+                          <h1 id="attritionlist" class="text-2xl font-black text-slate-800 dark:text-white tracking-tight leading-none mt-1">...</h1>
+                      </div>
+                  </div>
+              </div>
+              
+              <div class="newlyhiredlist cursor-pointer bg-white dark:bg-slate-900 rounded-2xl px-5 py-4 relative overflow-hidden border border-slate-200/50 dark:border-slate-800 shadow-sm hover:shadow-lg transition-all duration-300 group">
+                  <div class="absolute -right-8 -top-8 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-colors"></div>
+                  <div class="flex items-center gap-4 relative z-10">
+                      <div class="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform duration-300">
+                          <span class="material-icons-sharp text-xl">person_add</span>
+                      </div>
+                      <div>
+                          <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">New Hires</h3>
+                          <h1 id="newlyhiredlist" class="text-2xl font-black text-slate-800 dark:text-white tracking-tight leading-none mt-1">...</h1>
+                      </div>
+                  </div>
+              </div>
+          
+          </div>
+
+          <div class="recent-updates bg-white dark:bg-slate-900 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200/50 dark:border-slate-800 overflow-hidden flex flex-col flex-1">
+              
+              <div class="p-6 border-b border-slate-100 dark:border-slate-800/50 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+                  <div>
+                      <h2 class="text-lg font-extrabold text-slate-800 dark:text-white">Recent Updates</h2>
+                      <p class="text-xs text-slate-500 font-medium mt-1">Latest employee status changes</p>
+                  </div>
+                  <div class="search-bar-container w-full sm:w-80">
+                      <div class="relative w-full group">
+                          <span class="material-icons-sharp absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-[1.1rem] group-focus-within:text-blue-600 transition-colors">search</span>
+                          <input type="text" id="employee-update-search" placeholder="Search EDS, Name, Supervisor..." class="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:bg-white dark:focus:bg-slate-800 shadow-inner dark:text-white placeholder:text-slate-400 transition-all">
+                      </div>
+                  </div>
+              </div>
+              
+              <div class="overflow-x-auto p-0">
+                  <table id="employee-updates-table" class="w-full text-left border-collapse min-w-max">
+                      <thead>
+                          <tr class="bg-slate-50/50 dark:bg-slate-800/30 border-b border-slate-200 dark:border-slate-700/50">
+                              <th class="px-5 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest dark:text-slate-500">EDS</th>
+                              <th class="px-5 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest dark:text-slate-500">Full Name</th>
+                              <th class="px-5 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest dark:text-slate-500">Project</th>
+                              <th class="px-5 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest dark:text-slate-500">Position</th>
+                              <th class="px-5 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest dark:text-slate-500">Site</th>
+                              <th class="px-5 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest dark:text-slate-500">Supervisor</th>
+                              <th class="px-5 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest dark:text-slate-500">Status</th>
+                              <th class="px-5 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest dark:text-slate-500">Hired Dates</th>
+                              <th class="px-5 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest dark:text-slate-500">Resigned Dates</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          </tbody>
+                  </table>
+              </div>
+              
+              <div class="p-4 border-t border-slate-100 dark:border-slate-800/50 bg-slate-50/30 dark:bg-slate-900">
+                  <div id="pagination" class="flex items-center justify-end gap-2 text-sm text-slate-600 dark:text-slate-400 font-bold"></div>
+              </div>
+          </div>
+      </div>
+
+      <div class="right-container xl:col-span-3">
+          <div class="employee-count bg-white dark:bg-slate-900 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200/50 dark:border-slate-800 flex flex-col h-full overflow-hidden relative">
+              
+              <div class="p-6 border-b border-slate-100 dark:border-slate-800/50 bg-gradient-to-b from-slate-50/50 to-white dark:from-slate-800/20 dark:to-slate-900">
+                  <div class="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-4 shadow-inner">
+                      <span class="material-icons-sharp">pie_chart</span>
+                  </div>
+                  <h2 class="text-xl font-extrabold text-slate-800 dark:text-white">Project Roster</h2>
+                  <p class="text-xs text-slate-500 font-medium mt-1">Headcount distribution by campaign</p>
+              </div>
+              
+              <div class="overflow-x-auto p-4 flex-1">
+                  <table class="w-full text-left border-collapse">
+                        <thead>
+                          <tr class="border-b border-slate-200 dark:border-slate-700/50">
+                              <th class="pb-3 px-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest dark:text-slate-500 text-left">Project</th>
+                              <th class="pb-3 px-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest dark:text-slate-500 text-center">Count</th>
+                              <th class="pb-3 px-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest dark:text-slate-500 text-center">Site</th>
+                          </tr>
+                        </thead>
+                      <tbody>
+                          </tbody>
+                  </table>
+              </div>
+
+              <div id="project-employee-modal" class="hidden absolute"></div>
+          </div>
+      </div>
+  </div>
+
+  <div id="active-employee-form" class="hidden"></div>
+  <div id="inactive-employee-form" class="hidden"></div>
+  <div id="newlyhired-employee-form" class="hidden"></div>
+  <div id="project-employee-modal" class="hidden"></div>
+
+  <div class="modal-overlay hidden fixed inset-0 bg-slate-900/60 backdrop-blur-md z-40 transition-opacity"></div>
+  
+  <div id="success-popup" class="popup hidden fixed bottom-8 right-8 bg-white dark:bg-slate-800 border-l-4 border-emerald-500 px-6 py-4 rounded-xl shadow-2xl z-50 flex items-center gap-4 transform transition-all duration-300 translate-y-0">
+      <div class="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center flex-shrink-0">
+          <span class="material-icons-sharp text-emerald-600 dark:text-emerald-400 text-sm">check</span>
+      </div>
+      <span class="message text-sm font-bold text-slate-800 dark:text-white tracking-wide"></span>
+  </div>
+
+</div>
+
+
+

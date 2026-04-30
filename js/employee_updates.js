@@ -1,48 +1,14 @@
-// This variable will hold the full list of employees after one fetch.
-let employeeUpdateList = [];
-// NEW: This variable will hold the list that is currently being displayed (full or filtered).
-let displayedEmployeeUpdateList = [];
-
-// NEW: We'll store the current filter state globally so search and pagination can access it.
-let currentEntityFilter = 'ALL';
-let currentStartDateFilter = null;
-let currentEndDateFilter = null;
-
-const limit = 10; // How many employees to show per page.
-
-
-// NEW: Add the live search event listener when the page loads.
-// document.addEventListener('DOMContentLoaded', () => {
-//   const searchInput = document.getElementById('employee-update-search');
-//   if (searchInput) {
-//       console.log("Search input found! Attaching listener.");
-//       searchInput.addEventListener('input', (event) => {
-//           const searchTerm = event.target.value.toLowerCase();
-
-//           displayedEmployeeUpdateList = employeeUpdateList.filter(employee => {
-//               const eds = (employee.EDS || '').toString().toLowerCase();
-//               const fullname = (employee.FULLNAME || '').toLowerCase();
-//               const supervisor = (employee.SUPERVISOR || '').toLowerCase();
-
-//               return eds.includes(searchTerm) || 
-//                      fullname.includes(searchTerm) || 
-//                      supervisor.includes(searchTerm);
-//           });
-
-//           renderEmployeeUpdatesPage(1);
-//       });
-//   } else {
-//       console.error("Search input #employee-update-search NOT found!");
-//   }
-
-//   fetchEmployeeUpdate();
-// });
+// --- Global Variables (Using var to prevent SPA redeclaration errors) ---
+var employeeUpdateList = [];
+var displayedEmployeeUpdateList = [];
+var currentEntityFilter = 'ALL';
+var currentStartDateFilter = null;
+var currentEndDateFilter = null;
+var limit = 20; // How many employees to show per page.
 
 function initEmployeeUpdateSearch() {
   const searchInput = document.getElementById('employee-update-search');
   if (searchInput) {
-      // This will now succeed because the HTML has been loaded by the router.
-      console.log("Search input found! Attaching listener."); 
       searchInput.addEventListener('input', (event) => {
           const searchTerm = event.target.value.toLowerCase();
           
@@ -60,19 +26,13 @@ function initEmployeeUpdateSearch() {
           // Re-render the table with the filtered data, starting from page 1
           renderEmployeeUpdatesPage(1);
       });
-  } else {
-      // This will show if there's a typo in your active_attrition.html file
-      console.error("Search input #employee-update-search NOT found during view initialization!");
   }
 }
-
 
 /**
  * Fetches data from the server. Called on page load or when filters change.
  */
-// MODIFIED: Now sets the global filter state.
 function fetchEmployeeUpdate(entity = 'ALL', startDate = null, endDate = null) {
-    // Store current filters so they can be used by pagination and search
     currentEntityFilter = entity;
     currentStartDateFilter = startDate;
     currentEndDateFilter = endDate;
@@ -88,12 +48,10 @@ function fetchEmployeeUpdate(entity = 'ALL', startDate = null, endDate = null) {
     fetch(`fetch_data.php?${params.toString()}`)
         .then(response => response.json())
         .then(data => {
-            // Store the full list of employees in our master variable.
             employeeUpdateList = data.LATEST_EMPLOYEES || [];
-            // NEW: Initialize the display list with the full list.
             displayedEmployeeUpdateList = employeeUpdateList;
             
-            // Now, render the first page of this stored data.
+            // Render the first page of this stored data.
             renderEmployeeUpdatesPage(1);
         })
         .catch(error => console.error("Error fetching employee updates:", error));
@@ -102,17 +60,12 @@ function fetchEmployeeUpdate(entity = 'ALL', startDate = null, endDate = null) {
 /**
  * Renders a specific page of the employee table from the stored data.
  */
-// MODIFIED: Simplified to not pass filter parameters around.
 function renderEmployeeUpdatesPage(page) {
     const tbody = document.querySelector('#employee-updates-table tbody');
-    if (!tbody) {
-        console.error("Could not find the employee updates table body.");
-        return;
-    }
+    if (!tbody) return;
 
     const start = (page - 1) * limit;
     const end = start + limit;
-    // MODIFIED: Slices the display list, not the master list.
     const paginatedData = displayedEmployeeUpdateList.slice(start, end);
 
     tbody.innerHTML = ''; // Clear old rows
@@ -120,58 +73,74 @@ function renderEmployeeUpdatesPage(page) {
     if (paginatedData.length > 0) {
         paginatedData.forEach(employee => {
             const tr = document.createElement('tr');
+            
+            // Explicitly set row hover and border styles here
+            tr.className = "border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors duration-200";
+            
+            // Standardize text color and padding for all cells
+            const tdClass = "px-5 py-4 text-[13px] font-semibold text-slate-700 dark:text-slate-200 whitespace-nowrap";
+
+            // Premium Tailwind Status Badges
+            const statusClass = employee.STATUS === 'INACTIVE' 
+                ? 'inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-extrabold tracking-widest uppercase bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400' 
+                : 'inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-extrabold tracking-widest uppercase bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400';
+
             tr.innerHTML = `
-                <td>${employee.EDS}</td>
-                <td>${employee.FULLNAME}</td>
-                <td>${employee.PROJECT}</td>
-                <td>${employee.POSITION}</td>
-                <td>${employee.SITE}</td>
-                <td>${employee.SUPERVISOR}</td>
-                <td class="${employee.STATUS === 'INACTIVE' ? 'danger' : 'success'}">${employee.STATUS}</td>
-                <td>${employee.HIREDDATE}</td>
-                <td>${employee.RESIGNEDDATE ?? ''}</td>
+                <td class="${tdClass}">${employee.EDS}</td>
+                <td class="${tdClass}">${employee.FULLNAME}</td>
+                <td class="${tdClass}">${employee.PROJECT}</td>
+                <td class="${tdClass}">${employee.POSITION}</td>
+                <td class="${tdClass}">${employee.SITE}</td>
+                <td class="${tdClass}">${employee.SUPERVISOR}</td>
+                <td class="px-5 py-4 whitespace-nowrap"><span class="${statusClass}">${employee.STATUS}</span></td>
+                <td class="${tdClass}">${employee.HIREDDATE}</td>
+                <td class="${tdClass}">${employee.RESIGNEDDATE ?? '-'}</td>
             `;
             tbody.appendChild(tr);
         });
     } else {
-        tbody.innerHTML = `<tr><td colspan="9">No records found.</td></tr>`;
+        // Styled empty state
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-10 text-slate-400 dark:text-slate-500 font-bold italic tracking-wide">No records found matching your criteria.</td></tr>`;
     }
 
-    // After rendering the table, render the pagination controls for it.
-    // MODIFIED: Calculate total pages from the display list.
+    // Render pagination controls
     renderPaginationControls(page, Math.ceil(displayedEmployeeUpdateList.length / limit));
 }
 
 /**
  * Renders the pagination buttons.
  */
-// MODIFIED: Simplified to not pass filter parameters around.
 function renderPaginationControls(currentPage, totalPages) {
     const paginationContainer = document.querySelector('.recent-updates #pagination');
-    if (!paginationContainer) {
-        console.error("Could not find the pagination container for employee updates.");
-        return;
-    }
+    if (!paginationContainer) return;
     
     paginationContainer.innerHTML = '';
     if (totalPages <= 1) return;
 
-    // Helper function to create a button and add the event listener
+    // Helper function to create a beautifully styled button
     const createAndAppendButton = (page, text, isDisabled = false, isActive = false) => {
         const btn = document.createElement('button');
         btn.textContent = text;
-        if (isActive) btn.className = 'active';
+        
+        // Base Tailwind classes
+        btn.className = 'px-3.5 py-1.5 text-xs font-extrabold rounded-lg transition-all duration-200 ';
+        
+        if (isActive) {
+            btn.className += 'bg-blue-600 text-white shadow-md shadow-blue-500/30';
+        } else if (isDisabled) {
+            btn.className += 'text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-50';
+        } else {
+            btn.className += 'text-slate-500 hover:bg-slate-200 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white';
+        }
+
         if (isDisabled) btn.disabled = true;
-        // MODIFIED: The click handler is simpler now.
+        
         btn.addEventListener('click', () => renderEmployeeUpdatesPage(page));
         paginationContainer.appendChild(btn);
     };
 
-    // --- PREV BUTTON ---
     createAndAppendButton(currentPage - 1, '« Prev', currentPage === 1);
 
-    // --- PAGE NUMBER BUTTONS WITH ELLIPSIS LOGIC ---
-    // (This logic remains the same)
     const siblingCount = 1;
     const totalSlots = 7;
 
@@ -187,7 +156,7 @@ function renderPaginationControls(currentPage, totalPages) {
 
         if (showLeftEllipsis) {
             const span = document.createElement('span');
-            span.className = 'ellipsis';
+            span.className = 'px-2 text-slate-400 dark:text-slate-600 font-bold tracking-widest';
             span.textContent = '...';
             paginationContainer.appendChild(span);
         }
@@ -210,7 +179,7 @@ function renderPaginationControls(currentPage, totalPages) {
         
         if (showRightEllipsis) {
             const span = document.createElement('span');
-            span.className = 'ellipsis';
+            span.className = 'px-2 text-slate-400 dark:text-slate-600 font-bold tracking-widest';
             span.textContent = '...';
             paginationContainer.appendChild(span);
         }
@@ -218,6 +187,5 @@ function renderPaginationControls(currentPage, totalPages) {
         createAndAppendButton(totalPages, totalPages, false, totalPages === currentPage);
     }
     
-    // --- NEXT BUTTON ---
     createAndAppendButton(currentPage + 1, 'Next »', currentPage === totalPages);
 }

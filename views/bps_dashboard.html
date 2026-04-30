@@ -1,116 +1,52 @@
-<!-- <div class="bps-dashboard-app">
-  <div class="bps-dashboard-container">
+<div class="bps-dashboard-view animate-fade-in p-4 w-full">
     
-    <aside class="bps-dashboard-sidebar">
-        <h2>Filters</h2>
-        <div class="filter-group">
-            <label for="location-filter">Location</label>
-            <select id="location-filter" class="filter-select" multiple></select>
+    <div class="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+                <span class="w-2 h-8 bg-blue-600 rounded-full inline-block"></span>
+                BPS Dashboard
+            </h1>
+            <p class="text-slate-500 dark:text-slate-400 mt-1 ml-5 text-sm font-medium">
+                Production reports and Excel downloads.
+            </p>
         </div>
-        <div class="filter-group">
-            <label for="project-filter">Primary Project</label>
-            <select id="project-filter" class="filter-select" multiple></select>
-        </div>
-        <div class="filter-group">
-            <label for="weekending-filter">Weekending</label>
-            <select id="weekending-filter" class="filter-select" multiple></select>
-        </div>
-        <div class="filter-group">
-            <label for="platform-filter">Platform</label>
-            <select id="platform-filter" class="filter-select" multiple></select>
-        </div>
-        <div class="filter-group">
-            <label for="proddate-filter">Production Date</label>
-            <input type="date" id="proddate-filter" class="filter-input">
-        </div>
-        <div class="filter-group">
-            <label for="process-filter">Firefly Process</label>
-            <select id="process-filter" class="filter-select" multiple></select>
-        </div>
-        <div class="filter-group">
-            <label for="tl-filter">TL Name</label>
-            <select id="tl-filter" class="filter-select" multiple></select>
-        </div>
-        <div class="filter-group">
-            <label for="taskname-filter">Task Name</label>
-            <select id="taskname-filter" class="filter-select" multiple></select>
-        </div>
-        <div class="filter-group">
-            <label for="operator-filter">Operator Name</label>
-            <select id="operator-filter" class="filter-select" multiple></select>
-        </div>
-        <div class="filter-group">
-            <label for="taskproject-filter">Task Project</label>
-            <select id="taskproject-filter" class="filter-select" multiple></select>
-        </div>
-        <div class="filter-buttons">
-            <button id="apply-filters">Apply</button>
-            <button id="reset-filters">Reset</button>
-        </div>
-    </aside>
 
-    
-    <main class="bps-dashboard-main-content">
-        <header>
-            <h1>Operator Performance Dashboard</h1>
-        </header>
-        <section class="bps-dashboard-charts-section">
-            <div class="chart-container">
-                <h3>Records per Operator</h3>
-                <canvas id="records-chart"></canvas>
+        <div class="flex items-center gap-3 md:ml-auto">
+            <a href="https://drive.google.com/drive/folders/1rFaSEKBgJmQYqciHqrPvhk_EFZQZjL0V" 
+               target="_blank" 
+               rel="noopener noreferrer" 
+               class="group inline-flex items-center justify-center gap-2 text-sm font-bold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 px-5 py-2.5 rounded-xl shadow-sm hover:shadow transition-all">
+                <span class="material-icons-sharp text-lg group-hover:scale-110 transition-transform">open_in_new</span>
+                Open in Drive
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-blue-50/50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 rounded-2xl p-4 mb-6 flex items-center gap-4">
+        <div class="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-inner">
+            <span class="material-icons-sharp">info</span>
+        </div>
+        <p class="text-sm font-semibold text-blue-800 dark:text-blue-300">
+            These reports are viewable via Excel. Click and download your preferred report from the list below.
+        </p>
+    </div>
+
+    <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200/50 dark:border-slate-800 overflow-hidden relative group">
+        <div class="px-6 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 flex items-center gap-2">
+            <div class="flex gap-1.5">
+                <div class="w-3 h-3 rounded-full bg-slate-200 dark:bg-slate-700"></div>
+                <div class="w-3 h-3 rounded-full bg-slate-200 dark:bg-slate-700"></div>
+                <div class="w-3 h-3 rounded-full bg-slate-200 dark:bg-slate-700"></div>
             </div>
-            <div class="chart-container">
-                <h3>Hours per Operator</h3>
-                <canvas id="hours-chart"></canvas>
-            </div>
-        </section>
-        <section class="bps-dashboard-table-section">
-            <h3>Detailed Data</h3>
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>EDS</th>
-                            <th>Operator Name</th>
-                            <th>TL Name</th>
-                            <th>Records</th>
-                            <th>Hours</th>
-                            <th>Shipment</th>
-                        </tr>
-                    </thead>
-                    <tbody id="dashboard-table-body">
-                        
-                    </tbody>
-                </table>
-            </div>
-        </section>
-    </main>
-  </div>
-</div> -->
+            <span class="ml-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Google Drive File Explorer</span>
+        </div>
 
-<h1>BPS Dashboard</h1>
-
-<p>This report is viewable via Excel. Click and download the preferred report.</p>
-
-<div style="
-  position: relative;
-  width: 100%;
-  padding-top: 56.25%; /* 16:9 Aspect Ratio */
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  margin-top: 1rem;
-  background-color: white;
-">
-  <iframe 
-    src="https://drive.google.com/embeddedfolderview?id=1rFaSEKBgJmQYqciHqrPvhk_EFZQZjL0V#list" 
-    style="
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      border: none;
-    ">
-  </iframe>
+        <div class="relative w-full aspect-video min-h-[600px]">
+            <iframe 
+                src="https://drive.google.com/embeddedfolderview?id=1rFaSEKBgJmQYqciHqrPvhk_EFZQZjL0V#list" 
+                class="absolute inset-0 w-full h-full border-none dark:invert-[0.05] dark:hue-rotate-180"
+                allow="autoplay">
+            </iframe>
+        </div>
+    </div>
 </div>

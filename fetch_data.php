@@ -53,7 +53,7 @@ if (isset($_GET['action'])) {
         }
 
         // ✅ ADDED: LIMIT to fetch a maximum of 10 records for testing
-        $sql .= " LIMIT 10";
+        $sql .= " LIMIT 20";
 
         $stmt = $conn->prepare($sql);
         if (!empty($params)) {

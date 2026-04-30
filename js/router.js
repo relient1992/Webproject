@@ -273,37 +273,39 @@ document.addEventListener("DOMContentLoaded", () => {
 document.addEventListener("click", (event) => {
         
     // --- Logic for opening modals from the dashboard cards ---
-    if (event.target.id === "activelist") {
+    if (event.target.closest('.activelist')) {
         const modal = document.getElementById("active-employee-form");
         const overlay = document.querySelector('.modal-overlay');
         if (modal && overlay) {
+            modal.className = "fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 pointer-events-none";
             modal.classList.remove("hidden");
             overlay.classList.remove("hidden");
             currentlyDisplayedActiveEmployees = activeEmployeeList;
-            showActiveEmployeeForm(currentlyDisplayedActiveEmployees, 1);
+            if (typeof showActiveEmployeeForm === 'function') showActiveEmployeeForm(currentlyDisplayedActiveEmployees, 1);
         }
     }
-    if (event.target.id === "attritionlist") {
+    if (event.target.closest('.attritionlist')) {
         const modal = document.getElementById("inactive-employee-form");
         const overlay = document.querySelector('.modal-overlay');
         if (modal && overlay) {
+            modal.className = "fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 pointer-events-none";
             modal.classList.remove("hidden");
             overlay.classList.remove("hidden");
             currentlyDisplayedInactiveEmployees = inactiveEmployeeList;
-            showInactiveEmployeeForm(currentlyDisplayedInactiveEmployees, 1);
+            if (typeof showInactiveEmployeeForm === 'function') showInactiveEmployeeForm(currentlyDisplayedInactiveEmployees, 1);
         }
     }
-    if (event.target.id === "newlyhiredlist") {
+    if (event.target.closest('.newlyhiredlist')) {
         const modal = document.getElementById("newlyhired-employee-form");
         const overlay = document.querySelector('.modal-overlay');
         if (modal && overlay) {
+            modal.className = "fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 pointer-events-none";
             modal.classList.remove("hidden");
             overlay.classList.remove("hidden");
             currentlyDisplayedNewHireEmployees = newHireEmployeeList;
-            showNewHireForm(currentlyDisplayedNewHireEmployees, 1);
+            if (typeof showNewHireForm === 'function') showNewHireForm(currentlyDisplayedNewHireEmployees, 1);
         }
     }
-
     // --- Logic for closing ANY modal ---
     if (event.target.classList.contains('close-button') || event.target.classList.contains('modal-overlay')) {
         document.querySelectorAll('#project-employee-modal, #active-employee-form, #inactive-employee-form, #newlyhired-employee-form').forEach(m => m.classList.add("hidden"));
@@ -345,6 +347,33 @@ document.addEventListener('input', (event) => {
                    (emp.SUPERVISOR || '').toLowerCase().includes(searchTerm);
         });
         showProjectEmployeeModal(currentlyDisplayedProjectGroupEmployees, 1, project, site);
+    }
+
+    if (event.target.closest('.export-csv-btn')) {
+        const btn = event.target.closest('.export-csv-btn');
+        const modalType = btn.dataset.modalType;
+    
+        if (typeof exportToCSV === 'function') {
+            if (modalType === 'project') {
+                const modal = btn.closest('#project-employee-modal');
+                let title = modal.querySelector('h2').textContent;
+                
+                // Clean up the title so it makes a nice filename (e.g., FEDEX_-_CLARK)
+                title = title.replace(/\s+/g, '_'); 
+    
+                // Pass the FULL array to your fetch_data export function
+                exportToCSV(currentlyDisplayedProjectGroupEmployees, `Project_Roster_${title}`);
+            }
+            else if (modalType === 'active') {
+                exportToCSV(currentlyDisplayedActiveEmployees, 'Active_Employees');
+            }
+            else if (modalType === 'inactive') {
+                exportToCSV(currentlyDisplayedInactiveEmployees, 'Resigned_Employees');
+            }
+            else if (modalType === 'newhire') {
+                exportToCSV(currentlyDisplayedNewHireEmployees, 'New_Hires');
+            }
+        }
     }
 
     // Search for Active Employees modal
@@ -406,27 +435,31 @@ function initializeRouter() {
 
     links.forEach(link => {
         link.addEventListener("click", e => {
-            const title = link.querySelector("h3").textContent.trim().toLowerCase();
-            const dataPage = link.getAttribute('data-page');
+            // PRIORITIZE data-view attribute, fallback to h3 text only if missing
+            const dataView = link.getAttribute('data-view');
+            const titleText = link.querySelector("h3") ? link.querySelector("h3").textContent : link.textContent;
+            
             const target = link.getAttribute('target');
-
-            // Special handling for the ESS link
+    
+            // Special handling for external links
             if (link.dataset.external === "true" || target === '_blank') {
-                return; // let browser handle it (new tab, no active class)
+                return; 
             }
-
-            // For all other links, prevent default and load the view as an SPA
+    
             e.preventDefault();
-
-            if (title === "logout") {
+    
+            // Handle Logout
+            if (titleText.trim().toLowerCase() === "log out") {
                 window.location.href = "logout.php";
                 return;
             }
-
+    
             links.forEach(l => l.classList.remove("Active"));
             link.classList.add("Active");
-
-            const viewKey = title.replace(/ & | /g, "_");
+    
+            // Use the data-view attribute directly for the filename
+            const viewKey = dataView || titleText.trim().toLowerCase().replace(/ & | /g, "_");
+            
             loadView(viewKey);
             history.pushState(null, "", `#${viewKey}`);
         });
@@ -598,18 +631,27 @@ function initActiveAttritionView() {
     const endInput = document.getElementById("end-date");
     const entitySelect = document.getElementById("entity-select");
 
-    // Initial fetches
+    // 1. Fetch Top Insight Cards Data
     if (typeof fetchData === 'function') {
         fetchData(null, null, "ALL");
+    }
+    
+    // 2. Fetch Recent Updates Table Data
+    if (typeof fetchEmployeeUpdate === 'function') {
         fetchEmployeeUpdate("ALL");
     }
 
-    // --- ADD THIS LINE ---
-    // This will attach the event listener to the search bar after it's loaded.
-    initEmployeeUpdateSearch();
-    // --- END OF ADDITION ---
+    // 3. Initialize Search for Recent Updates
+    if (typeof initEmployeeUpdateSearch === 'function') {
+        initEmployeeUpdateSearch();
+    }
 
+    // 4. Fetch Project Roster Data (Right Panel) - THIS WAS MISSING!
+    if (typeof initProjectSummaryView === 'function') {
+        initProjectSummaryView();
+    }
 
+    // Filter Apply Button Logic
     if (applyBtn && startInput && endInput && entitySelect) {
         applyBtn.addEventListener("click", () => {
             const startDate = startInput.value;
@@ -632,7 +674,6 @@ function initActiveAttritionView() {
         }
     }
 }
-
 function initTeamMemberView() {
     console.log("Initializing team member view...");
     

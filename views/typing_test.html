@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XBP Global - Typing Assessment</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%); }
+        .glass-panel { background: rgba(255, 255, 255, 0.95); box-shadow: 0 10px 40px -10px rgba(0,0,0,0.1); border-radius: 1rem; border: 1px solid rgba(255, 255, 255, 0.5); }
+        
+        /* Typing Area Styles */
+        #text-display { font-family: 'Roboto Mono', monospace; font-size: 1.25rem; line-height: 1.8; user-select: none; }
+        .char { color: #9ca3af; transition: color 0.1s; }
+        .char.correct { color: #10b981; font-weight: 500; background-color: #ecfdf5; border-radius: 2px;}
+        .char.incorrect { color: #ef4444; font-weight: 500; background-color: #fef2f2; text-decoration: underline; border-radius: 2px;}
+        .char.current { border-left: 2px solid #3b82f6; animation: blink 1s infinite; }
+        @keyframes blink { 50% { border-color: transparent; } }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+
+    <div id="setup-screen" class="glass-panel w-full max-w-2xl p-8 text-center animate-fade-in">
+        <img src="../assets/logo.png" alt="XBP Global" class="h-12 mx-auto mb-6">
+        <h2 class="text-3xl font-bold text-gray-800 mb-2">Typing Assessment</h2>
+        <p class="text-gray-500 mb-8">Select the test type required for your position. You will have 5 minutes.</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div class="border-2 border-blue-100 hover:border-blue-500 rounded-xl p-6 cursor-pointer transition transform hover:-translate-y-1 bg-white shadow-sm" onclick="startTest('alphanumeric')">
+                <i class="fas fa-keyboard text-4xl text-blue-500 mb-4"></i>
+                <h3 class="text-xl font-bold text-gray-800">Alpha-Numeric</h3>
+                <p class="text-sm text-gray-500 mt-2">Standard text mixed with numbers and symbols. (Call Center / General)</p>
+                <div class="mt-4 text-xs font-bold text-blue-600 bg-blue-50 py-1 px-3 rounded-full inline-block">5 Minutes</div>
+            </div>
+
+            <div class="border-2 border-green-100 hover:border-green-500 rounded-xl p-6 cursor-pointer transition transform hover:-translate-y-1 bg-white shadow-sm" onclick="startTest('numeric')">
+                <i class="fas fa-calculator text-4xl text-green-500 mb-4"></i>
+                <h3 class="text-xl font-bold text-gray-800">Numeric Only</h3>
+                <p class="text-sm text-gray-500 mt-2">10-key data entry focusing purely on numbers. (Data Entry / Accounting)</p>
+                <div class="mt-4 text-xs font-bold text-green-600 bg-green-50 py-1 px-3 rounded-full inline-block">5 Minutes</div>
+            </div>
+        </div>
+
+        <button onclick="window.location.href='../index.html'" class="text-sm text-gray-400 hover:text-gray-600 underline">Back to Home</button>
+    </div>
+
+    <div id="test-screen" class="hidden glass-panel w-full max-w-4xl overflow-hidden flex flex-col h-[80vh]">
+        
+        <div class="bg-gray-800 px-6 py-4 flex justify-between items-center text-white shadow-md z-10">
+            <div class="flex items-center gap-3">
+                <span id="test-title" class="font-bold tracking-wide uppercase text-blue-300">Alpha-Numeric Test</span>
+            </div>
+            <div class="flex items-center gap-6">
+                <div class="text-center"><p class="text-[10px] text-gray-400 uppercase">WPM</p><p id="live-wpm" class="font-mono font-bold text-xl text-green-400">0</p></div>
+                <div class="text-center"><p class="text-[10px] text-gray-400 uppercase">Accuracy</p><p id="live-acc" class="font-mono font-bold text-xl text-blue-400">100%</p></div>
+                <div class="flex items-center gap-2 bg-gray-900 px-4 py-2 rounded-lg font-mono font-bold border border-gray-700">
+                    <i class="fas fa-stopwatch text-red-400 animate-pulse"></i>
+                    <span id="timer-display" class="text-xl">05:00</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex-1 p-8 overflow-hidden flex flex-col relative bg-white">
+            <textarea id="typing-input" class="absolute opacity-0 w-0 h-0" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" onpaste="return false;" ondrop="return false;"></textarea>
+            
+            <p class="text-xs text-gray-400 mb-4 font-bold tracking-widest uppercase"><i class="fas fa-info-circle"></i> Start typing to begin the timer</p>
+            
+            <div id="text-display" class="flex-1 overflow-y-auto pr-4 text-justify" onclick="document.getElementById('typing-input').focus()">
+                </div>
+        </div>
+
+        <div class="p-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
+            <button onclick="location.reload()" class="text-sm text-gray-500 hover:text-red-500 font-bold"><i class="fas fa-times mr-1"></i> Cancel Test</button>
+            <button id="finish-early-btn" class="px-6 py-2 bg-gray-800 text-white font-bold rounded-lg hover:bg-black transition shadow">Submit Early</button>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA BANKS ---
+        const alphanumericText = "The quick brown fox jumps over the lazy dog. In 2026, XBP Global expanded its operations by 45%, reaching a total revenue of $8,920,400.00. Account #984-B was successfully verified by agent John Doe on Tuesday. Please ensure that 100% of the invoices (Inv #1092 to #1150) are processed before 17:30 hours. Data entry requires extreme precision; 1 single error in a 10-digit code like 9482750183 can cause severe system cascading failures. The warehouse received 500 units of item AX-992 and 1,250 units of item BY-404. All 75 employees in the HR department must complete module 3 of the compliance training. Email your reports to admin@xbp-global.com. If x = 25 and y = 40, then the sum is 65. Always double-check your work!";
+        
+        const numericText = "48291 50284 19283 50192 48102 59201 39485 10293 48592 10293 48592 50291 38495 10293 48502 38491 50293 48592 10293 58492 10293 48592 58492 10293 48592 10293 58492 10293 48592 10293 58492 10293 48592 10293 58492 10293 48592 10293 58492 10293 48592 10293 58492 10293 48592 10293 58492 10293 48592 10293 58492 10293 48592 10293 58492 10293 48592 10293 58492 10293 48592 10293 58492 10293 48592 10293 58492 10293 48592 10293 58492 10293 48592 10293 58492 10293 48592";
+
+        // --- STATE VARIABLES ---
+        let currentTestType = '';
+        let targetText = '';
+        let charElements = [];
+        let timerInterval;
+        let timeLeft = 300; // 5 minutes
+        let timeElapsed = 0;
+        let isTyping = false;
+        
+        let totalKeystrokes = 0;
+        let correctKeystrokes = 0;
+        let errors = 0;
+
+        // --- DOM ELEMENTS ---
+        const inputArea = document.getElementById('typing-input');
+        const displayArea = document.getElementById('text-display');
+        const wpmDisplay = document.getElementById('live-wpm');
+        const accDisplay = document.getElementById('live-acc');
+        const timeDisplay = document.getElementById('timer-display');
+
+        function startTest(type) {
+            currentTestType = type;
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('test-screen').classList.remove('hidden');
+            document.getElementById('test-title').textContent = type === 'numeric' ? 'NUMERIC 10-KEY TEST' : 'ALPHA-NUMERIC TEST';
+
+            // Generate enough text for 5 mins
+            targetText = type === 'numeric' ? numericText.repeat(3) : alphanumericText.repeat(3);
+            
+            // Render text to spans
+            displayArea.innerHTML = '';
+            charElements = [];
+            targetText.split('').forEach(char => {
+                const span = document.createElement('span');
+                span.innerText = char;
+                span.className = 'char';
+                displayArea.appendChild(span);
+                charElements.push(span);
+            });
+
+            charElements[0].classList.add('current');
+            inputArea.value = '';
+            inputArea.focus();
+        }
+
+        // --- TYPING ENGINE ---
+        inputArea.addEventListener('input', () => {
+            if (!isTyping) {
+                isTyping = true;
+                startTimer();
+            }
+
+            const typedArray = inputArea.value.split('');
+            totalKeystrokes++;
+            correctKeystrokes = 0;
+            errors = 0;
+
+            // Loop through the characters to check accuracy
+            charElements.forEach((span, index) => {
+                let expectedClass = 'char'; // Default state
+                const typedChar = typedArray[index];
+
+                if (typedChar == null) {
+                    // Not typed yet, stays default
+                } else if (typedChar === span.innerText) {
+                    expectedClass = 'char correct';
+                    correctKeystrokes++;
+                } else {
+                    expectedClass = 'char incorrect';
+                    errors++;
+                }
+
+                // Add the blinking cursor to the current active letter
+                if (index === typedArray.length) {
+                    expectedClass += ' current';
+                }
+
+                // THE CRITICAL SPEED FIX: 
+                // Only touch the HTML/DOM if the color/class actually needs to change!
+                if (span.className !== expectedClass) {
+                    span.className = expectedClass;
+                }
+            });
+
+            // Auto-scroll logic
+            if (typedArray.length < charElements.length) {
+                const currentEl = charElements[typedArray.length];
+                // Only trigger scroll math if we actually moved down a line
+                if (currentEl && currentEl.offsetTop > displayArea.scrollTop + displayArea.clientHeight - 50) {
+                    displayArea.scrollTop = currentEl.offsetTop - displayArea.clientHeight / 2;
+                }
+            } else {
+                // Finished text completely
+                endTest();
+            }
+
+            updateLiveStats();
+        });
+
+        function updateLiveStats() {
+            let minutes = timeElapsed / 60;
+            if (minutes > 0) {
+                // Standard WPM: (Correct Chars / 5) / Minutes
+                let wpm = Math.round((correctKeystrokes / 5) / minutes);
+                // Accuracy: (Correct / (Correct + Errors)) * 100
+                let totalTyped = correctKeystrokes + errors;
+                let acc = totalTyped > 0 ? Math.round((correctKeystrokes / totalTyped) * 100) : 100;
+
+                wpmDisplay.textContent = wpm;
+                accDisplay.textContent = `${acc}%`;
+            }
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                if (timeLeft > 0) {
+                    timeLeft--;
+                    timeElapsed++;
+                    let m = Math.floor(timeLeft / 60);
+                    let s = timeLeft % 60;
+                    timeDisplay.textContent = `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+                    updateLiveStats();
+                } else {
+                    endTest();
+                }
+            }, 1000);
+        }
+
+        document.getElementById('finish-early-btn').addEventListener('click', () => {
+            if (timeElapsed < 10) return Swal.fire('Wait!', 'Please type for at least 10 seconds before submitting.', 'warning');
+            endTest();
+        });
+
+        function endTest() {
+            clearInterval(timerInterval);
+            inputArea.disabled = true;
+
+            let minutes = timeElapsed / 60;
+            let grossWpm = Math.round(((correctKeystrokes + errors) / 5) / minutes);
+            let netWpm = Math.round((correctKeystrokes / 5) / minutes);
+            let totalTyped = correctKeystrokes + errors;
+            let acc = totalTyped > 0 ? Math.round((correctKeystrokes / totalTyped) * 100) : 0;
+
+            // Format for DB: e.g., "45 WPM (98% Acc)"
+            let finalScoreString = `${netWpm} WPM (${acc}% Acc)`;
+
+            // Save to Session Storage based on test type!
+            if (currentTestType === 'numeric') {
+                sessionStorage.setItem('r_ams_numeric_score', finalScoreString);
+            } else {
+                sessionStorage.setItem('r_ams_alphanumeric_score', finalScoreString);
+            }
+
+            Swal.fire({
+                title: 'Test Complete!',
+                html: `
+                    <div class="grid grid-cols-2 gap-4 my-4 text-left">
+                        <div class="bg-gray-50 p-3 rounded border"><p class="text-xs text-gray-500 uppercase">Net WPM</p><p class="text-2xl font-bold text-blue-600">${netWpm}</p></div>
+                        <div class="bg-gray-50 p-3 rounded border"><p class="text-xs text-gray-500 uppercase">Accuracy</p><p class="text-2xl font-bold ${acc >= 90 ? 'text-green-600' : 'text-red-600'}">${acc}%</p></div>
+                        <div class="bg-gray-50 p-3 rounded border"><p class="text-xs text-gray-500 uppercase">Gross WPM</p><p class="text-lg font-bold text-gray-800">${grossWpm}</p></div>
+                        <div class="bg-gray-50 p-3 rounded border"><p class="text-xs text-gray-500 uppercase">Errors</p><p class="text-lg font-bold text-red-500">${errors}</p></div>
+                    </div>
+                `,
+                icon: 'success',
+                showCancelButton: true,
+                confirmButtonColor: '#3b82f6',
+                cancelButtonColor: '#10b981',
+                confirmButtonText: 'Proceed to Application',
+                cancelButtonText: 'Take Another Test',
+                allowOutsideClick: false
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = 'recruitment_userform.html';
+                } else {
+                    window.location.reload(); // Reload to pick the other test
+                }
+            });
+        }
+    </script>
+</body>
+</html>

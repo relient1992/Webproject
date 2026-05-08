@@ -62,7 +62,7 @@ if ($action === 'getSkills') {
 }
 
 // --- ROLE-BASED ACCESS CONTROL ---
-$public_actions = ['getExamCategories', 'getApplicantExam'];
+$public_actions = ['getExamCategories', 'getApplicantExam', 'saveExamAttempt'];
 
 if (!isset($_SESSION['employee_id']) && !in_array($action, $public_actions)) {
     http_response_code(401); 
@@ -193,6 +193,15 @@ switch ($action) {
     case 'getExamHistory':
         getExamHistory($conn);
         break;      
+    case 'saveExamAttempt':
+        saveExamAttempt($conn);
+        break;
+    case 'getAllExamAttempts':
+        getAllExamAttempts($conn);
+        break;
+    case 'getRawExamHistory':
+        getRawExamHistory($conn);
+        break;    
 }
 $conn->close();
 
@@ -1548,3 +1557,63 @@ function getExamHistory($conn) {
     }
 }
 
+function saveExamAttempt($conn) {
+    try {
+        $data = json_decode(file_get_contents('php://input'), true);
+        $fname = $data['first_name'] ?? '';
+        $lname = $data['last_name'] ?? '';
+        $role = $data['role_applied'] ?? '';
+        $score = intval($data['score_percentage'] ?? 0);
+        $status = $data['status'] ?? 'Failed';
+        $exam_data = $data['exam_data'] ?? '[]';
+
+        // THE FIX: Explicitly inject NULL into application_id so the Foreign Key ignores it!
+        $sql = "INSERT INTO applicant_exam_results (application_id, first_name, last_name, role_applied, score_percentage, status, exam_data) VALUES (NULL, ?, ?, ?, ?, ?, ?)";
+        $stmt = $conn->prepare($sql);
+        
+        if (!$stmt) {
+            echo json_encode(['status' => 'error', 'message' => 'SQL Prepare Failed: ' . $conn->error]);
+            return;
+        }
+
+        // sssiss = String, String, String, Integer, String, String
+        $stmt->bind_param("sssiss", $fname, $lname, $role, $score, $status, $exam_data);
+        
+        if ($stmt->execute()) {
+            echo json_encode(['status' => 'success']);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'SQL Execute Failed: ' . $stmt->error]);
+        }
+        $stmt->close();
+        
+    } catch (Throwable $e) {
+        echo json_encode(['status' => 'error', 'message' => 'PHP Crash: ' . $e->getMessage()]);
+    }
+}
+
+function getAllExamAttempts($conn) {
+    // Only fetch the standalone logs (where first_name is tracked)
+    $sql = "SELECT id, first_name, last_name, role_applied, score_percentage, status, created_at FROM applicant_exam_results WHERE first_name IS NOT NULL ORDER BY created_at DESC";
+    $res = $conn->query($sql);
+    $data = [];
+    if($res) {
+        while($row = $res->fetch_assoc()) $data[] = $row;
+    }
+    echo json_encode($data);
+}
+
+function getRawExamHistory($conn) {
+    $id = intval($_GET['id'] ?? 0);
+    $stmt = $conn->prepare("SELECT exam_data FROM applicant_exam_results WHERE id = ?");
+    if ($stmt) {
+        $stmt->bind_param("i", $id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($row = $result->fetch_assoc()) {
+            echo $row['exam_data']; 
+        } else {
+            echo json_encode(['error' => 'No exam history found.']);
+        }
+        $stmt->close();
+    }
+}

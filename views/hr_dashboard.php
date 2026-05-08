@@ -99,6 +99,9 @@ if (!isset($_SESSION['employee_id'])) {
             <header class="bg-white shadow-sm p-4 flex justify-between items-center">
                 <h1 class="text-2xl font-semibold text-gray-800">Applicant Dashboard</h1>
                 <div class="flex items-center gap-2 flex-wrap">
+                    <button id="viewExamLogsBtn" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition flex items-center ml-2">
+                        <i class="fas fa-list-ol mr-2"></i> All Exam Logs
+                    </button>
                     <button id="openExamManagerBtn" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-150 ease-in-out flex items-center">
                         <i class="fas fa-file-signature mr-2"></i> Exams
                     </button>
@@ -1077,6 +1080,33 @@ if (!isset($_SESSION['employee_id'])) {
                 <button id="applyFiltersBtn" class="flex-1 px-4 py-2 bg-blue-600 text-white font-bold rounded shadow hover:bg-blue-700 transition">
                     Apply Filters
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="examLogsModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-60 backdrop-blur-sm z-[100] flex items-center justify-center">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center mb-4 border-b pb-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800"><i class="fas fa-clipboard-check text-teal-600 mr-2"></i> Exam Attempt Logs</h2>
+                    <p class="text-xs text-gray-500">Track all test attempts, including dropouts and failures.</p>
+                </div>
+                <button onclick="document.getElementById('examLogsModal').classList.add('hidden')" class="text-gray-400 hover:text-red-500"><i class="fas fa-times text-2xl"></i></button>
+            </div>
+            <div class="overflow-y-auto flex-1 border rounded-lg shadow-inner">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-gray-100 sticky top-0 z-10">
+                        <tr>
+                            <th class="px-4 py-3 font-bold text-gray-600">Date Taken</th>
+                            <th class="px-4 py-3 font-bold text-gray-600">Applicant Name</th>
+                            <th class="px-4 py-3 font-bold text-gray-600">Role Tested</th>
+                            <th class="px-4 py-3 font-bold text-gray-600">Score</th>
+                            <th class="px-4 py-3 font-bold text-gray-600 text-center">Status</th>
+                            <th class="px-4 py-3 font-bold text-gray-600 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="examLogsTableBody" class="divide-y divide-gray-200"></tbody>
+                </table>
             </div>
         </div>
     </div>

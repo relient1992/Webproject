@@ -104,11 +104,15 @@ window.openResumeModal = function(applicant) {
     modal.classList.remove('hidden');
 };
 
-window.viewApplicantExam = async function(applicationId, applicantName) {
+window.viewApplicantExam = async function(id, applicantName, isRawLog = false) {
     Swal.fire({ title: 'Fetching Exam Data...', didOpen: () => Swal.showLoading() });
 
     try {
-        const response = await fetch(`../hr_dashboard_api.php?action=getExamHistory&application_id=${applicationId}`);
+        // Dynamically select the API endpoint
+        const endpoint = isRawLog ? 'getRawExamHistory' : 'getExamHistory';
+        const idParam = isRawLog ? 'id' : 'application_id';
+
+        const response = await fetch(`../hr_dashboard_api.php?action=${endpoint}&${idParam}=${id}`);
         const text = await response.text();
         
         let data;
@@ -123,7 +127,6 @@ window.viewApplicantExam = async function(applicationId, applicantName) {
             return;
         }
 
-        // Build the HTML with a Download Button and a designated PDF Container
         let htmlContent = `
             <div class="flex justify-end mb-3">
                 <button id="exportExamPdfBtn" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center shadow-md transition">
@@ -139,7 +142,7 @@ window.viewApplicantExam = async function(applicationId, applicantName) {
                         <h2 class="text-2xl font-bold text-gray-800">Pre-Employment Assessment Results</h2>
                         <div class="mt-2 text-sm text-gray-600">
                             <p><strong>Applicant Name:</strong> ${applicantName}</p>
-                            <p><strong>Application ID:</strong> #${applicationId}</p>
+                            <p><strong>Record ID:</strong> #${id}</p>
                             <p><strong>Date Exported:</strong> ${new Date().toLocaleDateString()}</p>
                         </div>
                     </div>
@@ -170,42 +173,35 @@ window.viewApplicantExam = async function(applicationId, applicantName) {
             `;
         });
         
-        htmlContent += `</div></div>`; // Close PDF container and Scroll container
+        htmlContent += `</div></div>`; 
 
         Swal.fire({
             title: `Exam Results`,
             html: htmlContent,
             width: '800px',
             showCloseButton: true,
-            showConfirmButton: false, // Hidden because we use our custom PDF button
+            showConfirmButton: false,
             didOpen: () => {
-                // Attach the PDF Export Logic once the modal opens
                 const pdfBtn = document.getElementById('exportExamPdfBtn');
                 if (pdfBtn) {
                     pdfBtn.addEventListener('click', () => {
                         const element = document.getElementById('examPdfContent');
                         const header = element.querySelector('.print-header');
-                        
-                        // 1. Temporarily unhide the header for the PDF
                         if (header) header.classList.remove('hidden');
                         
-                        // 2. Update button state
                         const originalText = pdfBtn.innerHTML;
                         pdfBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Generating PDF...';
                         pdfBtn.disabled = true;
 
-                        // 3. Configure PDF Options
                         const opt = {
                             margin:       0.4,
                             filename:     `Exam_Result_${applicantName.replace(/[^a-z0-9]/gi, '_')}.pdf`,
                             image:        { type: 'jpeg', quality: 0.98 },
-                            html2canvas:  { scale: 2, useCORS: true }, // scale 2 ensures high resolution
+                            html2canvas:  { scale: 2, useCORS: true }, 
                             jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
                         };
 
-                        // 4. Generate and Save!
                         html2pdf().set(opt).from(element).save().then(() => {
-                            // Restore original UI state after download completes
                             pdfBtn.innerHTML = originalText;
                             pdfBtn.disabled = false;
                             if (header) header.classList.add('hidden');
@@ -429,6 +425,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const btnDeleteTemplate = document.getElementById('btnDeleteTemplate');
     const STORAGE_KEY = 'hr_export_templates_v1';
 
+    // --- EXAM LOGS VIEWER ---
+    const btnOpenExamLogs = document.getElementById('viewExamLogsBtn');
+    const examLogsModal = document.getElementById('examLogsModal');
+    const examLogsTableBody = document.getElementById('examLogsTableBody');
 
 
     
@@ -490,6 +490,50 @@ document.addEventListener('DOMContentLoaded', function () {
             console.error("Notif Error:", error); 
             notifList.innerHTML = `<div class="text-center py-10 text-red-500"><p>Connection Failed. Please refresh.</p></div>`;
         }
+    }
+
+    if (btnOpenExamLogs) {
+        btnOpenExamLogs.addEventListener('click', async () => {
+            examLogsModal.classList.remove('hidden');
+            examLogsTableBody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Loading logs...</td></tr>';
+            
+            try {
+                const response = await fetch(`${API_URL}?action=getAllExamAttempts`);
+                const logs = await response.json();
+                
+                examLogsTableBody.innerHTML = '';
+                if (logs.length === 0) {
+                    examLogsTableBody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-400">No exam attempts found.</td></tr>';
+                    return;
+                }
+
+                logs.forEach(log => {
+                    const dateStr = new Date(log.created_at).toLocaleString();
+                    const statusBadge = log.status === 'Passed' 
+                        ? `<span class="bg-green-100 text-green-700 font-bold px-2 py-1 rounded text-xs">Passed</span>`
+                        : `<span class="bg-red-100 text-red-700 font-bold px-2 py-1 rounded text-xs">Failed</span>`;
+                    
+                    const fullName = `${log.last_name}, ${log.first_name}`;
+
+                    examLogsTableBody.innerHTML += `
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-4 py-3 text-gray-600">${dateStr}</td>
+                            <td class="px-4 py-3 font-semibold text-gray-800">${fullName}</td>
+                            <td class="px-4 py-3 text-gray-600">${log.role_applied}</td>
+                            <td class="px-4 py-3 font-bold text-blue-600">${log.score_percentage}%</td>
+                            <td class="px-4 py-3 text-center">${statusBadge}</td>
+                            <td class="px-4 py-3 text-right">
+                                <button onclick="window.viewApplicantExam(${log.id}, '${escapeHtml(fullName)}', true)" class="text-blue-500 hover:text-blue-700 font-bold text-xs border border-blue-200 px-2 py-1 rounded shadow-sm">
+                                    <i class="fas fa-eye mr-1"></i> View Answers
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } catch (error) {
+                examLogsTableBody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-red-500">Failed to load logs.</td></tr>';
+            }
+        });
     }
 
     // 2. Render Logic (Filter -> Sort -> Paginate -> HTML)

@@ -622,7 +622,7 @@ function initializeViewScripts(viewName) {
     } else if (viewName === "financial_dashboard") {
         if (typeof initFinancialDashboard === 'function') initFinancialDashboard();
     }
-
+    
     setTimeout(() => {
         initializeDatePicker();
     }, 100);

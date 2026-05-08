@@ -24,9 +24,14 @@
         <div class="bg-yellow-50 border border-yellow-200 p-3 rounded-lg text-xs text-yellow-700 text-left mb-6">
             <strong><i class="fas fa-shield-alt mr-1"></i> Security Notice:</strong>
             <ul class="list-disc pl-4 mt-1">
-                <li>You have <strong>30 minutes</strong> to complete this exam.</li>
+                <!-- <li>You have <strong>30 minutes</strong> to complete this exam.</li> -->
                 <li>Do not switch tabs or open other windows. Doing so 3 times will result in an automatic failure.</li>
             </ul>
+        </div>
+
+        <div class="flex gap-4 mb-4">
+            <input type="text" id="exam_fname" placeholder="First Name" class="w-1/2 p-3 border-2 border-blue-200 rounded-xl text-gray-700 font-semibold focus:border-blue-500 outline-none uppercase" required>
+            <input type="text" id="exam_lname" placeholder="Last Name" class="w-1/2 p-3 border-2 border-blue-200 rounded-xl text-gray-700 font-semibold focus:border-blue-500 outline-none uppercase" required>
         </div>
 
         <select id="role-selector" class="w-full p-3 border-2 border-blue-200 rounded-xl text-gray-700 font-semibold focus:border-blue-500 focus:ring-0 transition mb-6">
@@ -353,36 +358,74 @@
             });
             
             let percentage = Math.round((correct / examQuestions.length) * 100);
-            
-            // NEW FORMAT: "11/15 73%"
             let formattedScore = `${correct}/${examQuestions.length} ${percentage}%`;
+            let isPass = (!forceFail && percentage >= passingScore);
 
-            if (!forceFail && percentage >= passingScore) {
-                sessionStorage.setItem('r_ams_exam_passed', 'true');
-                sessionStorage.setItem('r_ams_exam_score', formattedScore);
-                sessionStorage.setItem('r_ams_exam_history', JSON.stringify(examHistory));
+            // Build Payload for DB Log
+            const payload = {
+                first_name: document.getElementById('exam_fname').value.trim().toUpperCase(),
+                last_name: document.getElementById('exam_lname').value.trim().toUpperCase(),
+                role_applied: roleSelector.options[roleSelector.selectedIndex].text,
+                score_percentage: percentage,
+                status: isPass ? 'Passed' : 'Failed',
+                exam_data: JSON.stringify(examHistory)
+            };
 
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Exam Passed!',
-                    text: `Score: ${percentage}%. Routing to application form...`,
-                    confirmButtonText: 'Proceed',
-                    allowOutsideClick: false
-                }).then(() => window.location.href = 'recruitment_userform.html'); 
-            } else {
-                sessionStorage.removeItem('r_ams_exam_passed');
-                sessionStorage.removeItem('r_ams_exam_history');
+            Swal.fire({ title: 'Saving Results...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+            // 1. Save to Database Log (Even if they failed or cheated!)
+            fetch(`${API_URL}?action=saveExamAttempt`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(async (response) => {
+                const rawText = await response.text(); // Get raw text to catch PHP crashes
+                let data;
                 
-                const msg = forceMessage || `Your score: ${percentage}%. Required: ${passingScore}%. Thank you for your interest.`;
-                
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Exam Failed',
-                    text: msg,
-                    confirmButtonText: 'Close',
-                    allowOutsideClick: false
-                }).then(() => window.location.href = '../views/hr_written_exam.html');
-            }
+                try {
+                    data = JSON.parse(rawText);
+                } catch (e) {
+                    console.error("PHP Error:", rawText);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Server Error',
+                        html: `PHP crashed. Here is the exact error:<br><textarea class="w-full mt-3 p-2 text-xs border border-red-300 rounded h-32 text-red-600" readonly>${rawText}</textarea>`,
+                        allowOutsideClick: false
+                    });
+                    return; // Stop the redirect so you can read the error!
+                }
+
+                if (data.status === 'error') {
+                    Swal.fire('Database Error', data.message, 'error');
+                    return; // Stop the redirect
+                }
+
+                // 2. Redirect Logic (Only runs if save was successful)
+                if (isPass) {
+                    sessionStorage.setItem('r_ams_exam_passed', 'true');
+                    sessionStorage.setItem('r_ams_exam_score', formattedScore);
+                    sessionStorage.setItem('r_ams_exam_history', JSON.stringify(examHistory));
+
+                    Swal.fire({
+                        icon: 'success', title: 'Exam Passed!', text: `Score: ${percentage}%. Routing to application form...`,
+                        confirmButtonText: 'Proceed', allowOutsideClick: false
+                    }).then(() => window.location.href = 'recruitment_userform.html'); 
+                } else {
+                    sessionStorage.removeItem('r_ams_exam_passed');
+                    sessionStorage.removeItem('r_ams_exam_history');
+                    
+                    const msg = forceMessage || `Your score: ${percentage}%. Required: ${passingScore}%. Thank you for your interest.`;
+                    Swal.fire({
+                        icon: 'error', title: 'Exam Failed', text: msg,
+                        confirmButtonText: 'Close', allowOutsideClick: false
+                    }).then(() => window.location.href = '../views/hr_written_exam.html');
+                }
+            })
+            .catch(err => {
+                console.error("Network Error:", err);
+                Swal.fire('Network Error', 'Failed to communicate with server. Check your connection.', 'error');
+            });
         }
     </script>
 </body>

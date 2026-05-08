@@ -16,8 +16,8 @@
              target="_blank" 
              rel="noopener noreferrer" 
              class="group inline-flex items-center justify-center gap-2 text-sm font-bold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 px-5 py-2.5 rounded-xl shadow-sm hover:shadow transition-all">
-              <span class="material-icons-sharp text-lg group-hover:scale-110 transition-transform">table_view</span>
-              Open Full View
+              <span class="material-icons-sharp text-lg group-hover:scale-110 transition-transform">open_in_new</span>
+              Open in Sheets
           </a>
       </div>
   </div>
@@ -33,9 +33,14 @@
               <span class="ml-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">LHI Business Unit Console</span>
           </div>
           
-          <div class="flex items-center gap-2 px-3 py-1 bg-emerald-50 dark:bg-emerald-900/30 rounded-full border border-emerald-100 dark:border-emerald-800/50">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">Live Data</span>
+          <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 px-3 py-1 bg-emerald-50 dark:bg-emerald-900/30 rounded-full border border-emerald-100 dark:border-emerald-800/50">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">Live Data</span>
+              </div>
+              <button onclick="document.getElementById('bu-lhi-modal').classList.remove('hidden')" class="ml-2 w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition-colors" title="Expand to Fullscreen">
+                  <span class="material-icons-sharp text-[18px]">fullscreen</span>
+              </button>
           </div>
       </div>
 
@@ -47,4 +52,28 @@
           </iframe>
       </div>
   </div>
+
+  <div id="bu-lhi-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-2 sm:p-6 bg-slate-900/80 backdrop-blur-sm transition-opacity">
+      <div class="bg-white dark:bg-slate-900 w-full h-full rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden animate-fade-in">
+          
+          <div class="px-6 py-1 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                  <span class="w-2 h-6 bg-emerald-600 rounded-full inline-block"></span>
+                  <h2 class="text-lg font-bold text-slate-800 dark:text-white tracking-tight">Expanded View: LHI Business Unit</h2>
+              </div>
+              <button onclick="document.getElementById('bu-lhi-modal').classList.add('hidden')" class="w-9 h-9 flex items-center justify-center rounded-full bg-slate-200 hover:bg-rose-100 dark:bg-slate-700 dark:hover:bg-rose-900/40 text-slate-600 hover:text-rose-600 dark:text-slate-300 dark:hover:text-rose-400 transition-colors">
+                  <span class="material-icons-sharp text-sm">close</span>
+              </button>
+          </div>
+
+          <div class="flex-1 w-full bg-slate-100 dark:bg-slate-950 relative">
+              <iframe 
+                  src="https://docs.google.com/spreadsheets/d/11XPPJYdBiJxCS-o_XhUM9ePQQPwIWhu2F_k3gpmhczc/edit?usp=sharing" 
+                  class="absolute inset-0 w-full h-full border-none dark:opacity-95"
+                  allow="autoplay">
+              </iframe>
+          </div>
+      </div>
+  </div>
+
 </div>

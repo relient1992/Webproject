@@ -270,6 +270,7 @@ if (!isset($_SESSION['employee_id'])) {
     <script src="js/export-functions.js"></script>
     <script src="js/team_member.js"></script>
     <script src="js/collapse_menu.js"></script>
+    <script src="js/financial_dashboard.js"></script>
 
 </body>
 </html>

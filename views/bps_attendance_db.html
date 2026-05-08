@@ -1,3 +1,82 @@
-<h1>BPS Operations Attendance Dashboard</h1>
-
-<iframe width="100%" height="100%" src="https://lookerstudio.google.com/embed/reporting/8e3e7edb-f877-4678-8d4c-5c9b3ffd8ac4/page/v2FcD" frameborder="0" style="border:0" allowfullscreen sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>
+<div class="bps-attendance-db-view animate-fade-in p-4 w-full">
+    
+    <div class="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+                <span class="w-2 h-8 bg-blue-600 rounded-full inline-block"></span>
+                BPS Operations Attendance
+            </h1>
+            <p class="text-slate-500 dark:text-slate-400 mt-1 ml-5 text-sm font-medium">
+                Daily operations tracking, headcounts, and attendance reporting.
+            </p>
+        </div>
+  
+        <div class="flex items-center gap-3 md:ml-auto">
+            <a href="https://lookerstudio.google.com/reporting/8e3e7edb-f877-4678-8d4c-5c9b3ffd8ac4/page/v2FcD" 
+               target="_blank" 
+               rel="noopener noreferrer" 
+               class="group inline-flex items-center justify-center gap-2 text-sm font-bold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800/50 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white px-5 py-2.5 rounded-xl shadow-sm transition-all">
+                <span class="material-icons-sharp text-lg group-hover:scale-110 transition-transform">open_in_new</span>
+                Open in Looker
+            </a>
+        </div>
+    </div>
+  
+    <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200/50 dark:border-slate-800 overflow-hidden relative">
+        
+        <div class="px-6 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="flex gap-1.5">
+                    <div class="w-3 h-3 rounded-full bg-slate-300 dark:bg-slate-600"></div>
+                    <div class="w-3 h-3 rounded-full bg-slate-300 dark:bg-slate-600"></div>
+                    <div class="w-3 h-3 rounded-full bg-slate-300 dark:bg-slate-600"></div>
+                </div>
+                <span class="ml-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Looker Studio Enterprise Embed</span>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 px-3 py-1 bg-blue-50 dark:bg-blue-900/20 rounded-full border border-blue-100 dark:border-blue-800/50">
+                    <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+                    <span class="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-tight">Live Operations Data</span>
+                </div>
+                <button onclick="document.getElementById('bps-attendance-modal').classList.remove('hidden')" class="ml-2 w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition-colors" title="Expand to Fullscreen">
+                    <span class="material-icons-sharp text-[18px]">fullscreen</span>
+                </button>
+            </div>
+        </div>
+  
+        <div class="relative w-full min-h-[850px] bg-white">
+            <iframe 
+                src="https://lookerstudio.google.com/embed/reporting/8e3e7edb-f877-4678-8d4c-5c9b3ffd8ac4/page/v2FcD" 
+                class="absolute inset-0 w-full h-full border-none"
+                allowfullscreen 
+                sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox">
+            </iframe>
+        </div>
+    </div>
+  
+    <div id="bps-attendance-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-2 sm:p-6 bg-slate-900/80 backdrop-blur-sm transition-opacity">
+        <div class="bg-white dark:bg-slate-900 w-full h-full rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden animate-fade-in">
+            
+            <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="w-2 h-6 bg-blue-600 rounded-full inline-block"></span>
+                    <h2 class="text-lg font-bold text-slate-800 dark:text-white tracking-tight">Expanded View: BPS Operations Attendance Dashboard</h2>
+                </div>
+                <button onclick="document.getElementById('bps-attendance-modal').classList.add('hidden')" class="w-9 h-9 flex items-center justify-center rounded-full bg-slate-200 hover:bg-rose-100 dark:bg-slate-700 dark:hover:bg-rose-900/40 text-slate-600 hover:text-rose-600 dark:text-slate-300 dark:hover:text-rose-400 transition-colors">
+                    <span class="material-icons-sharp text-sm">close</span>
+                </button>
+            </div>
+  
+            <div class="flex-1 w-full bg-white relative">
+                <iframe 
+                    src="https://lookerstudio.google.com/embed/reporting/8e3e7edb-f877-4678-8d4c-5c9b3ffd8ac4/page/v2FcD" 
+                    class="absolute inset-0 w-full h-full border-none"
+                    allowfullscreen 
+                    sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox">
+                </iframe>
+            </div>
+        </div>
+    </div>
+  
+  </div>

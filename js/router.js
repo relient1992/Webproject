@@ -192,6 +192,7 @@ const rolePages = {
         "fedex_aus_hourly_count.html",
         "web_training.php",
         "database_update.php",
+        "financial_dashboard.html",
         "hr_dashboard.php"
     ]   
 
@@ -618,6 +619,8 @@ function initializeViewScripts(viewName) {
         initActiveAttritionView();
     } else if (viewName === "team_member") {
         initTeamMemberView();
+    } else if (viewName === "financial_dashboard") {
+        if (typeof initFinancialDashboard === 'function') initFinancialDashboard();
     }
 
     setTimeout(() => {

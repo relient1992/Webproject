@@ -90,7 +90,7 @@
         let timerInterval;
         let cheatWarnings = 0;
         let examActive = false;
-        const TIME_LIMIT_MINUTES = 30;
+        let timeLimitMinutes = 30;
 
         // DOM ELEMENTS
         const setupScreen = document.getElementById('setup-screen');
@@ -147,6 +147,7 @@
                     const option = document.createElement('option');
                     option.value = cat.id;
                     option.dataset.passing = cat.passing_score;
+                    option.dataset.time = cat.time_limit_minutes; // <-- ADD THIS LINE
                     option.textContent = cat.category_name;
                     roleSelector.appendChild(option);
                 });
@@ -156,35 +157,60 @@
 
         // --- 2. START EXAM ---
         startBtn.addEventListener('click', async () => {
+            const fname = document.getElementById('exam_fname')?.value.trim();
+            const lname = document.getElementById('exam_lname')?.value.trim();
             const categoryId = roleSelector.value;
+            
+            if(document.getElementById('exam_fname') && (!fname || !lname)) return Swal.fire('Required', 'Please enter your First and Last Name.', 'warning');
             if(!categoryId) return Swal.fire('Required', 'Please select a position.', 'warning');
             
-            passingScore = parseInt(roleSelector.options[roleSelector.selectedIndex].dataset.passing);
+            // --- GRAB THE DYNAMIC SCORES AND TIME ---
+            const selectedOption = roleSelector.options[roleSelector.selectedIndex];
+            passingScore = parseInt(selectedOption.dataset.passing) || 70;
+            timeLimitMinutes = parseInt(selectedOption.dataset.time) || 30; 
+            const roleName = selectedOption.textContent;
 
-            Swal.fire({ title: 'Preparing Exam...', didOpen: () => Swal.showLoading() });
+            // --- NEW: CONFIRMATION PROMPT ---
+            Swal.fire({
+                title: 'Ready to begin?',
+                html: `You are about to start the assessment for <strong>${roleName}</strong>.<br><br>
+                       ⏱️ You will have <strong>${timeLimitMinutes} minutes</strong> to complete the exam.<br><br>
+                       <span class="text-xs text-red-500 font-bold"><i class="fas fa-exclamation-triangle"></i> Do not switch tabs or open other windows once the exam starts.</span>`,
+                icon: 'info',
+                showCancelButton: true,
+                confirmButtonColor: '#3b82f6',
+                cancelButtonColor: '#9ca3af',
+                confirmButtonText: 'Yes, Start Now',
+                cancelButtonText: 'Cancel'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    
+                    Swal.fire({ title: 'Preparing Exam...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-            try {
-                const res = await fetch(`${API_URL}?action=getApplicantExam&category_id=${categoryId}`);
-                examQuestions = await res.json();
-                
-                if(examQuestions.length === 0) throw new Error("No active questions available for this role.");
-                
-                userAnswers = new Array(examQuestions.length).fill(null);
-                
-                Swal.close();
-                setupScreen.classList.add('hidden');
-                examScreen.classList.remove('hidden');
-                
-                examActive = true;
-                
-                // Initialize Absolute Timer (30 Minutes)
-                endTime = Date.now() + (TIME_LIMIT_MINUTES * 60 * 1000);
-                startTimer();
-                renderQuestion();
-                
-            } catch (e) {
-                Swal.fire('Error', e.message, 'error');
-            }
+                    try {
+                        const res = await fetch(`${API_URL}?action=getApplicantExam&category_id=${categoryId}`);
+                        examQuestions = await res.json();
+                        
+                        if(examQuestions.length === 0) throw new Error("No active questions available for this role.");
+                        
+                        userAnswers = new Array(examQuestions.length).fill(null);
+                        
+                        Swal.close();
+                        setupScreen.classList.add('hidden');
+                        examScreen.classList.remove('hidden');
+                        
+                        examActive = true;
+                        
+                        // Initialize Absolute Timer with Dynamic Time
+                        endTime = Date.now() + (timeLimitMinutes * 60 * 1000); 
+                        startTimer();
+                        renderQuestion();
+                        
+                    } catch (e) {
+                        Swal.fire('Error', e.message, 'error');
+                    }
+                }
+            });
         });
 
         // --- 3. RENDER QUESTION ---

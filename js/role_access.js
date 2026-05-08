@@ -189,6 +189,7 @@ document.addEventListener("DOMContentLoaded", () => {
             "fedex_aus_hourly_count.html",
             "web_training.php",
             "database_update.php",
+            "financial_dashboard.html",
             "hr_dashboard.php"
         ]   
         

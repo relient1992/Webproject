@@ -26,6 +26,7 @@ const rolePages = {
         "daily_attendance_status.html",
         "bps_overall_dashboard.php",
         "fedex_aus_hourly_count.html",
+        "financial_dashboard.html",
         "web_training.php"
         
 
@@ -65,6 +66,7 @@ const rolePages = {
     'hr_manager': [
         "active_attrition.html",
         "team_member.html",
+        "lhi_employee_info.html",
         "hr_dashboard.php"
 
     ],
@@ -89,6 +91,7 @@ const rolePages = {
         "lhi_bfp.html",
         "lhi_financial.html",
         "bu_lhi.html",
+        "financial_dashboard.html",
         "lhi_inventory.html"
     ], 
     'lhi_user': [
@@ -130,6 +133,7 @@ const rolePages = {
         "fedex_manifest_conso_data.html",
         "daily_attendance_status.html",
         "bps_overall_dashboard.php",
+        "financial_dashboard.html",
         "fedex_aus_hourly_count.html"
 
     ],
@@ -193,6 +197,7 @@ const rolePages = {
         "web_training.php",
         "database_update.php",
         "financial_dashboard.html",
+        "lhi_employee_info.html",
         "hr_dashboard.php"
     ]   
 

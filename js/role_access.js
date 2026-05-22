@@ -45,6 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
             "daily_attendance_status.html",
             "bps_overall_dashboard.php",
             "fedex_aus_hourly_count.html",
+            "financial_dashboard.html",
             "web_training.php"
 
         ],
@@ -64,6 +65,7 @@ document.addEventListener("DOMContentLoaded", () => {
         hr_manager: [
             "active_attrition.html",
             "team_member.html",
+            "lhi_employee_info.html",
             "hr_dashboard.php"
         ],
 
@@ -87,6 +89,7 @@ document.addEventListener("DOMContentLoaded", () => {
             "lhi_bfp.html",
             "lhi_financial.html",
             "bu_lhi.html",
+            "financial_dashboard.html",
             "lhi_inventory.html"
         ], 
         lhi_user: [
@@ -128,6 +131,7 @@ document.addEventListener("DOMContentLoaded", () => {
             "fedex_manifest_conso_data.html",
             "daily_attendance_status.html",
             "bps_overall_dashboard.php",
+            "financial_dashboard.html",
             "fedex_aus_hourly_count.html"
 
         ],
@@ -190,6 +194,7 @@ document.addEventListener("DOMContentLoaded", () => {
             "web_training.php",
             "database_update.php",
             "financial_dashboard.html",
+            "lhi_employee_info.html",
             "hr_dashboard.php"
         ]   
         

@@ -41,7 +41,7 @@
                 <span class="w-1.5 h-4 bg-emerald-500 rounded-full"></span> Data Configurations & Filters
             </h3>
             <div class="flex gap-3">
-                <button onclick="clearAllFilters()" class="px-4 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-lg transition-colors">Clear All</button>
+                <!-- <button onclick="clearAllFilters()" class="px-4 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-lg transition-colors">Clear All</button> -->
                 <button onclick="applyGlobalFilters()" class="px-4 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-colors">Apply Config</button>
             </div>
         </div>
@@ -97,7 +97,7 @@
                 </div>
             </div>
             <div class="space-y-6">
-                <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
+                <!-- <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
                     <h4 class="text-xs font-bold text-slate-800 dark:text-white mb-3 flex items-center gap-2"><span class="material-icons-sharp text-[16px] text-amber-500">settings</span> Other Options</h4>
                     <div class="space-y-3">
                         <label class="flex items-center justify-between cursor-pointer group">
@@ -111,7 +111,7 @@
                             <div class="w-8 h-4 bg-slate-300 rounded-full peer dark:bg-slate-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-500 relative"></div>
                         </label>
                     </div>
-                </div>
+                </div> -->
                 <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
                     <h4 class="text-xs font-bold text-slate-800 dark:text-white mb-3 flex items-center gap-2"><span class="material-icons-sharp text-[16px] text-purple-500">layers</span> Header Level</h4>
                     <div class="flex items-center justify-between bg-white dark:bg-slate-900 p-1 rounded-lg border border-slate-200 dark:border-slate-700">
@@ -147,7 +147,7 @@
             <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
                 <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">Headcount</span>
                 <span id="kpi-headcount" class="text-xl font-black text-slate-800 dark:text-white">0</span>
-                <span class="text-[10px] text-slate-500 block mt-1">(Ops, Support, Processors)</span>
+                <span class="text-[10px] text-slate-500 block mt-1">(Average Headcount)</span>
             </div>
         </div>
 
@@ -183,25 +183,49 @@
         </div>
     </div>
 
-    <div id="view-mom" class="view-section hidden animate-fade-in">
+    <div id="view-mom" class="view-section hidden animate-fade-in space-y-6">
         <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col">
-            <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/30">
-                <h3 class="font-bold text-slate-800 dark:text-white">Month-over-Month Analysis</h3>
-                <div class="flex items-center gap-4 text-xs font-bold">
-                    <span class="flex items-center gap-1 text-rose-500"><span class="w-2 h-2 rounded-full bg-rose-500"></span> Cost Increase</span>
-                    <span class="flex items-center gap-1 text-emerald-500"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Cost Decrease</span>
-                    <span class="flex items-center gap-1 text-amber-500"><span class="material-icons-sharp text-[14px]">warning</span> 1-Yr Outlier</span>
+            
+            <div class="p-5 border-b border-slate-100 dark:border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-50/50 dark:bg-slate-800/30">
+                <div>
+                    <h3 class="font-bold text-slate-800 dark:text-white text-lg">Month-over-Month Analysis</h3>
+                    <p class="text-xs font-medium text-slate-500 mt-1">Compare specific periods based on your active Project & Mapping filters.</p>
+                </div>
+                
+                <div class="flex flex-wrap items-center gap-3 bg-white dark:bg-slate-950 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-widest pl-2">Base:</span>
+                        <input type="month" id="mom-base-month" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    </div>
+                    <div class="flex items-center gap-2 border-l border-slate-200 dark:border-slate-700 pl-3">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Compare:</span>
+                        <input type="month" id="mom-comp-month" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    </div>
+                    <button id="btn-refresh-mom" class="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-3 py-1.5 text-xs font-bold shadow-md transition-colors ml-1">
+                        <i class="fas fa-sync-alt mr-1"></i> Analyze
+                    </button>
                 </div>
             </div>
+
+            <div class="bg-blue-50/50 dark:bg-blue-900/10 border-b border-blue-100 dark:border-blue-800/50 p-4">
+                <h4 class="text-xs font-extrabold text-blue-600 dark:text-blue-400 uppercase tracking-widest flex items-center gap-2 mb-2">
+                    <span class="material-icons-sharp text-[16px]">insights</span> Executive Summary
+                </h4>
+                <div id="mom-insights" class="text-sm text-slate-700 dark:text-slate-300 space-y-1 font-medium">
+                    Select months to generate insights.
+                </div>
+            </div>
+
             <div class="overflow-x-auto w-full max-h-[600px] custom-scrollbar">
-                <table class="w-full text-left border-collapse whitespace-nowrap">
+                <table class="w-full text-left border-collapse whitespace-nowrap min-w-[800px]">
                     <thead class="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-[11px] font-extrabold text-slate-500 uppercase tracking-wider sticky top-0 z-10">
                         <tr>
-                            <th class="p-4">Aggregated By</th>
-                            <th class="p-4">Prev Month Cost</th>
-                            <th class="p-4">Curr Month Cost</th>
-                            <th class="p-4">Delta (%)</th>
-                            <th class="p-4">Status / Outlier</th>
+                            <th class="p-4 bg-slate-50 dark:bg-slate-800 sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Project (Mapping)</th>
+                            <th class="p-4 text-right" id="mom-th-base">Base Month</th>
+                            <th class="p-4 text-right" id="mom-th-comp">Compare Month</th>
+                            <th class="p-4 text-right">Variance ($)</th>
+                            <th class="p-4 text-right">Variance (%)</th>
+                            <th class="p-4 text-center">Trend</th>
                         </tr>
                     </thead>
                     <tbody id="mom-table-body" class="divide-y divide-slate-100 dark:divide-slate-800/50 text-sm font-medium text-slate-700 dark:text-slate-300"></tbody>
@@ -211,80 +235,140 @@
     </div>
 
     <div id="view-visuals" class="view-section hidden animate-fade-in space-y-6">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm h-[350px] relative">
-                <h4 class="text-xs font-bold text-slate-500 uppercase absolute top-4 left-5">Trend (Line)</h4>
-                <canvas id="vis-line-chart"></canvas>
+        
+        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-6 rounded-3xl border border-blue-100 dark:border-blue-800/50 shadow-sm">
+            <h3 class="text-sm font-extrabold text-blue-800 dark:text-blue-400 flex items-center gap-2 mb-3 uppercase tracking-widest">
+                <span class="material-icons-sharp">query_stats</span> Executive Summary & Analytics
+            </h3>
+            <div id="vis-insights" class="text-sm text-slate-700 dark:text-slate-300 space-y-2 font-medium leading-relaxed">
+                Loading analytics...
             </div>
-            <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm h-[350px] relative">
-                <h4 class="text-xs font-bold text-slate-500 uppercase absolute top-4 left-5">Distribution (Bar)</h4>
-                <canvas id="vis-bar-chart"></canvas>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <div class="lg:col-span-3 bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm h-[450px] flex flex-col relative">
+                <h4 class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase absolute top-5 left-5 z-10">MoM Overhead Trend (Personnel vs Associated)</h4>
+                <div id="vis-line-chart" class="w-full h-full mt-4"></div>
             </div>
-            <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm h-[350px] relative">
-                <h4 class="text-xs font-bold text-slate-500 uppercase absolute top-4 left-5">Cost Matrix (Heatmap)</h4>
-                <div id="vis-heatmap-container" class="w-full h-full pt-6 overflow-auto custom-scrollbar"></div>
+
+            <div class="lg:col-span-2 bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm h-[400px] flex flex-col relative">
+                <h4 class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase absolute top-5 left-5 z-10">Historical MoM (Revenue vs COGS)</h4>
+                <div id="vis-bar-chart" class="w-full h-full mt-4"></div>
             </div>
-            <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm h-[350px] relative">
-                <h4 class="text-xs font-bold text-slate-500 uppercase absolute top-4 left-5">Cost vs. Headcount (Scatter)</h4>
-                <canvas id="vis-scatter-chart"></canvas>
+
+            <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm h-[400px] flex flex-col relative">
+                <h4 class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase absolute top-5 left-5 z-10">Total Rev vs COGS</h4>
+                <div id="vis-pie-chart" class="w-full h-full mt-4"></div>
             </div>
+
+            <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm h-[400px] flex flex-col relative">
+                <h4 class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase absolute top-5 left-5 z-10">Project Gross Margin vs Scale</h4>
+                <div id="vis-scatter-chart" class="w-full h-full mt-4"></div>
+            </div>
+
+            <div class="lg:col-span-2 bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm h-[400px] flex flex-col relative">
+                <div class="absolute top-4 left-5 right-5 z-10 flex items-center justify-between">
+                    <h4 class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase">Project Cost Heatmap</h4>
+                    <div class="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 shadow-inner border border-slate-200 dark:border-slate-700">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="heatmap_metric" value="personnel" checked class="peer sr-only" onchange="renderView3Visuals()">
+                            <span class="text-[10px] font-bold px-3 py-1 rounded-md text-slate-500 peer-checked:bg-white dark:peer-checked:bg-slate-900 peer-checked:text-blue-500 shadow-sm transition-all block">Personnel Cost</span>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="heatmap_metric" value="associated" class="peer sr-only" onchange="renderView3Visuals()">
+                            <span class="text-[10px] font-bold px-3 py-1 rounded-md text-slate-500 peer-checked:bg-white dark:peer-checked:bg-slate-900 peer-checked:text-rose-500 shadow-sm transition-all block">Associated Cost</span>
+                        </label>
+                    </div>
+                </div>
+                <div id="vis-treemap-chart" class="w-full h-full mt-8"></div>
+            </div>
+
         </div>
     </div>
 
     <div id="view-sim" class="view-section hidden animate-fade-in">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
             <div class="bg-slate-900 dark:bg-slate-950 p-6 rounded-3xl border border-slate-800 shadow-xl flex flex-col gap-6 text-white">
                 <div>
-                    <h3 class="text-lg font-bold flex items-center gap-2 mb-1"><span class="material-icons-sharp text-blue-400">tune</span> Simulation Parameters</h3>
-                    <p class="text-xs text-slate-400">Adjust sliders to forecast financial impact.</p>
+                    <h3 class="text-lg font-bold flex items-center gap-2 mb-1"><span class="material-icons-sharp text-blue-400">tune</span> Scenario Parameters</h3>
+                    <p class="text-xs text-slate-400">Sliders apply to currently filtered project actuals.</p>
                 </div>
+                
                 <div class="space-y-6">
                     <div>
-                        <div class="flex justify-between text-sm font-bold mb-2">
-                            <label class="text-slate-300">Revenue Volume</label>
+                        <div class="flex justify-between text-sm font-bold mb-1">
+                            <label class="text-slate-300">1. Pricing / Revenue Yield</label>
                             <span id="sim-rev-val" class="text-emerald-400">0%</span>
                         </div>
-                        <input type="range" id="sim-revenue" min="-50" max="50" value="0" class="w-full accent-emerald-500 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer" oninput="runSimulation()">
+                        <input type="range" id="sim-rev" min="-50" max="50" value="0" class="w-full accent-emerald-500 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer" oninput="runSimulation()">
+                        <p class="text-[11px] text-slate-500 mt-1 leading-tight"><strong class="text-slate-400">Basis:</strong> Base Rev × (1 + Pricing %) × (1 + HC Vol %). <br/><em>Simulates rate hikes or billing efficiency.</em></p>
                     </div>
                     <div>
-                        <div class="flex justify-between text-sm font-bold mb-2">
-                            <label class="text-slate-300">COGS Variance</label>
+                        <div class="flex justify-between text-sm font-bold mb-1">
+                            <label class="text-slate-300">2. Direct Labor (Pure COGS)</label>
                             <span id="sim-cogs-val" class="text-rose-400">0%</span>
                         </div>
                         <input type="range" id="sim-cogs" min="-50" max="50" value="0" class="w-full accent-rose-500 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer" oninput="runSimulation()">
+                        <p class="text-[11px] text-slate-500 mt-1 leading-tight"><strong class="text-slate-400">Basis:</strong> Base Direct COGS × (1 + COGS %) × (1 + HC Vol %). <br/><em>Isolates direct labor. Excludes Associated/Admin costs.</em></p>
                     </div>
                     <div>
-                        <div class="flex justify-between text-sm font-bold mb-2">
-                            <label class="text-slate-300">Headcount Adjustment</label>
+                        <div class="flex justify-between text-sm font-bold mb-1">
+                            <label class="text-slate-300">3. Headcount Volume (FTEs)</label>
                             <span id="sim-hc-val" class="text-blue-400">0%</span>
                         </div>
                         <input type="range" id="sim-hc" min="-50" max="50" value="0" class="w-full accent-blue-500 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer" oninput="runSimulation()">
+                        <p class="text-[11px] text-slate-500 mt-1 leading-tight"><strong class="text-slate-400">Basis:</strong> Scales BOTH Revenue and Direct COGS simultaneously. <br/><em>Simulates adding/removing billable agents.</em></p>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-sm font-bold mb-1">
+                            <label class="text-slate-300">4. Overhead (Associated Cost)</label>
+                            <span id="sim-opex-val" class="text-purple-400">0%</span>
+                        </div>
+                        <input type="range" id="sim-opex" min="-50" max="50" value="0" class="w-full accent-purple-500 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer" oninput="runSimulation()">
+                        <p class="text-[11px] text-slate-500 mt-1 leading-tight"><strong class="text-slate-400">Basis:</strong> Base Associated Cost × (1 + Overhead %). <br/><em>Independent of Headcount volume slider.</em></p>
                     </div>
                 </div>
-                <button onclick="resetSimulation()" class="mt-auto py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-bold transition-colors">Reset Sliders</button>
+                
+                <button onclick="resetSimulation()" class="mt-auto py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-bold transition-colors border border-slate-700">Reset Scenario</button>
             </div>
 
-            <div class="lg:col-span-2 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col">
-                <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-6">Forecasted Impact</h3>
-                <div class="grid grid-cols-2 gap-4 mb-8">
-                    <div class="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
-                        <span class="text-xs font-bold text-slate-500 uppercase">Projected Gross Margin</span>
-                        <div class="mt-2 flex items-end gap-3">
-                            <span id="sim-res-margin" class="text-3xl font-black text-slate-800 dark:text-white">0.0%</span>
-                            <span id="sim-res-margin-diff" class="text-sm font-bold text-emerald-500 mb-1">0.0%</span>
+            <div class="lg:col-span-2 flex flex-col gap-6">
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="p-5 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+                        <div class="absolute top-0 left-0 w-1.5 h-full bg-emerald-500"></div>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block pl-2">Projected Profit Margin</span>
+                        <div class="mt-2 pl-2 flex items-baseline gap-3">
+                            <span id="sim-res-margin" class="text-4xl font-black text-slate-800 dark:text-white">0.0%</span>
+                            <span id="sim-res-margin-diff" class="text-sm font-bold">0.0%</span>
                         </div>
                     </div>
-                    <div class="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
-                        <span class="text-xs font-bold text-slate-500 uppercase">Projected Net Profit/Loss</span>
-                        <div class="mt-2 flex items-end gap-3">
-                            <span id="sim-res-profit" class="text-3xl font-black text-slate-800 dark:text-white">$0.00</span>
-                            <span id="sim-res-profit-diff" class="text-sm font-bold text-emerald-500 mb-1">$0.00</span>
+                    <div class="p-5 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+                        <div class="absolute top-0 left-0 w-1.5 h-full bg-blue-500"></div>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block pl-2">Projected Net Profit ($)</span>
+                        <div class="mt-2 pl-2 flex items-baseline gap-3">
+                            <span id="sim-res-profit" class="text-4xl font-black text-slate-800 dark:text-white">$0</span>
+                            <span id="sim-res-profit-diff" class="text-sm font-bold">$0</span>
                         </div>
                     </div>
                 </div>
-                <div class="relative w-full flex-1 min-h-[250px]">
-                    <canvas id="sim-waterfall-chart"></canvas>
+
+                <div class="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-900/50 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <h3 class="text-xs font-bold text-slate-800 dark:text-white flex items-center gap-2 mb-2 uppercase tracking-widest">
+                        <span class="material-icons-sharp text-sm text-amber-500">lightbulb</span>Scenario Assessment
+                    </h3>
+                    <div id="sim-insights" class="text-sm text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
+                        Adjust sliders to generate scenario analysis.
+                    </div>
                 </div>
+
+                <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex-1 flex flex-col relative min-h-[350px]">
+                    <h4 class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase absolute top-5 left-5 z-10">Profit Impact Bridge (Waterfall)</h4>
+                    <div id="sim-waterfall-chart" class="w-full h-full mt-6"></div>
+                </div>
+
             </div>
         </div>
     </div>
@@ -296,8 +380,25 @@
                 <button onclick="document.getElementById('secure-import-modal').classList.add('hidden')" class="text-slate-400 hover:text-rose-500 transition-colors"><span class="material-icons-sharp text-sm">close</span></button>
             </div>
             <div class="p-6 space-y-4">
-                <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Admin Password</label><input type="password" id="import-password" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:text-white" placeholder="Enter override key..."></div>
-                <div><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Excel/CSV File</label><input type="file" id="import-file" accept=".csv" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"></div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Admin Password</label>
+                    <input type="password" id="import-password" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:text-white" placeholder="Enter override key...">
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Target Dataset</label>
+                    <select id="import-dataset" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm font-bold text-slate-700 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none cursor-pointer">
+                        <option value="financial">Financial P&L Ledger</option>
+                        <option value="headcount">Detailed Headcount Roster</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Excel/CSV File(s)</label>
+                    <input type="file" id="import-file" accept=".csv" multiple class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
+                    <p class="text-[10px] text-slate-400 mt-1">* You can select multiple files. They will process sequentially.</p>
+                </div>
+                
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Import Mode</label>
                     <div class="flex gap-4">
@@ -305,21 +406,63 @@
                         <label class="flex items-center gap-2 text-sm text-rose-600 cursor-pointer font-bold"><input type="radio" name="import_mode" value="overwrite" class="text-rose-600 focus:ring-rose-500"> Overwrite Month</label>
                     </div>
                 </div>
-                <button onclick="processSecureImport()" class="w-full py-2.5 bg-slate-900 dark:bg-emerald-600 hover:bg-slate-800 text-white rounded-xl text-sm font-bold transition-colors mt-4">Execute Import</button>
+                
+                <button id="btn-execute-import" onclick="processSecureImport(this)" class="w-full py-2.5 bg-slate-900 dark:bg-emerald-600 hover:bg-slate-800 text-white rounded-xl text-sm font-bold transition-colors mt-4">Execute Import</button>
             </div>
         </div>
     </div>
+
     <div id="export-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm transition-opacity">
         <div class="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden animate-fade-in">
-            <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                <h2 class="text-lg font-bold text-slate-800 dark:text-white">Export Dataset</h2>
+            <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/30">
+                <h2 class="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2"><span class="material-icons-sharp text-blue-500">file_download</span> Export Dataset</h2>
                 <button onclick="document.getElementById('export-modal').classList.add('hidden')" class="text-slate-400 hover:text-rose-500 transition-colors"><span class="material-icons-sharp text-sm">close</span></button>
             </div>
-            <div class="p-6">
-                <p class="text-sm text-slate-500 mb-4">Select the columns to include in the export.</p>
-                <div class="grid grid-cols-2 gap-2 mb-6 max-h-[300px] overflow-y-auto p-2 border border-slate-100 dark:border-slate-800 rounded-xl" id="export-checkboxes"></div>
-                <button onclick="executeCustomExport()" class="w-full flex justify-center items-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition-colors">
-                    <span class="material-icons-sharp text-[18px]">file_download</span> Download CSV
+            
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Dataset Target</label>
+                    <select id="export-dataset" onchange="toggleExportDataset()" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm font-bold text-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer">
+                        <option value="financial">Financial P&L (Uses Active Sidebar Filters)</option>
+                        <option value="headcount">Detailed Headcount Roster (Secure Extract)</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/50 rounded-xl">
+                    <div>
+                        <label class="block text-xs font-bold text-blue-600 dark:text-blue-400 uppercase mb-1">Start Month</label>
+                        <input type="month" id="export-start" class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm font-bold text-slate-700 dark:text-white focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-blue-600 dark:text-blue-400 uppercase mb-1">End Month</label>
+                        <input type="month" id="export-end" class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm font-bold text-slate-700 dark:text-white focus:outline-none">
+                    </div>
+                </div>
+
+                <div id="export-hc-options" class="hidden flex-col gap-4">
+                    <div class="p-4 bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-800/50 rounded-xl space-y-3">
+                        <div>
+                            <label class="block text-xs font-bold text-rose-600 dark:text-rose-400 uppercase mb-1">Target Project</label>
+                            <select id="export-filename" class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm font-bold text-slate-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-rose-500">
+                                <option value="LHI_Headcount">LHI Headcount</option>
+                                <option value="Scorp_Headcount">Scorp Headcount</option>
+                                <option value="Other P&L(finance)">Finance / Other P&L</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-rose-600 dark:text-rose-400 uppercase mb-1">Manager Password</label>
+                            <input type="password" id="export-password" placeholder="Enter extraction key..." class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm font-bold text-slate-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-rose-500">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Select Columns to Export</label>
+                    <div class="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto p-3 border border-slate-100 dark:border-slate-800 rounded-xl custom-scrollbar" id="export-checkboxes"></div>
+                </div>
+
+                <button onclick="executeCustomExport()" class="w-full flex justify-center items-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition-colors shadow-md">
+                    Execute CSV Export
                 </button>
             </div>
         </div>

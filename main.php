@@ -22,11 +22,12 @@ if (!isset($_SESSION['employee_id'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Exela Local Website</title>
+    <title>XBP Local Website</title>
     
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Sharp" rel="stylesheet">
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
@@ -110,19 +111,34 @@ if (!isset($_SESSION['employee_id'])) {
                 <h3 class="flex-1">Active & Attrition</h3>
             </a>
 
+            <a href="https://script.google.com/a/macros/xbpasia.com/s/AKfycbx_lLC4gyXs7DPSM6df3VtSLM4CHms_q4vadqv6Mj5zBaaEPSGDQLzeXsiMXhB-Xiaq/exec" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation(); window.open(this.href, '_blank'); return false;" class="flex items-center gap-4 px-6 py-3.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">
+                <span class="material-icons-sharp text-[1.2rem]">info</span>
+                <h3 class="flex-1">RA/DA KRA</h3>
+            </a>
+
             <a href="#" class="flex items-center gap-4 px-6 py-3.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white" data-view="team_member">
                 <span class="material-icons-sharp text-[1.2rem]">supervised_user_circle</span>
                 <h3 class="flex-1">Team Member</h3>
             </a>
 
+            <a href="#" class="flex items-center gap-4 px-6 py-3.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white" data-view="financial_dashboard">
+                <span class="material-icons-sharp text-[1.2rem]">account_balance</span>
+                <h3 class="flex-1">Financial Dashboard</h3>
+            </a>
+
             <a href="./views/hr_dashboard.php" target="_blank" rel="noopener noreferrer" data-view="hr_dashboard.php" data-external="true" onclick="event.stopPropagation(); window.open(this.href, '_blank'); return false;" class="flex items-center gap-4 px-6 py-3.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">
-                <span class="material-icons-sharp text-[1.2rem]">build</span>
+                <span class="material-icons-sharp text-[1.2rem]">badge</span>
                 <h3 class="flex-1">HR Dashboard</h3>
             </a>
 
             <a href="http://10.200.168.112:3001/" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation(); window.open(this.href, '_blank'); return false;" class="flex items-center gap-4 px-6 py-3.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">
                 <span class="material-icons-sharp text-[1.2rem]">punch_clock</span>
                 <h3 class="flex-1">ESS</h3>
+            </a>
+
+            <a href="https://script.google.com/a/macros/xbpasia.com/s/AKfycbzP4XbpFsVbE0owYtiGkMxw6Yhwt_uubcibDhbttGyux_I2fhlrCmy9ji0qx3fB7Ncmbw/exec" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation(); window.open(this.href, '_blank'); return false;" class="flex items-center gap-4 px-6 py-3.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">
+                <span class="material-icons-sharp text-[1.2rem]">info</span>
+                <h3 class="flex-1">LHI Employee Viewer</h3>
             </a>
 
             <a href="./views/bps_overall_dashboard.php" target="_blank" rel="noopener noreferrer" data-view="bps_overall_dashboard.php" data-external="true" onclick="event.stopPropagation(); window.open(this.href, '_blank'); return false;" class="flex items-center gap-4 px-6 py-3.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">

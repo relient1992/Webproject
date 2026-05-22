@@ -175,7 +175,35 @@
             timeLimitMinutes = parseInt(selectedOption.dataset.time) || 30; 
             const roleName = selectedOption.textContent;
 
-            // --- NEW: CONFIRMATION PROMPT ---
+            // --- NEW: HR PASSWORD AUTHORIZATION ---
+            // You can change this password to whatever your HR team prefers
+            const HR_PASSWORD = "XBP-EXAM-2026"; 
+
+            const { value: enteredPassword } = await Swal.fire({
+                title: '<i class="fas fa-lock text-gray-700"></i> HR Authorization',
+                html: '<span class="text-sm text-gray-500">Please ask the HR Administrator to enter the password to unlock this assessment.</span>',
+                input: 'password',
+                inputPlaceholder: 'Enter HR Password',
+                inputAttributes: {
+                    autocapitalize: 'off',
+                    autocorrect: 'off'
+                },
+                showCancelButton: true,
+                confirmButtonColor: '#3b82f6',
+                cancelButtonColor: '#9ca3af',
+                confirmButtonText: 'Unlock Exam'
+            });
+
+            // If they click cancel or click outside the box, stop here
+            if (!enteredPassword) return;
+
+            // If the password is wrong, kick them out
+            if (enteredPassword !== HR_PASSWORD) {
+                return Swal.fire('Access Denied', 'Incorrect authorization password.', 'error');
+            }
+            // ----------------------------------------
+
+            // --- EXISTING: CONFIRMATION PROMPT ---
             Swal.fire({
                 title: 'Ready to begin?',
                 html: `You are about to start the assessment for <strong>${roleName}</strong>.<br><br>

@@ -18,6 +18,12 @@ themeToggler.addEventListener('click', () => {
     document.body.classList.toggle('dark-theme-variables');
     themeToggler.querySelectorAll('span').forEach(span => {
         span.classList.toggle('active');
+        if (typeof window.renderView3Visuals === 'function') {
+            window.renderView3Visuals();
+        }
+        if (typeof window.runSimulation === 'function') {
+            window.runSimulation();
+        }
     });
 });
 

@@ -14,6 +14,25 @@ const FIN_HEADERS = [
 async function initFinancialDashboard() {
     console.log("🚦 [Financial Dashboard] Initialization started...");
 
+    // --- NEW: DYNAMIC LOADING SCREEN ---
+    let loadingScreen = document.getElementById('loading-screen');
+    if (!loadingScreen) {
+        loadingScreen = document.createElement('div');
+        loadingScreen.id = 'loading-screen';
+        loadingScreen.className = "fixed inset-0 z-[200] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center transition-opacity duration-300";
+        loadingScreen.innerHTML = `
+            <div class="flex flex-col items-center bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800">
+                <div class="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p class="text-slate-800 dark:text-white font-extrabold text-lg">Loading Database...</p>
+                <span class="text-xs text-slate-500 font-medium mt-2">Fetching financial records</span>
+            </div>
+        `;
+        document.body.appendChild(loadingScreen);
+    } else {
+        loadingScreen.style.display = 'flex';
+        loadingScreen.style.opacity = '1';
+    }
+
     const filterPanel = document.getElementById('advanced-filters');
     if (!filterPanel) return;
 
@@ -34,13 +53,62 @@ async function initFinancialDashboard() {
         financialData = [];
     }
 
-    try {
-        populateConfigurationFilters(); 
-        initProjectSearch(); // Attach search listener
-        applyGlobalFilters(true); 
-        populateExportCheckboxes();
-    } catch (renderError) {
-        console.error("❌ Error rendering the UI:", renderError);
+    setTimeout(() => {
+        try {
+            populateConfigurationFilters(); 
+            setDefaultFilters(); // This now applies the Fedex and 3-Month limit!
+            initProjectSearch(); 
+            applyGlobalFilters(true); 
+            populateExportCheckboxes();
+        } catch (renderError) {
+            console.error("❌ Error rendering the UI:", renderError);
+        }
+    }, 100);
+}
+
+function setDefaultFilters() {
+    // 1. Set Mapping Default
+    const mappingCbs = document.querySelectorAll('.filter-cb-mapping');
+    mappingCbs.forEach(cb => {
+        if (cb.value.toUpperCase() === 'OPERATIONAL COST') cb.checked = true;
+    });
+
+    // 2. Set Project Default
+    const projectCbs = document.querySelectorAll('.filter-cb-project');
+    projectCbs.forEach(cb => {
+        if (cb.value.toUpperCase() === 'FEDEX') cb.checked = true;
+    });
+
+    // 3. Set Date Range Default (Auto-detects the latest 3 Months in DB)
+    if (financialData && financialData.length > 0) {
+        let maxDate = null;
+        
+        // Scan for the most recent date in your dataset
+        financialData.forEach(row => {
+            const dStr = row.Dated || row.dated;
+            if (dStr) {
+                const d = new Date(dStr);
+                if (!isNaN(d.getTime())) {
+                    if (!maxDate || d > maxDate) maxDate = d;
+                }
+            }
+        });
+
+        if (maxDate) {
+            // Set End Date to the latest month
+            const endStr = `${maxDate.getFullYear()}-${String(maxDate.getMonth() + 1).padStart(2, '0')}`;
+            
+            // Set Start Date to 2 months prior (giving a 3-month window: e.g., Jan, Feb, Mar)
+            const startD = new Date(maxDate);
+            startD.setMonth(startD.getMonth() - 2);
+            const startStr = `${startD.getFullYear()}-${String(startD.getMonth() + 1).padStart(2, '0')}`;
+
+            const startInput = document.getElementById('config-start-date');
+            const endInput = document.getElementById('config-end-date');
+            
+            if (startInput) startInput.value = startStr;
+            if (endInput) endInput.value = endStr;
+        }
     }
 }
 
@@ -180,9 +248,8 @@ window.applyGlobalFilters = function(isInitialLoad = false) {
             const techCheckbox = document.getElementById('config-opt-tech');
             const useTechCost = techCheckbox ? techCheckbox.checked : false;
 
-            filteredData = financialData.filter(row => {
+            window.baseFilteredData = financialData.filter(row => {
                 let pass = true;
-                
                 const rMapping = (row.Mapping || row.mapping || row.MAPPING || '').trim();
                 const rProject = (row.Project || row.project || row.PROJECT || '').trim();
                 const rLob = (row.LOB || row.lob || '').trim();
@@ -192,10 +259,23 @@ window.applyGlobalFilters = function(isInitialLoad = false) {
                 if (selectedProjects.length > 0 && !selectedProjects.includes(rProject)) pass = false;
                 if (selectedLOBs.length > 0 && !selectedLOBs.includes(rLob)) pass = false;
                 if (selectedEntities.length > 0 && !selectedEntities.includes(rEntity)) pass = false;
+                
+                return pass;
+            });
 
+            filteredData = window.baseFilteredData.filter(row => {
+                let pass = true;
                 if (startInput && endInput) {
                     const rowDate = row.Dated || row.dated || '';
-                    const rowMonth = rowDate ? rowDate.substring(0, 7) : ''; 
+                    let rowMonth = '';
+                    if (rowDate) {
+                        const d = new Date(rowDate);
+                        if (!isNaN(d.getTime())) {
+                            rowMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                        } else {
+                            rowMonth = String(rowDate).substring(0, 7); 
+                        }
+                    }
                     if (rowMonth && (rowMonth < startInput || rowMonth > endInput)) pass = false;
                 }
                 return pass;
@@ -206,7 +286,7 @@ window.applyGlobalFilters = function(isInitialLoad = false) {
             const activeHeaderKey = headerLvlChecked ? `Header${headerLvlChecked.value}` : 'Header1';
 
             renderView1Summary(activeHeaderKey, costFieldToUse);
-            renderViewPLDatasheet(costFieldToUse); // NEW P&L RENDERER
+            renderViewPLDatasheet(costFieldToUse); 
             renderView2MoM(activeHeaderKey, costFieldToUse);
             renderView3Visuals();
             resetSimulation();
@@ -214,7 +294,8 @@ window.applyGlobalFilters = function(isInitialLoad = false) {
         } catch (error) {
             console.error("Error applying filters:", error);
         } finally {
-            if (loadingScreen && !isInitialLoad) {
+            // --- NEW: ALWAYS HIDE LOADER WHEN DONE ---
+            if (loadingScreen) {
                 loadingScreen.style.opacity = '0';
                 setTimeout(() => { loadingScreen.style.display = 'none'; }, 300);
             }
@@ -251,18 +332,49 @@ window.switchMainTab = function(tabId) {
 function renderView1Summary(aggKey, costField) {
     let rev = 0, cogs = 0, associated = 0, hc = 0;
     
+    // 1. Create a Set to track unique months in the filtered dataset
+    const uniqueMonths = new Set();
+    
     filteredData.forEach(row => {
         const cost = parseFloat(row[costField] || row.cost || 0);
-        const h1 = (row.Header1 || row.header1 || '').toLowerCase();
-        const mapping = (row.Mapping || row.mapping || '').toLowerCase();
+        
+        // Extract the month and add it to our Set
+        const dStr = row.Dated || row.dated || '';
+        if (dStr) {
+            const d = new Date(dStr);
+            const monthKey = !isNaN(d.getTime()) ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` : String(dStr).substring(0, 7);
+            uniqueMonths.add(monthKey);
+        }
+        
+        // Grab both headers and convert to lowercase for easy matching
+        const h1 = String(row.Header1 || row.header1 || '').trim().toLowerCase();
+        const h2 = String(row.Header2 || row.header2 || '').trim().toLowerCase();
 
-        if (h1.includes('revenue') || mapping.includes('revenue')) rev += Math.abs(cost);
-        else if (h1.includes('cogs') || mapping.includes('cogs') || h1.includes('cost of goods')) cogs += cost;
-        else if (h1.includes('associated')) associated += cost;
+        // Revenue (Exclusive bucket)
+        if (h1.includes('revenue')) {
+            rev += Math.abs(cost);
+        } 
+        // COGS (Exclusive bucket)
+        else if (h1.includes('cost of goods') || h1.includes('cogs')) {
+            cogs += cost;
+        }
 
-        if (row.Headcount3 || h1.includes('headcount')) hc += parseFloat(row.Headcount3 || cost || 0); 
+        // Associated Costs (INDEPENDENT BUCKET)
+        if (h2.includes('associated') || h1.includes('associated') || h1.includes('admin')) {
+            associated += cost;
+        }
+
+        // Headcount
+        if (h1.includes('headcount') || h2.includes('headcount')) {
+            hc += cost; 
+        }
     });
 
+    // 2. Calculate the True Average Headcount
+    const monthCount = uniqueMonths.size > 0 ? uniqueMonths.size : 1; 
+    const averageHc = hc / monthCount;
+
+    // Calculate Margin
     const margin = rev > 0 ? ((rev - cogs) / rev) * 100 : 0;
 
     const setElemText = (id, text) => {
@@ -274,31 +386,27 @@ function renderView1Summary(aggKey, costField) {
     setElemText('kpi-cogs', '$' + cogs.toLocaleString(undefined, {maximumFractionDigits:0}));
     setElemText('kpi-margin', margin.toFixed(1) + '%');
     setElemText('kpi-associated', '$' + associated.toLocaleString(undefined, {maximumFractionDigits:0}));
-    setElemText('kpi-headcount', hc.toLocaleString());
-
-    const chartData = {};
-    filteredData.forEach(row => {
-        const key = row[aggKey] || row[aggKey.toLowerCase()] || 'Other';
-        chartData[key] = (chartData[key] || 0) + parseFloat(row[costField] || row[costField.toLowerCase()] || 0);
-    });
-
-    renderChart('summary-chart', 'bar', Object.keys(chartData), Object.values(chartData), `Costs by ${aggKey}`);
     
+    // 3. Apply the formatting to the new averageHc variable
+    const formattedHc = averageHc % 1 !== 0 ? averageHc.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) : averageHc.toLocaleString();
+    setElemText('kpi-headcount', formattedHc);
+
+    // --- PIE CHART (REVENUE VS COGS) ---
+    renderChart('summary-chart', 'pie', ['Total Revenue', 'Total COGS'], [rev, cogs], 'Revenue vs COGS');
+    
+    // --- DYNAMIC INSIGHTS ---
     const container = document.getElementById('dynamic-insights');
     if (container) {
-        const keys = Object.keys(chartData);
-        if(keys.length === 0) {
-            container.innerHTML = "<p>Not enough data to generate insights.</p>";
-            return;
-        }
-        const highestKey = keys.reduce((a, b) => chartData[a] > chartData[b] ? a : b);
-        const total = Object.values(chartData).reduce((a, b) => a + b, 0);
-        const pct = total > 0 ? ((chartData[highestKey] / total) * 100).toFixed(1) : 0;
-
-        let html = `<p><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block mr-2"></span> <strong>${highestKey}</strong> is your highest cost driver, accounting for <strong>${pct}%</strong> of total filtered costs.</p>`;
-        
-        if (cogs > rev && rev > 0) {
-            html += `<p><span class="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block mr-2"></span> <strong>Warning:</strong> COGS exceeds recognized revenue.</p>`;
+        let html = '';
+        if (rev > 0) {
+            html += `<p><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block mr-2"></span> Your current Gross Margin is <strong>${margin.toFixed(1)}%</strong>.</p>`;
+            if (cogs > rev) {
+                html += `<p><span class="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block mr-2"></span> <strong>Warning:</strong> COGS exceeds recognized revenue by $${(cogs - rev).toLocaleString(undefined, {maximumFractionDigits:0})}.</p>`;
+            } else {
+                html += `<p><span class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block mr-2"></span> Revenue is effectively covering direct costs.</p>`;
+            }
+        } else {
+            html += `<p><span class="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block mr-2"></span> <strong>No Revenue Detected:</strong> Check if your current filters are excluding revenue records.</p>`;
         }
         container.innerHTML = html;
     }
@@ -312,96 +420,272 @@ function renderViewPLDatasheet(costField) {
     const tbody = document.getElementById('pl-table-body');
     if (!thead || !tbody) return;
 
-    // 1. Determine Level Limit based on Radio Buttons
     const headerLvlChecked = document.querySelector('input[name="header_lvl"]:checked');
     const maxLevel = headerLvlChecked ? parseInt(headerLvlChecked.value) : 5;
 
-    // 2. Extract Distinct Months & Sort
-    const monthSet = new Set();
-    filteredData.forEach(row => {
-        const d = row.Dated || row.dated;
-        if(d) monthSet.add(d.substring(0,7)); // '2025-07'
-    });
-    const months = Array.from(monthSet).sort();
+    const startInput = document.getElementById('config-start-date').value;
+    const endInput = document.getElementById('config-end-date').value;
+    let months = [];
 
-    // 3. Build Table Headers
-    let headerHtml = `<tr><th class="p-4 bg-slate-100 dark:bg-slate-900 sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Title</th>`;
-    months.forEach(m => {
-        // Format '2025-07' to 'Jul 25'
-        const dateObj = new Date(m + "-01");
-        const formatted = dateObj.toLocaleString('default', { month: 'short', year: '2-digit' });
-        headerHtml += `<th class="p-4 text-center">${formatted}</th>`;
-    });
-    headerHtml += `<th class="p-4 text-center border-l border-slate-200 dark:border-slate-700">Average</th></tr>`;
-    thead.innerHTML = headerHtml;
+    if (startInput && endInput) {
+        let curr = new Date(startInput + '-01T00:00:00');
+        let end = new Date(endInput + '-01T00:00:00');
+        while (curr <= end) {
+            let y = curr.getFullYear();
+            let m = String(curr.getMonth() + 1).padStart(2, '0');
+            months.push(`${y}-${m}`);
+            curr.setMonth(curr.getMonth() + 1);
+        }
+    } else {
+        const monthSet = new Set();
+        filteredData.forEach(row => {
+            const d = row.Dated || row.dated;
+            if(d) monthSet.add(d.substring(0,7)); 
+        });
+        months = Array.from(monthSet).sort();
+    }
 
-    // 4. Build Hierarchical Matrix
+    const avg1Cb = document.getElementById('config-avg-1');
+    const avg2Cb = document.getElementById('config-avg-2');
+    const avg1Active = avg1Cb && avg1Cb.checked;
+    const avg2Active = avg2Cb && avg2Cb.checked;
+    
+    const avg1Year = avg1Active ? avg1Cb.closest('label').querySelector('select').value : null;
+    const avg2Year = avg2Active ? avg2Cb.closest('label').querySelector('select').value : null;
+
     const matrix = {}; 
-    // Format: matrix["Header1Value"] = { '2025-07': 500, _total: 500 }
-    // matrix["Header1Value|Header2Value"] = { '2025-07': 100, _total: 100 }
+    
+    // --- NEW: KPI TRACKERS FOR GROSS MARGIN ---
+    const kpiRev = { _total: 0 };
+    const kpiCogs = { _total: 0 };
+    months.forEach(m => { kpiRev[m] = 0; kpiCogs[m] = 0; });
+    if (avg1Active) { kpiRev['avg1'] = 0; kpiCogs['avg1'] = 0; }
+    if (avg2Active) { kpiRev['avg2'] = 0; kpiCogs['avg2'] = 0; }
 
     filteredData.forEach(row => {
-        const m = (row.Dated || row.dated || '').substring(0,7);
+        const rowDate = row.Dated || row.dated || '';
+        let m = '';
+        if (rowDate) {
+            const d = new Date(rowDate);
+            if (!isNaN(d.getTime())) {
+                m = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            } else {
+                m = String(rowDate).substring(0, 7);
+            }
+        }
         if (!m) return;
         const cost = parseFloat(row[costField] || row.cost || 0);
+
+        const h1 = (row.Header1 || row.header1 || '').trim().toLowerCase();
+        const h2 = (row.Header2 || row.header2 || '').trim().toLowerCase();
+        const isCount = h1.includes('headcount') || h1.includes('volume') || h2.includes('headcount');
+
+        // Track global Revenue & COGS
+        if (!isCount) {
+            if (h1.includes('revenue')) {
+                kpiRev[m] += Math.abs(cost);
+                kpiRev._total += Math.abs(cost);
+            } else if (h1.includes('cost of goods') || h1.includes('cogs')) {
+                kpiCogs[m] += cost;
+                kpiCogs._total += cost;
+            }
+        }
 
         let currentPath = "";
         for (let i = 1; i <= maxLevel; i++) {
             const hVal = (row[`Header${i}`] || row[`header${i}`] || '').trim();
-            if (!hVal) break; // Stop drilling down if this row has no sub-headers
-
+            if (!hVal) break; 
             currentPath = currentPath ? `${currentPath}|${hVal}` : hVal;
-
-            if (!matrix[currentPath]) matrix[currentPath] = { _total: 0, _count: 0 };
+            if (!matrix[currentPath]) matrix[currentPath] = { _total: 0 };
             matrix[currentPath][m] = (matrix[currentPath][m] || 0) + cost;
             matrix[currentPath]._total += cost;
-            matrix[currentPath]._count = months.length; // for simple averaging
         }
     });
 
-    // 5. Render Rows Alphabetically
+    if (avg1Active || avg2Active) {
+        window.baseFilteredData.forEach(row => {
+            const rowDate = row.Dated || row.dated || '';
+            let rowYear = '';
+            if (rowDate) {
+                const d = new Date(rowDate);
+                if (!isNaN(d.getTime())) {
+                    rowYear = d.getFullYear().toString();
+                } else {
+                    rowYear = String(rowDate).substring(0, 4);
+                }
+            }
+            const cost = parseFloat(row[costField] || row.cost || 0);
+
+            const h1 = (row.Header1 || row.header1 || '').trim().toLowerCase();
+            const h2 = (row.Header2 || row.header2 || '').trim().toLowerCase();
+            const isCount = h1.includes('headcount') || h1.includes('volume') || h2.includes('headcount');
+
+            if ((avg1Active && rowYear === avg1Year) || (avg2Active && rowYear === avg2Year)) {
+                
+                // Track global averages
+                if (!isCount) {
+                    if (h1.includes('revenue')) {
+                        if (avg1Active && rowYear === avg1Year) kpiRev['avg1'] += Math.abs(cost);
+                        if (avg2Active && rowYear === avg2Year) kpiRev['avg2'] += Math.abs(cost);
+                    } else if (h1.includes('cost of goods') || h1.includes('cogs')) {
+                        if (avg1Active && rowYear === avg1Year) kpiCogs['avg1'] += cost;
+                        if (avg2Active && rowYear === avg2Year) kpiCogs['avg2'] += cost;
+                    }
+                }
+
+                let currentPath = "";
+                for (let i = 1; i <= maxLevel; i++) {
+                    const hVal = (row[`Header${i}`] || row[`header${i}`] || '').trim();
+                    if (!hVal) break;
+                    currentPath = currentPath ? `${currentPath}|${hVal}` : hVal;
+                    if (!matrix[currentPath]) matrix[currentPath] = { _total: 0 };
+                    
+                    if (avg1Active && rowYear === avg1Year) matrix[currentPath][`avg1`] = (matrix[currentPath][`avg1`] || 0) + cost;
+                    if (avg2Active && rowYear === avg2Year) matrix[currentPath][`avg2`] = (matrix[currentPath][`avg2`] || 0) + cost;
+                }
+            }
+        });
+    }
+
+    let headerHtml = `<tr><th class="p-4 bg-slate-100 dark:bg-slate-900 sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" style="resize: horizontal; overflow: hidden; min-width: 250px; max-width: 800px;">Title (Drag edge to resize)</th>`;
+    months.forEach(m => {
+        const dateObj = new Date(m + "-01T00:00:00");
+        headerHtml += `<th class="p-4 text-center">${dateObj.toLocaleString('default', { month: 'short', year: '2-digit' })}</th>`;
+    });
+    
+    headerHtml += `<th class="p-4 text-center border-l border-slate-200 dark:border-slate-700 text-blue-500">Trend (Latest)</th>`;
+    headerHtml += `<th class="p-4 text-center border-l border-slate-200 dark:border-slate-700 text-slate-500">Period Average</th>`;
+    
+    if (avg1Active) headerHtml += `<th class="p-4 text-center border-l border-slate-200 dark:border-slate-700 text-blue-500">Avg ${avg1Year}</th>`;
+    if (avg2Active) headerHtml += `<th class="p-4 text-center border-l border-slate-200 dark:border-slate-700 text-purple-500">Avg ${avg2Year}</th>`;
+    headerHtml += `</tr>`;
+    thead.innerHTML = headerHtml;
+
     const sortedPaths = Object.keys(matrix).sort();
     let bodyHtml = '';
 
     if (sortedPaths.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${months.length + 2}" class="p-4 text-center italic text-slate-400">No data available for the selected filters.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${months.length + 5}" class="p-4 text-center italic text-slate-400">No data available.</td></tr>`;
         return;
     }
+
+    // --- NEW: BUILD GROSS MARGIN PINNED ROW ---
+    let kpiRowHtml = `<tr class="bg-slate-800 text-white dark:bg-slate-950 border-b-4 border-slate-700">
+        <td class="py-3 pr-4 pl-4 font-black sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] truncate bg-slate-800 dark:bg-slate-950">
+            🌟 OVERALL GROSS MARGIN %
+        </td>`;
+
+    months.forEach(m => {
+        const r = kpiRev[m] || 0; const c = kpiCogs[m] || 0;
+        const margin = r > 0 ? ((r - c) / r) * 100 : 0;
+        kpiRowHtml += `<td class="py-3 px-4 text-center font-bold">${margin.toFixed(1)}%</td>`;
+    });
+
+    const lastMonth = months.length > 0 ? months[months.length - 1] : null;
+    const prevMonth = months.length > 1 ? months[months.length - 2] : null;
+    let trendHtml = `<td class="py-3 px-4 text-center border-l border-slate-700 text-slate-400">-</td>`;
+    if (lastMonth && prevMonth) {
+        const rL = kpiRev[lastMonth] || 0; const cL = kpiCogs[lastMonth] || 0;
+        const rP = kpiRev[prevMonth] || 0; const cP = kpiCogs[prevMonth] || 0;
+        const mL = rL > 0 ? ((rL - cL) / rL) * 100 : 0;
+        const mP = rP > 0 ? ((rP - cP) / rP) * 100 : 0;
+        const delta = mL - mP;
+        if (delta !== 0) {
+            const colorClass = delta > 0 ? 'text-emerald-400' : 'text-rose-400';
+            const icon = delta > 0 ? '<i class="fas fa-arrow-up"></i>' : '<i class="fas fa-arrow-down"></i>';
+            trendHtml = `<td class="py-3 px-4 text-center font-extrabold border-l border-slate-700 ${colorClass}">${icon} ${Math.abs(delta).toFixed(1)}%</td>`;
+        }
+    }
+    kpiRowHtml += trendHtml;
+
+    const rTot = kpiRev._total; const cTot = kpiCogs._total;
+    const mTot = rTot > 0 ? ((rTot - cTot) / rTot) * 100 : 0;
+    kpiRowHtml += `<td class="py-3 px-4 text-center font-bold border-l border-slate-700">${mTot.toFixed(1)}%</td>`;
+
+    if (avg1Active) {
+        const rA = kpiRev['avg1'] || 0; const cA = kpiCogs['avg1'] || 0;
+        const mA = rA > 0 ? ((rA - cA) / rA) * 100 : 0;
+        kpiRowHtml += `<td class="py-3 px-4 text-center font-bold border-l border-slate-700 text-blue-300">${mA.toFixed(1)}%</td>`;
+    }
+    if (avg2Active) {
+        const rA = kpiRev['avg2'] || 0; const cA = kpiCogs['avg2'] || 0;
+        const mA = rA > 0 ? ((rA - cA) / rA) * 100 : 0;
+        kpiRowHtml += `<td class="py-3 px-4 text-center font-bold border-l border-slate-700 text-purple-300">${mA.toFixed(1)}%</td>`;
+    }
+    kpiRowHtml += `</tr>`;
+    
+    // Inject KPI row first
+    bodyHtml += kpiRowHtml;
 
     sortedPaths.forEach(path => {
         const parts = path.split('|');
         const level = parts.length;
-        const displayName = parts[level - 1]; // Only show the deepest part
+        const displayName = parts[level - 1]; 
         
-        // Indentation calculation (adds padding-left based on depth)
-        const indentClass = level > 1 ? `pl-${(level * 4) + 2}` : 'pl-4';
+        // --- CRITICAL FIX: INLINE SCALABLE PADDING ---
+        // Level 1 = 1rem, Level 2 = 2.5rem, Level 3 = 4rem, etc.
+        const paddingLeft = 1 + ((level - 1) * 1.5); 
+        
         const textWeight = level === 1 ? 'font-extrabold text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400';
         
-        // Special styling for "Revenue"
-        const isRevenue = displayName.toLowerCase().includes('revenue');
+        const isRevenue = path.toLowerCase().includes('revenue');
+        const isCount = path.toLowerCase().includes('headcount') || path.toLowerCase().includes('volume');
         const rowColorClass = isRevenue ? 'text-pink-600 dark:text-pink-400' : '';
 
-        // Add sticky column logic to the title to match the header
-        let rowHtml = `<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors border-b border-slate-100 dark:border-slate-800/50">
-                        <td class="py-2.5 pr-4 ${indentClass} ${textWeight} ${rowColorClass} bg-white dark:bg-slate-900 sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
-                            ${level > 1 ? '<span class="text-slate-300 dark:text-slate-600 mr-1">...</span>' : ''}${displayName}
+        // Added 'style="padding-left: ${paddingLeft}rem;"' and a clean '↳' icon for sub-levels
+        let rowHtml = `<tr class="hover:bg-slate-200/70 dark:hover:bg-white/[0.05] transition-colors border-b border-slate-100 dark:border-slate-800/50">
+                        <td class="py-2.5 pr-4 ${textWeight} ${rowColorClass} bg-white dark:bg-slate-900 sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] truncate" title="${displayName}" style="padding-left: ${paddingLeft}rem;">
+                            ${level > 1 ? '<span class="text-slate-300 dark:text-slate-600 mr-2 font-bold">↳</span>' : ''}${displayName}
                         </td>`;
 
         const data = matrix[path];
         let rowTotal = 0;
 
-        // Loop through each month dynamically
+        const formatVal = (val) => {
+            if (val === 0) return '-';
+            return isCount ? val.toLocaleString(undefined, {maximumFractionDigits:0}) : (val < 0 ? '-$' : '$') + Math.abs(val).toLocaleString(undefined, {maximumFractionDigits:0});
+        };
+
         months.forEach(m => {
             const val = data[m] || 0;
             rowTotal += val;
-            const displayVal = val === 0 ? '-' : (isRevenue ? '$' : '$') + val.toLocaleString(undefined, {maximumFractionDigits:0});
-            rowHtml += `<td class="py-2.5 px-4 text-center ${rowColorClass}">${displayVal}</td>`;
+            rowHtml += `<td class="py-2.5 px-4 text-center ${rowColorClass}">${formatVal(val)}</td>`;
         });
 
-        // Add Average Column
+        const lastVal = lastMonth ? (data[lastMonth] || 0) : 0;
+        const prevVal = prevMonth ? (data[prevMonth] || 0) : 0;
+
+        if (months.length >= 2 && (lastVal !== 0 || prevVal !== 0)) {
+            const delta = lastVal - prevVal;
+            const deltaPct = prevVal !== 0 ? (delta / prevVal) * 100 : (lastVal !== 0 ? 100 : 0);
+            
+            if (delta !== 0) {
+                const isIncrease = delta > 0;
+                const isGood = isRevenue ? isIncrease : !isIncrease; 
+                const colorClass = isGood ? 'text-emerald-500' : 'text-rose-500';
+                const icon = isIncrease ? '<i class="fas fa-arrow-up"></i>' : '<i class="fas fa-arrow-down"></i>';
+                
+                rowHtml += `<td class="py-2.5 px-4 text-center font-extrabold border-l border-slate-200 dark:border-slate-700 ${colorClass} text-[11px]">${icon} ${Math.abs(deltaPct).toFixed(1)}%</td>`;
+            } else {
+                rowHtml += `<td class="py-2.5 px-4 text-center border-l border-slate-200 dark:border-slate-700 text-slate-400 text-[11px]">-</td>`;
+            }
+        } else {
+            rowHtml += `<td class="py-2.5 px-4 text-center border-l border-slate-200 dark:border-slate-700 text-slate-400 text-[11px]">-</td>`;
+        }
+
         const avg = rowTotal / (months.length || 1);
-        rowHtml += `<td class="py-2.5 px-4 text-center font-bold border-l border-slate-200 dark:border-slate-700 ${rowColorClass}">$${avg.toLocaleString(undefined, {maximumFractionDigits:0})}</td></tr>`;
+        rowHtml += `<td class="py-2.5 px-4 text-center font-bold border-l border-slate-200 dark:border-slate-700 ${rowColorClass}">${formatVal(avg)}</td>`;
         
+        if (avg1Active) {
+            const histAvg1 = (data['avg1'] || 0) / 12;
+            rowHtml += `<td class="py-2.5 px-4 text-center font-bold border-l border-slate-200 dark:border-slate-700 text-blue-600 dark:text-blue-400">${formatVal(histAvg1)}</td>`;
+        }
+        if (avg2Active) {
+            const histAvg2 = (data['avg2'] || 0) / 12;
+            rowHtml += `<td class="py-2.5 px-4 text-center font-bold border-l border-slate-200 dark:border-slate-700 text-purple-600 dark:text-purple-400">${formatVal(histAvg2)}</td>`;
+        }
+        
+        rowHtml += `</tr>`;
         bodyHtml += rowHtml;
     });
 
@@ -413,122 +697,777 @@ function renderViewPLDatasheet(costField) {
 // ----------------------------------------------------
 function renderView2MoM(aggKey, costField) {
     const tbody = document.getElementById('mom-table-body');
-    if (!tbody) return;
+    const baseInput = document.getElementById('mom-base-month');
+    const compInput = document.getElementById('mom-comp-month');
+    const btnRefresh = document.getElementById('btn-refresh-mom');
+    
+    if (!tbody || !baseInput || !compInput) return;
 
-    tbody.innerHTML = '';
-    const mockCategories = ['Operations', 'ITSSG', 'Admin Cost', 'Facilities'];
-    mockCategories.forEach(cat => {
-        const curr = Math.random() * 50000 + 10000;
-        const prev = curr * (Math.random() * 0.4 + 0.8);
-        const delta = ((curr - prev) / prev) * 100;
+    const headerLvlChecked = document.querySelector('input[name="header_lvl"]:checked');
+    const maxLevel = headerLvlChecked ? parseInt(headerLvlChecked.value) : 5;
+    const dataToUse = window.baseFilteredData || [];
+
+    // 1. Auto-detect months
+    if (!baseInput.value || !compInput.value) {
+        const uniqueMonths = new Set();
+        dataToUse.forEach(row => {
+            const dStr = row.Dated || row.dated || '';
+            if (dStr) {
+                const d = new Date(dStr);
+                if (!isNaN(d.getTime())) uniqueMonths.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+            }
+        });
+        const sortedMonths = Array.from(uniqueMonths).sort().reverse(); 
         
-        let status = delta > 15 ? `<span class="text-rose-500 bg-rose-50 dark:bg-rose-900/20 px-2 py-1 rounded font-bold text-xs"><i class="fas fa-arrow-up"></i> ${delta.toFixed(1)}%</span>` 
-                   : delta < -5 ? `<span class="text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded font-bold text-xs"><i class="fas fa-arrow-down"></i> ${Math.abs(delta).toFixed(1)}%</span>`
-                   : `<span class="text-slate-500 font-bold text-xs">${delta.toFixed(1)}%</span>`;
+        if (sortedMonths.length >= 2) {
+            compInput.value = sortedMonths[0]; 
+            baseInput.value = sortedMonths[1]; 
+        } else if (sortedMonths.length === 1) {
+            compInput.value = sortedMonths[0];
+            baseInput.value = sortedMonths[0];
+        }
+    }
 
-        if(delta > 40) status += ` <span class="ml-2 text-amber-500" title="1-Year Outlier"><i class="material-icons-sharp text-[16px] align-middle">warning</i></span>`;
+    const baseM = baseInput.value;
+    const compM = compInput.value;
+
+    document.getElementById('mom-th-base').textContent = baseM || 'Base Month';
+    document.getElementById('mom-th-comp').textContent = compM || 'Compare Month';
+
+    const firstTh = document.querySelector('#view-mom thead th:first-child');
+    if (firstTh) firstTh.textContent = `Project & Account Title (Level ${maxLevel})`;
+
+    if (!baseM || !compM) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400 italic">Insufficient data to compare.</td></tr>`;
+        document.getElementById('mom-insights').innerHTML = 'Not enough data available.';
+        return;
+    }
+
+    // 2. BUILD THE MATRIX
+    const matrix = {};
+    let totalBase = 0;
+    let totalComp = 0;
+    
+    // --- NEW: KPI TRACKERS FOR GROSS MARGIN ---
+    let revBase = 0, cogsBase = 0;
+    let revComp = 0, cogsComp = 0;
+
+    dataToUse.forEach(row => {
+        const dStr = row.Dated || row.dated || '';
+        let rowMonth = '';
+        if (dStr) {
+            const d = new Date(dStr);
+            rowMonth = !isNaN(d.getTime()) ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` : String(dStr).substring(0, 7);
+        }
+
+        if (rowMonth !== baseM && rowMonth !== compM) return;
+
+        const cost = parseFloat(row[costField] || row.cost || 0);
+        const proj = (row.Project || row.project || row.PROJECT || 'Uncategorized').trim();
+        const mapping = (row.Mapping || row.mapping || row.MAPPING || 'Uncategorized').trim();
+        const h1 = (row.Header1 || row.header1 || '').trim().toLowerCase();
+        const h2 = (row.Header2 || row.header2 || '').trim().toLowerCase();
+        
+        const isCount = h1.includes('headcount') || h1.includes('volume') || h2.includes('headcount');
+        const rootId = `${proj} (${mapping})`;
+
+        if (!isCount) {
+            if (rowMonth === baseM) {
+                totalBase += cost;
+                if (h1.includes('revenue')) revBase += Math.abs(cost);
+                else if (h1.includes('cost of goods') || h1.includes('cogs')) cogsBase += cost;
+            }
+            if (rowMonth === compM) {
+                totalComp += cost;
+                if (h1.includes('revenue')) revComp += Math.abs(cost);
+                else if (h1.includes('cost of goods') || h1.includes('cogs')) cogsComp += cost;
+            }
+        }
+
+        let currentPath = rootId;
+
+        if (!matrix[currentPath]) {
+            matrix[currentPath] = { id: currentPath, parentId: null, level: 0, name: rootId, baseCost: 0, compCost: 0, isExpandable: false, projName: proj };
+        }
+        
+        if (!isCount) {
+            if (rowMonth === baseM) matrix[currentPath].baseCost += cost;
+            if (rowMonth === compM) matrix[currentPath].compCost += cost;
+        }
+
+        for (let i = 1; i <= maxLevel; i++) {
+            const hVal = (row[`Header${i}`] || row[`header${i}`] || '').trim();
+            if (!hVal) break; 
+
+            const parentPath = currentPath;
+            currentPath = `${currentPath}|${hVal}`;
+            matrix[parentPath].isExpandable = true; 
+
+            if (!matrix[currentPath]) {
+                matrix[currentPath] = { id: currentPath, parentId: parentPath, level: i, name: hVal, baseCost: 0, compCost: 0, isExpandable: false, projName: proj };
+            }
+            
+            if (rowMonth === baseM) matrix[currentPath].baseCost += cost;
+            if (rowMonth === compM) matrix[currentPath].compCost += cost;
+        }
+    });
+
+    // 3. Calculate Variances
+    let results = Object.values(matrix).map(item => {
+        item.deltaCost = item.compCost - item.baseCost;
+        item.deltaPct = item.baseCost !== 0 ? (item.deltaCost / item.baseCost) * 100 : (item.compCost > 0 ? 100 : 0);
+        return item;
+    });
+
+    const level0Projects = results.filter(r => r.level === 0);
+    const totalSelected = level0Projects.length;
+
+    if (totalSelected > 5) {
+        level0Projects.sort((a, b) => b.baseCost - a.baseCost);
+        const top5ProjectIds = level0Projects.slice(0, 5).map(p => p.id);
+        
+        results = results.filter(r => {
+            if (r.level === 0) return top5ProjectIds.includes(r.id);
+            const rootParentId = r.id.split('|')[0]; 
+            return top5ProjectIds.includes(rootParentId);
+        });
+
+        document.getElementById('mom-insights').innerHTML += `
+            <div class="mt-3 p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50 rounded-lg text-amber-700 dark:text-amber-500 text-xs flex items-start gap-2 shadow-sm animate-fade-in">
+                <span class="material-icons-sharp text-[16px]">warning</span>
+                <p><strong>Performance Limit Active:</strong> You have selected ${totalSelected} projects. To prevent browser instability, the table below is currently restricted to displaying only your <strong>Top 5 largest projects</strong> (by Base Month cost). Total KPI calculations above remain perfectly accurate.</p>
+            </div>
+        `;
+    }
+
+    results.sort((a, b) => a.id.localeCompare(b.id));
+
+    // 4. Render Table
+    tbody.innerHTML = '';
+    if (results.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400 italic">No records found for the selected months.</td></tr>`;
+        return;
+    }
+
+    // --- NEW: BUILD GROSS MARGIN PINNED ROW ---
+    const marginBase = revBase > 0 ? ((revBase - cogsBase) / revBase) * 100 : 0;
+    const marginComp = revComp > 0 ? ((revComp - cogsComp) / revComp) * 100 : 0;
+    const marginDelta = marginComp - marginBase; 
+
+    let marginDeltaStr = '-';
+    let marginStatusHtml = `<span class="text-slate-400">-</span>`;
+    let marginTextClass = 'text-slate-600 dark:text-slate-400';
+
+    if (marginDelta !== 0) {
+        const prefix = marginDelta > 0 ? '+' : '';
+        marginDeltaStr = prefix + marginDelta.toFixed(1) + '%';
+        if (marginDelta > 0) {
+            marginTextClass = 'text-emerald-600 dark:text-emerald-400 font-bold';
+            marginStatusHtml = `<span class="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded-lg text-[10px] font-extrabold flex items-center justify-center gap-1 w-fit mx-auto"><i class="fas fa-arrow-up"></i> UP</span>`;
+        } else {
+            marginTextClass = 'text-rose-600 dark:text-rose-400 font-bold';
+            marginStatusHtml = `<span class="bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 px-2 py-1 rounded-lg text-[10px] font-extrabold flex items-center justify-center gap-1 w-fit mx-auto"><i class="fas fa-arrow-down"></i> DOWN</span>`;
+        }
+    }
+
+    const kpiMomRow = `
+        <tr class="bg-slate-800 text-white dark:bg-slate-950 border-b-4 border-slate-700">
+            <td class="py-4 pr-4 pl-4 font-black sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] truncate bg-slate-800 dark:bg-slate-950">
+                🌟 OVERALL GROSS MARGIN %
+            </td>
+            <td class="p-3 text-right font-bold">${marginBase.toFixed(1)}%</td>
+            <td class="p-3 text-right font-bold">${marginComp.toFixed(1)}%</td>
+            <td class="p-3 text-right ${marginTextClass}">${marginDeltaStr}</td>
+            <td class="p-3 text-right text-slate-400">-</td>
+            <td class="p-3 text-center">${marginStatusHtml}</td>
+        </tr>
+    `;
+    
+    // Inject KPI row first
+    tbody.innerHTML += kpiMomRow;
+
+    let topIncreaser = null;
+    let topDecreaser = null;
+    const getSafeId = str => encodeURIComponent(str).replace(/%/g, '_');
+
+    results.forEach(res => {
+        if (res.level === 1 && !res.name.toLowerCase().includes('headcount') && !res.name.toLowerCase().includes('volume')) {
+            if (res.deltaCost > 0 && (!topIncreaser || res.deltaCost > topIncreaser.deltaCost)) topIncreaser = res;
+            if (res.deltaCost < 0 && (!topDecreaser || res.deltaCost < topDecreaser.deltaCost)) topDecreaser = res;
+        }
+
+        const safeId = getSafeId(res.id);
+        const safeParentId = res.parentId ? getSafeId(res.parentId) : '';
+        const startCollapsed = res.level > 0; 
+        const chevronIcon = res.isExpandable ? (startCollapsed ? 'fa-chevron-right' : 'fa-chevron-down') : '';
+        const displayStyle = res.level > 1 ? 'display: none;' : ''; 
+        
+        const isRevenue = res.name.toLowerCase().includes('revenue') || res.id.toLowerCase().includes('revenue');
+        const isCount = res.name.toLowerCase().includes('headcount') || res.name.toLowerCase().includes('volume') || res.id.toLowerCase().includes('headcount') || res.id.toLowerCase().includes('volume');
+
+        const formatVal = (val) => {
+            if (val === 0) return '-';
+            return isCount ? val.toLocaleString(undefined, {maximumFractionDigits:0}) : '$' + Math.abs(val).toLocaleString(undefined, {maximumFractionDigits:0});
+        };
+
+        const baseStr = formatVal(res.baseCost);
+        const compStr = formatVal(res.compCost);
+        
+        let deltaStr = '-';
+        if (res.deltaCost !== 0) {
+            let prefix = res.deltaCost > 0 ? '+' : '-';
+            deltaStr = prefix + (isCount ? Math.abs(res.deltaCost).toLocaleString() : '$' + Math.abs(res.deltaCost).toLocaleString());
+        }
+
+        const isIncrease = res.deltaCost > 0;
+        const isDecrease = res.deltaCost < 0;
+        
+        let statusHtml = `<span class="text-slate-400">-</span>`;
+        let textClass = 'text-slate-600 dark:text-slate-400';
+
+        if (isIncrease) {
+            if (isRevenue) {
+                textClass = 'text-emerald-600 dark:text-emerald-400 font-bold';
+                statusHtml = `<span class="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded-lg text-[10px] font-extrabold flex items-center justify-center gap-1 w-fit mx-auto"><i class="fas fa-arrow-up"></i> UP</span>`;
+            } else {
+                textClass = 'text-rose-600 dark:text-rose-400 font-bold';
+                statusHtml = `<span class="bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 px-2 py-1 rounded-lg text-[10px] font-extrabold flex items-center justify-center gap-1 w-fit mx-auto"><i class="fas fa-arrow-up"></i> UP</span>`;
+            }
+        } else if (isDecrease) {
+            if (isRevenue) {
+                textClass = 'text-rose-600 dark:text-rose-400 font-bold';
+                statusHtml = `<span class="bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 px-2 py-1 rounded-lg text-[10px] font-extrabold flex items-center justify-center gap-1 w-fit mx-auto"><i class="fas fa-arrow-down"></i> DOWN</span>`;
+            } else {
+                textClass = 'text-emerald-600 dark:text-emerald-400 font-bold';
+                statusHtml = `<span class="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded-lg text-[10px] font-extrabold flex items-center justify-center gap-1 w-fit mx-auto"><i class="fas fa-arrow-down"></i> DOWN</span>`;
+            }
+        }
+
+        let bgClass = 'bg-white dark:bg-slate-900';
+        let textWeight = 'font-medium text-slate-600 dark:text-slate-400';
+        if (res.level === 0) {
+            bgClass = 'bg-slate-100 dark:bg-slate-800/80'; 
+            textWeight = 'font-black text-blue-800 dark:text-blue-400';
+        } else if (res.level === 1) {
+            textWeight = 'font-extrabold text-slate-800 dark:text-white';
+        }
+        
+        const rowColorClass = isRevenue ? 'text-pink-600 dark:text-pink-400' : '';
+        const paddingLeft = 1 + (res.level * 1.5); 
+        
+        let expandHtml = res.isExpandable 
+            ? `<i id="icon-${safeId}" class="fas ${chevronIcon} mr-2 text-slate-400 w-4 transition-transform"></i>` 
+            : `<span class="inline-block w-6"></span>`;
+            
+        let clickAttr = res.isExpandable ? `onclick="toggleMomRow('${safeId}')" class="cursor-pointer group select-none"` : ``;
 
         tbody.innerHTML += `
-            <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                <td class="p-4 font-bold text-slate-900 dark:text-white">${cat}</td>
-                <td class="p-4">$${prev.toLocaleString(undefined, {maximumFractionDigits:0})}</td>
-                <td class="p-4">$${curr.toLocaleString(undefined, {maximumFractionDigits:0})}</td>
-                <td class="p-4">${delta.toFixed(1)}%</td>
-                <td class="p-4">${status}</td>
+            <tr data-row="${safeId}" data-parent="${safeParentId}" style="${displayStyle}" class="hover:bg-slate-200/70 dark:hover:bg-white/[0.05] transition-colors border-b border-slate-100 dark:border-slate-800/50">
+                <td ${clickAttr} class="py-3 pr-4 ${textWeight} ${rowColorClass} ${bgClass} sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] truncate max-w-[300px]" style="padding-left: ${paddingLeft}rem;" title="${res.id}">
+                    <div class="flex items-center">
+                        ${expandHtml} <span class="${res.isExpandable ? 'group-hover:text-blue-500 transition-colors' : ''}">${res.name}</span>
+                    </div>
+                </td>
+                <td class="p-3 text-right text-slate-600 dark:text-slate-300 font-medium ${rowColorClass} ${res.level===0 ? bgClass : ''}">${res.baseCost < 0 && !isCount ? '-' : ''}${baseStr}</td>
+                <td class="p-3 text-right text-slate-600 dark:text-slate-300 font-medium ${rowColorClass} ${res.level===0 ? bgClass : ''}">${res.compCost < 0 && !isCount ? '-' : ''}${compStr}</td>
+                <td class="p-3 text-right ${textClass} ${res.level===0 ? bgClass : ''}">${deltaStr}</td>
+                <td class="p-3 text-right ${textClass} ${res.level===0 ? bgClass : ''}">${res.deltaCost > 0 ? '+' : ''}${res.deltaPct.toFixed(1)}%</td>
+                <td class="p-3 text-center ${res.level===0 ? bgClass : ''}">${statusHtml}</td>
             </tr>
         `;
+    });
+
+    // 5. Generate Dynamic Insights
+    const overallDelta = totalComp - totalBase;
+    const overallPct = totalBase !== 0 ? (overallDelta / totalBase) * 100 : 0;
+    const insightContainer = document.getElementById('mom-insights');
+    
+    // Made the overall delta a neutral blue so it doesn't falsely show red for revenue increases!
+    let insightHtml = `<p>Between <strong>${baseM}</strong> and <strong>${compM}</strong>, total filtered activity changed by <strong class="text-blue-600 dark:text-blue-400">${overallDelta > 0 ? '+' : ''}$${Math.abs(overallDelta).toLocaleString(undefined, {maximumFractionDigits:0})} (${overallPct.toFixed(1)}%)</strong>.</p>`;
+    
+    if (topIncreaser && topIncreaser.deltaCost > 0) {
+        // Reverse colors if it's Revenue (Increase = Good/Green)
+        const isRev = topIncreaser.name.toLowerCase().includes('revenue') || topIncreaser.id.toLowerCase().includes('revenue');
+        const colorClass = isRev ? 'text-emerald-600' : 'text-rose-600';
+        
+        insightHtml += `<p>• The largest variance driver was <strong>${topIncreaser.name}</strong> under <strong>${topIncreaser.projName}</strong>, moving by <span class="${colorClass} font-bold">+$${topIncreaser.deltaCost.toLocaleString(undefined, {maximumFractionDigits:0})}</span>.</p>`;
+    }
+    
+    if (topDecreaser && topDecreaser.deltaCost < 0) {
+        // Reverse colors if it's Revenue (Decrease = Bad/Red)
+        const isRev = topDecreaser.name.toLowerCase().includes('revenue') || topDecreaser.id.toLowerCase().includes('revenue');
+        const colorClass = isRev ? 'text-rose-600' : 'text-emerald-600'; 
+        
+        insightHtml += `<p>• The largest reduction was <strong>${topDecreaser.name}</strong> under <strong>${topDecreaser.projName}</strong>, moving by <span class="${colorClass} font-bold">-$${Math.abs(topDecreaser.deltaCost).toLocaleString(undefined, {maximumFractionDigits:0})}</span>.</p>`;
+    }
+
+    insightContainer.innerHTML = insightHtml;
+
+    if (!btnRefresh.hasAttribute('data-bound')) {
+        btnRefresh.addEventListener('click', () => {
+            const costFieldToUse = document.getElementById('config-opt-tech')?.checked ? 'Cost_Tech' : 'Cost';
+            renderView2MoM(null, costFieldToUse);
+        });
+        btnRefresh.setAttribute('data-bound', 'true');
+    }
+}
+
+// ----------------------------------------------------
+// HELPER FUNCTIONS: HIERARCHY ACCORDION
+// ----------------------------------------------------
+window.toggleMomRow = function(safeId) {
+    const icon = document.getElementById(`icon-${safeId}`);
+    if (!icon) return;
+    
+    const isCollapsed = icon.classList.contains('fa-chevron-right');
+    
+    if (isCollapsed) {
+        icon.classList.replace('fa-chevron-right', 'fa-chevron-down');
+        document.querySelectorAll(`tr[data-parent="${safeId}"]`).forEach(tr => {
+            tr.style.display = ''; 
+        });
+    } else {
+        icon.classList.replace('fa-chevron-down', 'fa-chevron-right');
+        window.hideAllDescendants(safeId);
+    }
+};
+
+window.hideAllDescendants = function(parentId) {
+    document.querySelectorAll(`tr[data-parent="${parentId}"]`).forEach(tr => {
+        tr.style.display = 'none';
+        const childId = tr.dataset.row;
+        const childIcon = document.getElementById(`icon-${childId}`);
+        if (childIcon && childIcon.classList.contains('fa-chevron-down')) {
+            childIcon.classList.replace('fa-chevron-down', 'fa-chevron-right');
+        }
+        window.hideAllDescendants(childId);
+    });
+};
+
+// ----------------------------------------------------
+// HELPER FUNCTIONS: HIERARCHY ACCORDION
+// ----------------------------------------------------
+window.toggleMomRow = function(safeId) {
+    const icon = document.getElementById(`icon-${safeId}`);
+    if (!icon) return;
+    
+    const isCollapsed = icon.classList.contains('fa-chevron-right');
+    
+    if (isCollapsed) {
+        // Expand: Change icon to down, show DIRECT children
+        icon.classList.replace('fa-chevron-right', 'fa-chevron-down');
+        document.querySelectorAll(`tr[data-parent="${safeId}"]`).forEach(tr => {
+            tr.style.display = ''; 
+        });
+    } else {
+        // Collapse: Change icon to right, hide ALL deep descendants
+        icon.classList.replace('fa-chevron-down', 'fa-chevron-right');
+        hideAllDescendants(safeId);
+    }
+};
+
+function hideAllDescendants(parentId) {
+    document.querySelectorAll(`tr[data-parent="${parentId}"]`).forEach(tr => {
+        tr.style.display = 'none';
+        const childId = tr.dataset.row;
+        const childIcon = document.getElementById(`icon-${childId}`);
+        // Reset child's state so it is collapsed next time it is revealed
+        if (childIcon && childIcon.classList.contains('fa-chevron-down')) {
+            childIcon.classList.replace('fa-chevron-down', 'fa-chevron-right');
+        }
+        // Recursively hide grandchildren
+        hideAllDescendants(childId);
     });
 }
 
 // ----------------------------------------------------
 // VIEW 4: VISUALIZATIONS
 // ----------------------------------------------------
-function renderView3Visuals() {
-    if(!document.getElementById('vis-line-chart')) return;
-    renderChart('vis-line-chart', 'line', ['Jan', 'Feb', 'Mar', 'Apr', 'May'], [12, 19, 15, 22, 30], 'Cost Trend');
-    renderChart('vis-bar-chart', 'bar', ['Entity A', 'Entity B', 'Entity C'], [400, 300, 600], 'Cost by Entity');
+window.renderView3Visuals = function() {
+    if (!document.getElementById('vis-line-chart')) return;
+
+    const dataToUse = filteredData || [];
+    if (dataToUse.length === 0) return;
+
+    const costField = document.getElementById('config-opt-tech')?.checked ? 'Cost_Tech' : 'Cost';
     
-    if(charts['vis-scatter-chart']) charts['vis-scatter-chart'].destroy();
-    const ctxScatter = document.getElementById('vis-scatter-chart').getContext('2d');
-    charts['vis-scatter-chart'] = new Chart(ctxScatter, {
-        type: 'scatter',
-        data: {
-            datasets: [{
-                label: 'Projects',
-                data: [{x: 10, y: 20000}, {x: 50, y: 80000}, {x: 25, y: 45000}],
-                backgroundColor: '#3b82f6'
-            }]
-        },
-        options: { responsive: true, maintainAspectRatio: false }
+    // --- FIX 1: EXACT DARK MODE DETECTION ---
+    // Your main.php uses 'dark-theme-variables' to trigger dark mode
+    const isDark = document.documentElement.classList.contains('dark') || 
+                   document.body.classList.contains('dark-theme-variables') ||
+                   document.documentElement.classList.contains('dark-theme-variables');
+                   
+    const textColor = isDark ? '#e2e8f0' : '#475569'; // Crisp white/gray in dark mode
+    const gridColor = isDark ? '#334155' : '#e2e8f0'; 
+    const themeColors = ['#8A2B3D', '#E35B5B', '#F28F43', '#F4C145'];
+
+    const heatmapMetricObj = document.querySelector('input[name="heatmap_metric"]:checked');
+    const heatmapMetric = heatmapMetricObj ? heatmapMetricObj.value : 'personnel';
+
+    // --- 1. DATA AGGREGATION ---
+    const monthlyData = {};
+    let totalRev = 0, totalCogs = 0;
+    const projFinancials = {}; 
+    const projectHeatmapData = {}; 
+
+    dataToUse.forEach(row => {
+        const dStr = row.Dated || row.dated || '';
+        let m = '';
+        if (dStr) {
+            const d = new Date(dStr);
+            m = !isNaN(d.getTime()) ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` : String(dStr).substring(0, 7);
+        }
+        if (!m) return;
+
+        const cost = parseFloat(row[costField] || row.cost || 0);
+        if (cost === 0) return;
+
+        const proj = (row.Project || row.project || row.PROJECT || 'Uncategorized').trim();
+        const h1 = (row.Header1 || row.header1 || '').trim().toLowerCase();
+        const h2 = (row.Header2 || row.header2 || '').trim().toLowerCase();
+
+        const isRev = h1.includes('revenue');
+        const isCOGS = h1.includes('cost of goods') || h1.includes('cogs');
+        const isPersonnel = h2.includes('personnel');
+        const isAssociated = h2.includes('associated');
+        const isCount = h1.includes('headcount') || h1.includes('volume');
+
+        if (!monthlyData[m]) monthlyData[m] = { rev: 0, cogs: 0, personnel: 0, associated: 0 };
+        if (!projFinancials[proj]) projFinancials[proj] = { rev: 0, cogs: 0 };
+        if (!projectHeatmapData[proj]) projectHeatmapData[proj] = { personnel: 0, associated: 0 };
+
+        if (!isCount) {
+            if (isRev) {
+                monthlyData[m].rev += Math.abs(cost);
+                totalRev += Math.abs(cost);
+                projFinancials[proj].rev += Math.abs(cost);
+            }
+            if (isCOGS) {
+                monthlyData[m].cogs += cost;
+                totalCogs += cost;
+                projFinancials[proj].cogs += cost;
+            }
+            if (isPersonnel) {
+                monthlyData[m].personnel += cost;
+                projectHeatmapData[proj].personnel += cost;
+            }
+            if (isAssociated) {
+                monthlyData[m].associated += cost;
+                projectHeatmapData[proj].associated += cost;
+            }
+        }
     });
 
-    const heatContainer = document.getElementById('vis-heatmap-container');
-    if (heatContainer) {
-        heatContainer.innerHTML = `
-            <div class="grid grid-cols-4 gap-1 text-center text-xs font-bold text-white min-w-[400px]">
-                <div class="bg-slate-200 text-slate-600 p-2 rounded">Region/Header</div>
-                <div class="bg-slate-200 text-slate-600 p-2 rounded">COGS</div>
-                <div class="bg-slate-200 text-slate-600 p-2 rounded">Opex</div>
-                <div class="bg-slate-200 text-slate-600 p-2 rounded">CAPEX</div>
-                
-                <div class="bg-slate-100 text-slate-600 p-2 rounded flex items-center justify-center">APAC</div>
-                <div class="bg-rose-500 p-2 rounded flex items-center justify-center">High</div>
-                <div class="bg-emerald-400 p-2 rounded flex items-center justify-center">Low</div>
-                <div class="bg-amber-400 p-2 rounded flex items-center justify-center">Med</div>
-            </div>
+    const months = Object.keys(monthlyData).sort();
+    const mLabels = months.map(m => new Date(m+"-01").toLocaleString('default', {month:'short', year:'2-digit'}));
+
+    const initChart = (id) => {
+        const dom = document.getElementById(id);
+        const existing = echarts.getInstanceByDom(dom);
+        if (existing) existing.dispose();
+        return echarts.init(dom);
+    };
+
+    const dropPinMarker = {
+        symbol: 'pin', symbolSize: 45,
+        label: { color: '#fff', fontSize: 10, formatter: (p) => '$' + (p.value/1000).toFixed(0) + 'k' },
+        data: [{ type: 'max', name: 'Max' }, { type: 'min', name: 'Min' }]
+    };
+
+    // --- 1. SMOOTH LINE CHART ---
+    const lineChart = initChart('vis-line-chart');
+    lineChart.setOption({
+        color: [themeColors[0], themeColors[2]],
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['Personnel Costs', 'Associated Costs'], textStyle: { color: textColor, fontWeight: 'bold' }, top: '0%' },
+        grid: { left: '6%', right: '5%', bottom: '10%', top: '15%', containLabel: true },
+        xAxis: { type: 'category', boundaryGap: false, data: mLabels, axisLine: { lineStyle: { color: textColor } }, axisLabel: { color: textColor } },
+        yAxis: { type: 'value', splitLine: { lineStyle: { color: gridColor } }, axisLabel: { color: textColor, formatter: (v) => '$' + v/1000 + 'k' } },
+        series: [
+            { name: 'Personnel Costs', type: 'line', smooth: true, data: months.map(m => monthlyData[m].personnel), markPoint: dropPinMarker, lineStyle: { width: 3 } },
+            { name: 'Associated Costs', type: 'line', smooth: true, data: months.map(m => monthlyData[m].associated), markPoint: dropPinMarker, lineStyle: { width: 3 } }
+        ]
+    });
+
+    // --- 2. BAR CHART ---
+    const barChart = initChart('vis-bar-chart');
+    barChart.setOption({
+        color: [themeColors[1], themeColors[3]],
+        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+        legend: { data: ['Revenue', 'COGS'], textStyle: { color: textColor, fontWeight: 'bold' }, top: '0%' },
+        grid: { left: '6%', right: '5%', bottom: '10%', top: '15%', containLabel: true },
+        xAxis: { type: 'category', data: mLabels, axisLine: { lineStyle: { color: textColor } }, axisLabel: { color: textColor } },
+        yAxis: { type: 'value', splitLine: { lineStyle: { color: gridColor } }, axisLabel: { color: textColor, formatter: (v) => '$' + v/1000 + 'k' } },
+        series: [
+            { name: 'Revenue', type: 'bar', data: months.map(m => monthlyData[m].rev), markPoint: dropPinMarker, itemStyle: { borderRadius: [4, 4, 0, 0] } },
+            { name: 'COGS', type: 'bar', data: months.map(m => monthlyData[m].cogs), markPoint: dropPinMarker, itemStyle: { borderRadius: [4, 4, 0, 0] } }
+        ]
+    });
+
+    // --- 3. PIE CHART ---
+    const pieChart = initChart('vis-pie-chart');
+    pieChart.setOption({
+        color: [themeColors[1], themeColors[0]],
+        tooltip: { trigger: 'item', formatter: '{b}: ${c} ({d}%)' },
+        legend: { bottom: '0%', textStyle: { color: textColor, fontWeight: 'bold' } },
+        series: [{
+            type: 'pie', radius: ['40%', '70%'], center: ['50%', '50%'],
+            itemStyle: { borderRadius: 5, borderColor: isDark ? '#0f172a' : '#fff', borderWidth: 2 },
+            data: [ { value: totalRev, name: 'Revenue' }, { value: totalCogs, name: 'COGS' } ],
+            label: { color: textColor }
+        }]
+    });
+
+    // --- 4. SCATTER PLOT ---
+    const scatterData = [];
+    Object.keys(projFinancials).forEach(p => {
+        const rev = projFinancials[p].rev;
+        const cogs = projFinancials[p].cogs;
+        if (rev > 0 && cogs > 0) {
+            const margin = ((rev - cogs) / rev) * 100;
+            const size = Math.max(15, Math.min(60, (cogs / totalCogs) * 200));
+            scatterData.push([margin, cogs, p, size]);
+        }
+    });
+
+    const scatterChart = initChart('vis-scatter-chart');
+    scatterChart.setOption({
+        color: [themeColors[2]],
+        tooltip: { formatter: (p) => `<strong>${p.data[2]}</strong><br>Gross Margin: ${p.data[0].toFixed(1)}%<br>COGS: $${p.data[1].toLocaleString()}` },
+        grid: { left: '15%', right: '10%', bottom: '15%', top: '15%', containLabel: false },
+        xAxis: { type: 'value', name: 'Margin %', nameTextStyle: { color: textColor }, axisLine: { lineStyle: { color: textColor } }, axisLabel: { color: textColor, formatter: '{value}%' }, splitLine: { show: false } },
+        yAxis: { type: 'value', name: 'COGS', nameTextStyle: { color: textColor }, axisLine: { lineStyle: { color: textColor } }, splitLine: { lineStyle: { color: gridColor } }, axisLabel: { color: textColor, formatter: (v) => '$' + v/1000 + 'k' } },
+        series: [{
+            type: 'scatter', data: scatterData, symbolSize: (data) => data[3], 
+            itemStyle: { opacity: 0.8, shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.2)' }
+        }]
+    });
+
+    // --- FIX 2: HEATMAP COLOR LOGIC ---
+    let maxHeatmapVal = 0;
+    const treemapData = Object.keys(projectHeatmapData).map(proj => {
+        const val = projectHeatmapData[proj][heatmapMetric];
+        if (val > maxHeatmapVal) maxHeatmapVal = val; // Find the highest value to set the Red threshold
+        return { name: proj, value: val };
+    }).filter(item => item.value > 0);
+
+    const heatmapChart = initChart('vis-treemap-chart');
+    heatmapChart.setOption({
+        tooltip: { formatter: (info) => `<strong>${info.name}</strong><br/>${heatmapMetric === 'personnel' ? 'Personnel' : 'Associated'} Cost: $${info.value.toLocaleString(undefined, {maximumFractionDigits:0})}` },
+        // VisualMap forces ECharts to color code strictly by value!
+        visualMap: {
+            type: 'continuous',
+            min: 0,
+            max: maxHeatmapVal,
+            inRange: {
+                color: ['#10b981', '#F4C145', '#F28F43', '#E35B5B'] // Green -> Yellow -> Orange -> RED (Highest)
+            },
+            show: false // Hides the color bar legend to keep the UI clean
+        },
+        series: [{
+            type: 'treemap',
+            data: treemapData,
+            roam: false,
+            label: { show: true, formatter: (params) => `${params.name}\n$${(params.value/1000).toFixed(1)}k`, color: '#fff', fontWeight: 'bold' },
+            itemStyle: { borderColor: isDark ? '#0f172a' : '#fff', borderWidth: 2, gapWidth: 2 }
+        }]
+    });
+
+    // --- FIX 3: DYNAMIC EXECUTIVE SUMMARY ---
+    const insightsBox = document.getElementById('vis-insights');
+    if (months.length >= 2) {
+        const lastM = months[months.length - 1];
+        const prevM = months[months.length - 2];
+        const lastMargin = monthlyData[lastM].rev > 0 ? ((monthlyData[lastM].rev - monthlyData[lastM].cogs) / monthlyData[lastM].rev) * 100 : 0;
+        const prevMargin = monthlyData[prevM].rev > 0 ? ((monthlyData[prevM].rev - monthlyData[prevM].cogs) / monthlyData[prevM].rev) * 100 : 0;
+        const marginDelta = lastMargin - prevMargin;
+
+        const trendIcon = marginDelta >= 0 ? '<i class="fas fa-arrow-trend-up text-emerald-500"></i>' : '<i class="fas fa-arrow-trend-down text-rose-500"></i>';
+
+        // Find the top project pushing the heatmap metrics
+        let topProj = 'None';
+        let topVal = 0;
+        treemapData.forEach(d => { if (d.value > topVal) { topVal = d.value; topProj = d.name; } });
+
+        const marginAlertClass = marginDelta >= 0 ? "text-emerald-500" : "text-rose-500";
+        
+        insightsBox.innerHTML = `
+            <p>${trendIcon} <strong>Margin Trajectory:</strong> Gross margin moved by <strong class="${marginAlertClass}">${marginDelta > 0 ? '+' : ''}${marginDelta.toFixed(1)}%</strong> from the previous month, currently sitting at <strong>${lastMargin.toFixed(1)}%</strong>.</p>
+            <p><i class="fas fa-exclamation-triangle text-amber-500"></i> <strong>Overhead Alert:</strong> <strong>${topProj}</strong> is currently driving the highest <strong>${heatmapMetric}</strong> costs at <strong>$${(topVal/1000).toFixed(1)}k</strong>.</p>
+            <p><i class="fas fa-chart-pie text-blue-500"></i> <strong>Cost Ratio:</strong> Across the selected period, direct COGS consumed <strong>${totalRev > 0 ? ((totalCogs/totalRev)*100).toFixed(1) : 0}%</strong> of total recognized revenue.</p>
         `;
+    } else {
+        insightsBox.innerHTML = `<p class="text-slate-500 italic">Awaiting additional chronological data to generate MoM trend insights. Ensure your Date Range includes at least two months.</p>`;
     }
+
+    window.addEventListener('resize', () => {
+        lineChart.resize(); barChart.resize(); pieChart.resize(); scatterChart.resize(); heatmapChart.resize();
+    });
 }
 
 // ----------------------------------------------------
 // VIEW 5: SIMULATION
 // ----------------------------------------------------
-let baseRev = 1000000;
-let baseCogs = 650000;
 
 window.runSimulation = function() {
-    const revInput = document.getElementById('sim-revenue');
+    const revInput = document.getElementById('sim-rev');
     if (!revInput) return; 
 
+    // 1. Get Live Actuals from Filtered Data
+    let actRev = 0, actCogs = 0, actOpex = 0;
+    const costField = document.getElementById('config-opt-tech')?.checked ? 'Cost_Tech' : 'Cost';
+
+    (filteredData || []).forEach(row => {
+        const cost = parseFloat(row[costField] || row.cost || 0);
+        const h1 = (row.Header1 || row.header1 || '').toLowerCase();
+        const h2 = (row.Header2 || row.header2 || '').toLowerCase();
+        
+        // --- CRITICAL FIX: ISOLATE COUNTS FROM CURRENCY ---
+        if (h1.includes('headcount') || h1.includes('volume') || h2.includes('headcount')) return;
+
+        // 1st: Revenue
+        if (h1.includes('revenue')) {
+            actRev += Math.abs(cost);
+        } 
+        // 2nd: Associated Costs (Strictly relying on Header text now!)
+        else if (h2.includes('associated') || h1.includes('associated') || h1.includes('admin')) {
+            actOpex += cost;
+        } 
+        // 3rd: Direct COGS
+        else if (h1.includes('cost of goods') || h1.includes('cogs')) {
+            actCogs += cost;
+        }
+    });
+
+    const actProfit = actRev - actCogs - actOpex;
+    const actMargin = actRev > 0 ? (actProfit / actRev) * 100 : 0;
+
+    // 2. Read Scenario Sliders
     const revMod = parseFloat(revInput.value) / 100;
     const cogsMod = parseFloat(document.getElementById('sim-cogs').value) / 100;
     const hcMod = parseFloat(document.getElementById('sim-hc').value) / 100;
+    const opexMod = parseFloat(document.getElementById('sim-opex').value) / 100;
 
-    const setElemText = (id, text) => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = text;
-    };
+    const setElemText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
 
     setElemText('sim-rev-val', (revMod > 0 ? '+' : '') + (revMod*100).toFixed(0) + '%');
     setElemText('sim-cogs-val', (cogsMod > 0 ? '+' : '') + (cogsMod*100).toFixed(0) + '%');
     setElemText('sim-hc-val', (hcMod > 0 ? '+' : '') + (hcMod*100).toFixed(0) + '%');
+    setElemText('sim-opex-val', (opexMod > 0 ? '+' : '') + (opexMod*100).toFixed(0) + '%');
 
-    const projRev = baseRev * (1 + revMod);
-    const projCogs = baseCogs * (1 + cogsMod + (hcMod * 0.5)); 
-    const projMargin = projRev > 0 ? ((projRev - projCogs) / projRev) * 100 : 0;
-    const projProfit = projRev - projCogs;
+    // 3. Calculate Projections
+    // NOTE: Headcount changes affect BOTH Revenue (more billable hours) and COGS (more wages)
+    const projRev = actRev * (1 + revMod) * (1 + hcMod); 
+    const projCogs = actCogs * (1 + cogsMod) * (1 + hcMod);
+    const projOpex = actOpex * (1 + opexMod); // Opex rarely scales perfectly with HC, treating as independent step
 
-    const baseMargin = baseRev > 0 ? ((baseRev - baseCogs) / baseRev) * 100 : 0;
-    const marginDiff = projMargin - baseMargin;
+    const projProfit = projRev - projCogs - projOpex;
+    const projMargin = projRev > 0 ? (projProfit / projRev) * 100 : 0;
 
+    const marginDiff = projMargin - actMargin;
+    const profitDiff = projProfit - actProfit;
+
+    // 4. Update UI Results
     setElemText('sim-res-margin', projMargin.toFixed(1) + '%');
-    setElemText('sim-res-margin-diff', (marginDiff > 0 ? '▲ +' : '▼ ') + marginDiff.toFixed(1) + '%');
-    
-    const marginDiffEl = document.getElementById('sim-res-margin-diff');
-    if (marginDiffEl) marginDiffEl.className = `text-sm font-bold mb-1 ${marginDiff >= 0 ? 'text-emerald-500' : 'text-rose-500'}`;
+    const mDiffEl = document.getElementById('sim-res-margin-diff');
+    mDiffEl.textContent = (marginDiff >= 0 ? '+' : '') + marginDiff.toFixed(1) + '%';
+    mDiffEl.className = `text-sm font-bold ${marginDiff >= 0 ? 'text-emerald-500' : 'text-rose-500'}`;
     
     setElemText('sim-res-profit', '$' + projProfit.toLocaleString(undefined, {maximumFractionDigits:0}));
-    
-    renderChart('sim-waterfall-chart', 'bar', ['Base Profit', 'Rev Impact', 'COGS Impact', 'Projected Profit'], [baseRev-baseCogs, baseRev*revMod, -(baseCogs*cogsMod), projProfit], 'Simulation Waterfall');
+    const pDiffEl = document.getElementById('sim-res-profit-diff');
+    pDiffEl.textContent = (profitDiff >= 0 ? '+$' : '-$') + Math.abs(profitDiff).toLocaleString(undefined, {maximumFractionDigits:0});
+    pDiffEl.className = `text-sm font-bold ${profitDiff >= 0 ? 'text-emerald-500' : 'text-rose-500'}`;
+
+    // 5. Generate Dynamic CFO Insights
+    const insightBox = document.getElementById('sim-insights');
+    if (actRev === 0) {
+        insightBox.innerHTML = "<span class='text-rose-500 font-bold'>Error: Your current filters have $0 Revenue.</span> Adjust the 'Data Configurations' on the left to include a Project/Mapping that generates revenue to run a scenario.";
+    } else {
+        let text = `Based on current actuals, this project generates a <strong>${actMargin.toFixed(1)}%</strong> margin. `;
+        
+        if (marginDiff < 0) {
+            text += `Under this scenario, margin compresses by <strong class="text-rose-600">${Math.abs(marginDiff).toFixed(1)}%</strong>, destroying <strong class="text-rose-600">$${Math.abs(profitDiff).toLocaleString(undefined, {maximumFractionDigits:0})}</strong> in profit. `;
+            if (cogsMod > 0 && revMod <= 0) text += `<br><strong>Recommendation:</strong> You are absorbing a wage/cost increase without passing it to the client. We must negotiate a yield increase to defend our EBITDA.`;
+            else if (opexMod > 0) text += `<br><strong>Recommendation:</strong> Administrative bloat is threatening profitability. Institute a hiring freeze on indirect personnel.`;
+        } else if (marginDiff > 0) {
+            text += `This is a highly accretive scenario. Margin expands by <strong class="text-emerald-600">${marginDiff.toFixed(1)}%</strong>, generating <strong class="text-emerald-600">$${profitDiff.toLocaleString(undefined, {maximumFractionDigits:0})}</strong> in additional profit. `;
+            if (revMod > 0) text += `Pricing optimizations are successfully flowing straight to the bottom line.`;
+            else if (cogsMod < 0 || opexMod < 0) text += `Cost efficiency initiatives are yielding significant returns.`;
+        } else {
+            text += `The adjustments mathematically offset, resulting in a flat margin impact.`;
+        }
+        insightBox.innerHTML = text;
+    }
+
+    // 6. ECharts Waterfall Logic (Calculates the "Bridge")
+    // A waterfall uses a hidden "Help" bar to float the positive/negative impacts.
+    const helpData = [], posData = [], negData = [];
+    let currentLevel = actProfit;
+
+    // Step 0: Base Actual Profit
+    helpData.push(0); 
+    posData.push(actProfit >= 0 ? actProfit : 0); 
+    negData.push(actProfit < 0 ? Math.abs(actProfit) : 0);
+
+    const steps = [
+        { name: 'Revenue/Vol Impact', val: projRev - actRev },
+        { name: 'COGS Impact', val: -(projCogs - actCogs) }, // Cost increase = negative impact
+        { name: 'Overhead Impact', val: -(projOpex - actOpex) }
+    ];
+
+    steps.forEach(step => {
+        if (step.val >= 0) {
+            helpData.push(currentLevel); posData.push(step.val); negData.push(0);
+        } else {
+            currentLevel += step.val;
+            helpData.push(currentLevel); posData.push(0); negData.push(Math.abs(step.val));
+        }
+        if (step.val >= 0) currentLevel += step.val; // Add after pushing if positive
+    });
+
+    // Final Step: Projected Profit
+    helpData.push(0);
+    posData.push(currentLevel >= 0 ? currentLevel : 0);
+    negData.push(currentLevel < 0 ? Math.abs(currentLevel) : 0);
+
+    const isDark = document.documentElement.classList.contains('dark') || document.body.classList.contains('dark-theme-variables');
+    const textColor = isDark ? '#cbd5e1' : '#475569'; 
+    const gridColor = isDark ? '#334155' : '#e2e8f0';
+
+    const dom = document.getElementById('sim-waterfall-chart');
+    if (!dom) return;
+    let chart = echarts.getInstanceByDom(dom);
+    if (chart) chart.dispose();
+    chart = echarts.init(dom);
+
+    chart.setOption({
+        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: function (params) {
+            let tar = params[1].value !== 0 ? params[1] : params[2];
+            let prefix = tar.seriesName === 'Positive' ? '+' : '-';
+            if (params[0].name === 'Base Actuals' || params[0].name === 'Proj Profit') prefix = '';
+            return `<strong>${tar.name}</strong><br/>${prefix}$${tar.value.toLocaleString(undefined, {maximumFractionDigits:0})}`;
+        }},
+        grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+        xAxis: { type: 'category', data: ['Base Actuals', 'Rev/Vol Impact', 'COGS Impact', 'Overhead Impact', 'Proj Profit'], axisLine: { lineStyle: { color: textColor } }, axisLabel: { color: textColor, fontWeight: 'bold' } },
+        yAxis: { type: 'value', splitLine: { lineStyle: { color: gridColor } }, axisLabel: { color: textColor, formatter: (v) => '$' + v/1000 + 'k' } },
+        series: [
+            { name: 'Help', type: 'bar', stack: 'Total', itemStyle: { borderColor: 'transparent', color: 'transparent' }, data: helpData }, // Invisible floating pillar
+            { name: 'Positive', type: 'bar', stack: 'Total', label: { show: true, position: 'top', formatter: (p) => p.value > 0 ? '+$'+(p.value/1000).toFixed(0)+'k' : '' }, itemStyle: { color: '#10b981', borderRadius: 4 }, data: posData },
+            { name: 'Negative', type: 'bar', stack: 'Total', label: { show: true, position: 'bottom', formatter: (p) => p.value > 0 ? '-$'+(p.value/1000).toFixed(0)+'k' : '' }, itemStyle: { color: '#f43f5e', borderRadius: 4 }, data: negData }
+        ]
+    });
+
+    window.addEventListener('resize', () => chart.resize());
 };
 
 window.resetSimulation = function() {
-    const revInput = document.getElementById('sim-revenue');
+    const revInput = document.getElementById('sim-rev');
     if (!revInput) return;
     
     revInput.value = 0;
     document.getElementById('sim-cogs').value = 0;
     document.getElementById('sim-hc').value = 0;
+    document.getElementById('sim-opex').value = 0;
     runSimulation();
 };
 
@@ -543,6 +1482,11 @@ function renderChart(canvasId, type, labels, data, title) {
     const ctx = canvas.getContext('2d');
     const isDark = document.documentElement.classList.contains('dark');
     
+    // Support multi-colors for Pie Charts
+    const bgColors = type === 'pie' || type === 'doughnut' 
+        ? ['#10b981', '#f43f5e', '#3b82f6', '#f59e0b', '#8b5cf6'] 
+        : (type === 'line' ? 'transparent' : '#10b981');
+
     charts[canvasId] = new Chart(ctx, {
         type: type,
         data: {
@@ -550,17 +1494,25 @@ function renderChart(canvasId, type, labels, data, title) {
             datasets: [{
                 label: title,
                 data: data,
-                backgroundColor: type === 'line' ? 'transparent' : '#10b981',
-                borderColor: '#10b981',
-                borderWidth: 2,
+                backgroundColor: bgColors,
+                borderColor: type === 'pie' ? (isDark ? '#0f172a' : '#ffffff') : '#10b981',
+                borderWidth: type === 'pie' ? 3 : 2,
                 tension: 0.4
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
+            plugins: { 
+                // Show legend only for Pie/Doughnut charts
+                legend: { 
+                    display: type === 'pie' || type === 'doughnut',
+                    position: 'right',
+                    labels: { color: isDark ? '#cbd5e1' : '#475569', usePointStyle: true, padding: 20 }
+                } 
+            },
+            // Hide grid lines for Pie/Doughnut charts
+            scales: type === 'pie' || type === 'doughnut' ? {} : {
                 y: { grid: { color: isDark ? '#334155' : '#e2e8f0' }, ticks: { color: isDark ? '#cbd5e1' : '#475569' } },
                 x: { grid: { display: false }, ticks: { color: isDark ? '#cbd5e1' : '#475569' } }
             }
@@ -568,85 +1520,230 @@ function renderChart(canvasId, type, labels, data, title) {
     });
 }
 
-window.populateExportCheckboxes = function() {
+const HC_EXPORT_HEADERS = [
+    { id: 'dated', label: 'Dated' },
+    { id: 'empid', label: 'EmpID' },
+    { id: 'empname', label: 'EmpName' },
+    { id: 'groupname', label: 'GroupName' },
+    { id: 'headcount', label: 'Headcount' },
+    { id: 'position', label: 'Position' },
+    { id: 'plm_project_name', label: 'PLM Project Name' },
+    { id: 'cost_pct', label: 'Cost %' },
+    { id: 'cost', label: 'Cost' },
+    { id: 'dept_based_on_summary', label: 'Dept based on summary' }
+];
+
+window.toggleExportDataset = function() {
+    const dataset = document.getElementById('export-dataset').value;
+    const hcOptionsBox = document.getElementById('export-hc-options');
     const container = document.getElementById('export-checkboxes');
-    if(!container) return;
     container.innerHTML = '';
-    FIN_HEADERS.forEach(header => {
-        const isChecked = ['Dated', 'Project', 'Entity', 'Header1', 'Cost'].includes(header) ? 'checked' : '';
-        container.innerHTML += `
-            <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer p-1 hover:bg-slate-50 dark:hover:bg-slate-800 rounded">
-                <input type="checkbox" value="${header}" class="export-col-cb text-blue-600 focus:ring-blue-500" ${isChecked}>
-                <span class="truncate">${header}</span>
-            </label>
-        `;
-    });
+
+    if (dataset === 'financial') {
+        hcOptionsBox.classList.replace('flex', 'hidden'); 
+        FIN_HEADERS.forEach(header => {
+            const isChecked = ['Dated', 'Project', 'Entity', 'Header1', 'Cost'].includes(header) ? 'checked' : '';
+            container.innerHTML += `
+                <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer p-1 hover:bg-slate-50 dark:hover:bg-slate-800 rounded">
+                    <input type="checkbox" value="${header}" class="export-col-cb text-blue-600 focus:ring-blue-500" ${isChecked}>
+                    <span class="truncate">${header}</span>
+                </label>
+            `;
+        });
+    } else {
+        hcOptionsBox.classList.replace('hidden', 'flex'); 
+        HC_EXPORT_HEADERS.forEach(col => {
+            container.innerHTML += `
+                <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer p-1 hover:bg-slate-50 dark:hover:bg-slate-800 rounded">
+                    <input type="checkbox" value="${col.id}" data-label="${col.label}" class="export-col-cb text-blue-600 focus:ring-blue-500" checked>
+                    <span class="truncate">${col.label}</span>
+                </label>
+            `;
+        });
+    }
 };
+
+window.populateExportCheckboxes = window.toggleExportDataset;
 
 window.executeCustomExport = function() {
+    const dataset = document.getElementById('export-dataset').value;
     const checkboxes = document.querySelectorAll('.export-col-cb:checked');
-    const selectedHeaders = Array.from(checkboxes).map(cb => cb.value);
-
-    if (selectedHeaders.length === 0) return alert("Select at least one column.");
-
-    let csvContent = selectedHeaders.join(",") + "\n";
-    filteredData.forEach(row => {
-        let rowData = selectedHeaders.map(header => {
-            let val = String(row[header] || row[header.toLowerCase()] || '');
-            return val.includes(',') ? `"${val}"` : val;
-        });
-        csvContent += rowData.join(",") + "\n";
-    });
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `Financial_Export_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
+    const start = document.getElementById('export-start').value;
+    const end = document.getElementById('export-end').value;
     
-    const modal = document.getElementById('export-modal');
-    if (modal) modal.classList.add('hidden');
+    if (checkboxes.length === 0) {
+        Swal.fire({ icon: 'error', title: 'Action Required', text: 'Select at least one column to export.' });
+        return;
+    }
+
+    if (!start || !end) {
+        Swal.fire({ icon: 'error', title: 'Missing Data', text: 'Please select a Start and End month to define the export range.' });
+        return;
+    }
+
+    if (dataset === 'financial') {
+        // --- ROUTE 1: FINANCIAL EXPORT (WITH CUSTOM DATE FILTER) ---
+        const selectedHeaders = Array.from(checkboxes).map(cb => cb.value);
+        let csvContent = selectedHeaders.join(",") + "\n";
+        
+        // Filter the base data (which has sidebar filters applied) by the newly selected dates
+        const customDateData = (window.baseFilteredData || []).filter(row => {
+            const rowDate = row.Dated || row.dated || '';
+            let rowMonth = '';
+            if (rowDate) {
+                const d = new Date(rowDate);
+                if (!isNaN(d.getTime())) {
+                    rowMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                } else {
+                    rowMonth = String(rowDate).substring(0, 7); 
+                }
+            }
+            return rowMonth >= start && rowMonth <= end;
+        });
+
+        if (customDateData.length === 0) {
+            Swal.fire({ icon: 'warning', title: 'No Data Found', text: 'No financial records match the selected date range and sidebar filters.' });
+            return;
+        }
+
+        customDateData.forEach(row => {
+            let rowData = selectedHeaders.map(header => {
+                let val = String(row[header] || row[header.toLowerCase()] || '');
+                return val.includes(',') ? `"${val}"` : val;
+            });
+            csvContent += rowData.join(",") + "\n";
+        });
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `Financial_P&L_${start}_to_${end}.csv`; // Dynamic filename!
+        link.click();
+        
+        document.getElementById('export-modal').classList.add('hidden');
+
+    } else {
+        // --- ROUTE 2: SECURE HEADCOUNT EXPORT ---
+        const selectedColsArray = Array.from(checkboxes).map(cb => cb.value);
+
+        if (selectedColsArray.includes('cost') || selectedColsArray.includes('cost_pct')) {
+            Swal.fire({
+                title: 'Privacy Restriction Active',
+                html: "The <b>Cost</b> and <b>Cost %</b> columns contain highly sensitive data.<br><br>Please seek authorization to perform this extraction:",
+                input: 'password',
+                inputPlaceholder: 'Enter master extraction key...',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3b82f6', 
+                cancelButtonColor: '#f43f5e', 
+                confirmButtonText: 'Authorize Export',
+                preConfirm: (password) => {
+                    if (password !== "FP&A2026!") {
+                        Swal.showValidationMessage('⛔ Export Blocked: Incorrect Master Password.');
+                    }
+                    return password;
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    processHeadcountExportForm(checkboxes, start, end);
+                }
+            });
+        } else {
+            processHeadcountExportForm(checkboxes, start, end);
+        }
+    }
 };
 
-window.processSecureImport = function() {
+// Helper function
+function processHeadcountExportForm(checkboxes, start, end) {
+    const selectedCols = Array.from(checkboxes).map(cb => cb.value).join(',');
+    const selectedLabels = Array.from(checkboxes).map(cb => cb.getAttribute('data-label')).join(',');
+    const filename = document.getElementById('export-filename').value;
+    const password = document.getElementById('export-password').value;
+    
+    if (!password) {
+        Swal.fire({ icon: 'error', title: 'Authentication Required', text: 'Please enter the Manager Password for this dataset.' });
+        return;
+    }
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = 'financial_headcount_api.php';
+    form.target = '_blank'; 
+
+    const params = { cols: selectedCols, labels: selectedLabels, start: start, end: end, filename: filename, password: password };
+    for (const key in params) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = params[key];
+        form.appendChild(input);
+    }
+    
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+    
+    document.getElementById('export-modal').classList.add('hidden');
+    document.getElementById('export-password').value = ''; 
+}
+
+window.processSecureImport = async function(btn) {
     const password = document.getElementById('import-password')?.value;
     const fileInput = document.getElementById('import-file');
+    const datasetTarget = document.getElementById('import-dataset').value;
     const modeObj = document.querySelector('input[name="import_mode"]:checked');
     const mode = modeObj ? modeObj.value : 'append';
 
     if (!password) return alert("Admin password is required.");
-    if (!fileInput || !fileInput.files[0]) return alert("Please select a file to import.");
+    if (!fileInput || fileInput.files.length === 0) return alert("Please select at least one file to import.");
 
-    const formData = new FormData();
-    formData.append('password', password);
-    formData.append('file', fileInput.files[0]);
-    formData.append('mode', mode); 
-
-    const btn = event.target;
     const originalText = btn.innerHTML;
-    btn.innerHTML = "Processing...";
     btn.disabled = true;
 
-    fetch('financial_import_api.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(res => res.json())
-    .then(data => {
-        if(data.success) {
-            alert(data.message);
-            const modal = document.getElementById('secure-import-modal');
-            if (modal) modal.classList.add('hidden');
-            document.getElementById('import-password').value = '';
-            document.getElementById('import-file').value = '';
-            initFinancialDashboard(); 
-        } else {
-            alert("Error: " + data.message);
+    let successCount = 0;
+    let errorMessages = [];
+
+    // Process files ONE AT A TIME sequentially
+    for (let i = 0; i < fileInput.files.length; i++) {
+        const file = fileInput.files[i];
+        btn.innerHTML = `<span class="material-icons-sharp animate-spin text-sm mr-2">sync</span> Processing ${i + 1} of ${fileInput.files.length}...`;
+
+        const formData = new FormData();
+        formData.append('password', password);
+        formData.append('file', file);
+        formData.append('mode', mode);
+        formData.append('dataset', datasetTarget); // Tells PHP which table to use
+
+        try {
+            const response = await fetch('financial_import_api.php', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                successCount++;
+            } else {
+                errorMessages.push(`${file.name}: ${data.message}`);
+            }
+        } catch (err) {
+            console.error(err);
+            errorMessages.push(`${file.name}: Network or server error.`);
         }
-    })
-    .catch(err => console.error(err))
-    .finally(() => {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    });
+    }
+
+    // Reset UI and show final results
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+
+    if (errorMessages.length === 0) {
+        alert(`✅ Successfully imported ${successCount} file(s)!`);
+        document.getElementById('secure-import-modal').classList.add('hidden');
+        document.getElementById('import-password').value = '';
+        document.getElementById('import-file').value = '';
+        if (datasetTarget === 'financial') initFinancialDashboard(); // Only reload UI if we updated the main ledger
+    } else {
+        alert(`Import complete with errors:\n\n${errorMessages.join('\n')}\n\nSuccessfully imported: ${successCount}`);
+    }
 };

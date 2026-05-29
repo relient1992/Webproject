@@ -106,7 +106,12 @@ if (!isset($_SESSION['employee_id'])) {
 
         <div class="sidebar flex-1 overflow-y-auto py-4 no-scrollbar">
             
-            <a href="#" class="Active flex items-center gap-4 px-6 py-3.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white" data-view="active_attrition">
+            <!-- <a href="#" class="Active flex items-center gap-4 px-6 py-3.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white" data-view="active_attrition">
+                <span class="material-icons-sharp text-[1.2rem]">group</span>
+                <h3 class="flex-1">Active & Attrition</h3>
+            </a> -->
+
+            <a href="https://script.google.com/a/macros/xbpasia.com/s/AKfycbyCwHFVe1_0YM1sLa92d1-txryt73Ck2Y0nfCwy7PgwBoQFSKwyaO5y9GQr4OiC0uZj/exec" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation(); window.open(this.href, '_blank'); return false;" class="flex items-center gap-4 px-6 py-3.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">
                 <span class="material-icons-sharp text-[1.2rem]">group</span>
                 <h3 class="flex-1">Active & Attrition</h3>
             </a>
@@ -116,10 +121,10 @@ if (!isset($_SESSION['employee_id'])) {
                 <h3 class="flex-1">RA/DA KRA</h3>
             </a>
 
-            <a href="#" class="flex items-center gap-4 px-6 py-3.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white" data-view="team_member">
+            <!-- <a href="#" class="flex items-center gap-4 px-6 py-3.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white" data-view="team_member">
                 <span class="material-icons-sharp text-[1.2rem]">supervised_user_circle</span>
                 <h3 class="flex-1">Team Member</h3>
-            </a>
+            </a> -->
 
             <a href="#" class="flex items-center gap-4 px-6 py-3.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white" data-view="financial_dashboard">
                 <span class="material-icons-sharp text-[1.2rem]">account_balance</span>
@@ -200,15 +205,15 @@ if (!isset($_SESSION['employee_id'])) {
 
             <hr class="menu-divider my-2 border-slate-200 dark:border-slate-800 mx-6">
 
-            <a href="#" data-view="bps_financial" class="flex items-center gap-4 px-6 py-3.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">
+            <!-- <a href="#" data-view="bps_financial" class="flex items-center gap-4 px-6 py-3.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">
                 <span class="material-icons-sharp text-[1.2rem]">bar_chart</span>
                 <h3 class="flex-1">BPS Financial</h3>
-            </a>
+            </a> -->
 
-            <a href="#" data-view="lhi_financial" class="flex items-center gap-4 px-6 py-3.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">
+            <!-- <a href="#" data-view="lhi_financial" class="flex items-center gap-4 px-6 py-3.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">
                 <span class="material-icons-sharp text-[1.2rem]">insert_chart</span>
                 <h3 class="flex-1">LHI Financial</h3>
-            </a>
+            </a> -->
 
             <a href="./views/database_update.php" target="_blank" rel="noopener noreferrer" data-view="database_update.php" data-external="true" onclick="event.stopPropagation(); window.open(this.href, '_blank'); return false;" class="flex items-center gap-4 px-6 py-3.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">
                 <span class="material-icons-sharp text-[1.2rem]">build</span>

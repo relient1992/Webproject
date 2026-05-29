@@ -3,6 +3,7 @@ window.initFinancialDashboard = initFinancialDashboard;
 let financialData = [];
 let filteredData = [];
 let charts = {};
+let userAllowedEntity = null; // Tracks the user's role
 
 const FIN_HEADERS = [
     "Proj_ID", "Mapping", "Project", "LOB", "Customer", "PLM_Head", "PLM", "Project_Manager", 
@@ -11,10 +12,43 @@ const FIN_HEADERS = [
     "Cost", "Cost_Tech", "SortOrder1", "SortOrder2", "UserView"
 ];
 
-async function initFinancialDashboard() {
-    console.log("🚦 [Financial Dashboard] Initialization started...");
+// 1. Shows the Gatekeeper instead of loading the data
+function initFinancialDashboard() {
+    console.log("🔒 [Gatekeeper] Verifying Access...");
+    const gate = document.getElementById('auth-gate-modal');
+    if (gate) {
+        gate.classList.remove('hidden');
+        document.getElementById('gate-password').value = '';
+        document.getElementById('gate-error').classList.add('hidden');
+    } else {
+        executeDashboardFetch(); // Fallback if HTML is missing
+    }
+}
 
-    // --- NEW: DYNAMIC LOADING SCREEN ---
+// 2. Authenticates the Password
+window.verifyDashboardAccess = function() {
+    const pass = document.getElementById('gate-password').value;
+    const errorMsg = document.getElementById('gate-error');
+
+    // --- ASSIGN PASSWORDS HERE ---
+    if (pass === 'Health2026!') userAllowedEntity = 'Healthserv';
+    else if (pass === 'Source2026!') userAllowedEntity = 'Sourcehov';
+    else if (pass === 'Master2026!') userAllowedEntity = 'ALL'; // AVP / Super User
+    else {
+        errorMsg.classList.remove('hidden');
+        return;
+    }
+
+    document.getElementById('auth-gate-modal').classList.add('hidden');
+    
+    // Now that they are verified, actually fetch the data!
+    executeDashboardFetch();
+};
+
+// 3. The Core Dashboard Fetch Logic
+async function executeDashboardFetch() {
+    console.log(`🚦 [Financial Dashboard] Initialization started. Role: ${userAllowedEntity}`);
+
     let loadingScreen = document.getElementById('loading-screen');
     if (!loadingScreen) {
         loadingScreen = document.createElement('div');
@@ -43,7 +77,19 @@ async function initFinancialDashboard() {
         try {
             const result = JSON.parse(rawText);
             financialData = result.success ? result.data : [];
-            console.log(`✅ Loaded ${financialData.length} rows of data.`);
+            
+            // ====================================================
+            // ROLE-BASED DATA ENFORCEMENT
+            // ====================================================
+            if (userAllowedEntity !== 'ALL') {
+                financialData = financialData.filter(row => {
+                    const ent = (row.Entity || row.entity || row.ENTITY || '').trim();
+                    // Strip out any data that doesn't match their assigned entity
+                    return ent.toLowerCase() === userAllowedEntity.toLowerCase();
+                });
+            }
+
+            console.log(`✅ Loaded ${financialData.length} authorized rows of data.`);
         } catch (parseError) {
             console.error("❌ JSON Parse Failed. PHP output:", rawText);
             financialData = [];
@@ -56,7 +102,7 @@ async function initFinancialDashboard() {
     setTimeout(() => {
         try {
             populateConfigurationFilters(); 
-            setDefaultFilters(); // This now applies the Fedex and 3-Month limit!
+            setDefaultFilters(); 
             initProjectSearch(); 
             applyGlobalFilters(true); 
             populateExportCheckboxes();
@@ -155,10 +201,10 @@ function populateConfigurationFilters() {
         }
         
         sortedValues.forEach(val => {
-            // Include class "filter-item" to help with the Live Search
+            // NEW: Added onchange="updateCascadingFilters()" to every checkbox
             container.innerHTML += `
-                <label class="flex items-center gap-2 text-[11px] font-bold text-slate-600 dark:text-slate-300 cursor-pointer p-1.5 hover:bg-white dark:hover:bg-slate-900 rounded-lg transition-colors group filter-item">
-                    <input type="checkbox" value="${val}" class="filter-cb-${key.toLowerCase()} text-emerald-500 focus:ring-emerald-500 rounded border-slate-300 dark:border-slate-600 bg-transparent">
+                <label data-cascade-hidden="false" class="flex items-center gap-2 text-[11px] font-bold text-slate-600 dark:text-slate-300 cursor-pointer p-1.5 hover:bg-white dark:hover:bg-slate-900 rounded-lg transition-colors group filter-item">
+                    <input type="checkbox" value="${val}" onchange="updateCascadingFilters()" class="filter-cb-${key.toLowerCase()} text-emerald-500 focus:ring-emerald-500 rounded border-slate-300 dark:border-slate-600 bg-transparent">
                     <span class="group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">${val}</span>
                 </label>
             `;
@@ -166,25 +212,86 @@ function populateConfigurationFilters() {
     });
 }
 
+// NEW: The Intelligent Cascading Engine
+window.updateCascadingFilters = function() {
+    const selMapping = Array.from(document.querySelectorAll('.filter-cb-mapping:checked')).map(cb => cb.value);
+    const selProject = Array.from(document.querySelectorAll('.filter-cb-project:checked')).map(cb => cb.value);
+    const selLob = Array.from(document.querySelectorAll('.filter-cb-lob:checked')).map(cb => cb.value);
+    const selEntity = Array.from(document.querySelectorAll('.filter-cb-entity:checked')).map(cb => cb.value);
+
+    // Determines valid options for a category by looking at the selections in the OTHER 3 categories
+    const getValidOptions = (targetCategory) => {
+        const valid = new Set();
+        financialData.forEach(row => {
+            const rMap = (row.Mapping || row.mapping || row.MAPPING || '').trim();
+            const rProj = (row.Project || row.project || row.PROJECT || '').trim();
+            const rLob = (row.LOB || row.lob || '').trim();
+            const rEnt = (row.Entity || row.entity || row.ENTITY || '').trim();
+
+            let pass = true;
+            if (targetCategory !== 'mapping' && selMapping.length > 0 && !selMapping.includes(rMap)) pass = false;
+            if (targetCategory !== 'project' && selProject.length > 0 && !selProject.includes(rProj)) pass = false;
+            if (targetCategory !== 'lob' && selLob.length > 0 && !selLob.includes(rLob)) pass = false;
+            if (targetCategory !== 'entity' && selEntity.length > 0 && !selEntity.includes(rEnt)) pass = false;
+
+            if (pass) {
+                if (targetCategory === 'mapping') valid.add(rMap);
+                if (targetCategory === 'project') valid.add(rProj);
+                if (targetCategory === 'lob') valid.add(rLob);
+                if (targetCategory === 'entity') valid.add(rEnt);
+            }
+        });
+        return valid;
+    };
+
+    const updateListUI = (category, validSet) => {
+        const checkboxes = document.querySelectorAll(`.filter-cb-${category}`);
+        checkboxes.forEach(cb => {
+            const labelElement = cb.closest('label');
+            // Always keep checked items visible so users can uncheck them
+            if (cb.checked || validSet.has(cb.value)) {
+                labelElement.dataset.cascadeHidden = 'false';
+                labelElement.style.display = 'flex';
+            } else {
+                labelElement.dataset.cascadeHidden = 'true';
+                labelElement.style.display = 'none'; // Physically hide invalid options
+            }
+        });
+    };
+
+    updateListUI('mapping', getValidOptions('mapping'));
+    updateListUI('project', getValidOptions('project'));
+    updateListUI('lob', getValidOptions('lob'));
+    updateListUI('entity', getValidOptions('entity'));
+
+    // Re-trigger the search filter to ensure the cascading logic doesn't override manual searches
+    const searchInput = document.getElementById('search-project');
+    if (searchInput && searchInput.value) {
+        searchInput.dispatchEvent(new Event('input'));
+    }
+};
+
 function initProjectSearch() {
     const searchInput = document.getElementById('search-project');
     if (!searchInput) return;
 
     searchInput.addEventListener('input', function(e) {
         const term = e.target.value.toLowerCase();
-        // Grab all the labels inside the project list
         const items = document.querySelectorAll('#filter-list-project .filter-item');
         
         items.forEach(item => {
-            // Ignore the "SELECT ALL" button when searching
             if (item.textContent.includes('SELECT ALL')) return;
             
             const text = item.textContent.toLowerCase();
-            // Show or hide based on match
-            if (text.includes(term)) {
-                item.style.display = 'flex';
-            } else {
-                item.style.display = 'none';
+            const isCascadeHidden = item.dataset.cascadeHidden === 'true';
+            
+            // Only toggle visibility if it hasn't already been hidden by the intelligent cascade
+            if (!isCascadeHidden) {
+                if (text.includes(term)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
             }
         });
     });
@@ -196,23 +303,28 @@ window.clearAllFilters = function() {
     
     if (document.getElementById('config-start-date')) document.getElementById('config-start-date').value = '';
     if (document.getElementById('config-end-date')) document.getElementById('config-end-date').value = '';
-    if (document.getElementById('search-project')) {
-        document.getElementById('search-project').value = '';
-        // Manually trigger the input event to reset the list visibility
-        document.getElementById('search-project').dispatchEvent(new Event('input'));
+    
+    const searchInput = document.getElementById('search-project');
+    if (searchInput) {
+        searchInput.value = '';
+        searchInput.dispatchEvent(new Event('input'));
     }
     
+    // Reset cascading visibility
+    updateCascadingFilters();
     window.applyGlobalFilters();
 };
 
 window.toggleSelectAll = function(source, category) {
     const checkboxes = document.querySelectorAll(`.filter-cb-${category}`);
     checkboxes.forEach(cb => {
-        // Only check it if it's currently visible (useful if they search and THEN hit select all)
+        // Only check the item if it is currently visible
         if (cb.closest('label').style.display !== 'none') {
             cb.checked = source.checked;
         }
     });
+    // Trigger cascading updates after a bulk select
+    updateCascadingFilters();
 };
 
 window.applyGlobalFilters = function(isInitialLoad = false) {
@@ -294,7 +406,6 @@ window.applyGlobalFilters = function(isInitialLoad = false) {
         } catch (error) {
             console.error("Error applying filters:", error);
         } finally {
-            // --- NEW: ALWAYS HIDE LOADER WHEN DONE ---
             if (loadingScreen) {
                 loadingScreen.style.opacity = '0';
                 setTimeout(() => { loadingScreen.style.display = 'none'; }, 300);
@@ -1747,3 +1858,205 @@ window.processSecureImport = async function(btn) {
         alert(`Import complete with errors:\n\n${errorMessages.join('\n')}\n\nSuccessfully imported: ${successCount}`);
     }
 };
+
+window.toggleAiChat = function() {
+    const chatWindow = document.getElementById('ai-chat-window');
+    if (chatWindow.classList.contains('hidden')) {
+        chatWindow.classList.remove('hidden');
+        // Tiny delay to allow display:block to apply before animating opacity/scale
+        setTimeout(() => {
+            chatWindow.classList.remove('scale-95', 'opacity-0');
+            chatWindow.classList.add('scale-100', 'opacity-100');
+        }, 10);
+    } else {
+        chatWindow.classList.remove('scale-100', 'opacity-100');
+        chatWindow.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => {
+            chatWindow.classList.add('hidden');
+        }, 300); // Wait for transition to finish
+    }
+};
+
+// ====================================================
+// FLOATING AI CHATBOT ENGINE (LOCAL ANALYTICS)
+// ====================================================
+
+window.toggleAiChat = function() {
+    const chatWindow = document.getElementById('ai-chat-window');
+    if (chatWindow.classList.contains('hidden')) {
+        chatWindow.classList.remove('hidden');
+        setTimeout(() => {
+            chatWindow.classList.remove('scale-95', 'opacity-0');
+            chatWindow.classList.add('scale-100', 'opacity-100');
+        }, 10);
+    } else {
+        chatWindow.classList.remove('scale-100', 'opacity-100');
+        chatWindow.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => { chatWindow.classList.add('hidden'); }, 300); 
+    }
+};
+
+window.sendAiMessage = function(actionId = null, buttonText = null) {
+    const inputEl = document.getElementById('ai-chat-input');
+    // If user clicked a button, use the buttonText. Otherwise, use what they typed.
+    const message = buttonText || inputEl.value.trim(); 
+    if (!message) return;
+
+    const historyBox = document.getElementById('ai-chat-history');
+
+    // 1. Append User Message
+    const userHtml = `
+        <div class="flex gap-2 justify-end animate-fade-in">
+            <div class="bg-blue-600 text-white p-3 rounded-2xl rounded-tr-none text-sm shadow-sm max-w-[85%]">
+                ${message}
+            </div>
+            <div class="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 flex-shrink-0 flex items-center justify-center text-slate-500 dark:text-slate-400 mt-1">
+                <span class="material-icons-sharp text-[12px]">person</span>
+            </div>
+        </div>
+    `;
+    historyBox.innerHTML += userHtml;
+    inputEl.value = ''; 
+    historyBox.scrollTop = historyBox.scrollHeight; 
+
+    // 2. Append "AI is calculating..." indicator
+    const typingId = 'typing-' + Date.now();
+    const typingHtml = `
+        <div id="${typingId}" class="flex gap-2 animate-fade-in">
+            <div class="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/50 flex-shrink-0 flex items-center justify-center text-blue-600 dark:text-blue-400 mt-1">
+                <span class="material-icons-sharp text-[12px]">smart_toy</span>
+            </div>
+            <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-2xl rounded-tl-none text-sm text-slate-500 dark:text-slate-400 shadow-sm flex items-center gap-2 font-medium">
+                <span class="material-icons-sharp text-[14px] animate-spin">sync</span> Crunching numbers...
+            </div>
+        </div>
+    `;
+    historyBox.innerHTML += typingHtml;
+    historyBox.scrollTop = historyBox.scrollHeight;
+
+    // 3. Simulate Calculation Delay & Send Dynamic Response
+    setTimeout(() => {
+        const typingEl = document.getElementById(typingId);
+        if (typingEl) typingEl.remove();
+
+        // Calculate the answer based on the local dataset!
+        const responseText = calculateAiResponse(actionId, message);
+
+        const aiHtml = `
+            <div class="flex gap-2 animate-fade-in">
+                <div class="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/50 flex-shrink-0 flex items-center justify-center text-blue-600 dark:text-blue-400 mt-1">
+                    <span class="material-icons-sharp text-[12px]">smart_toy</span>
+                </div>
+                <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-2xl rounded-tl-none text-sm text-slate-700 dark:text-slate-300 shadow-sm max-w-[85%] leading-relaxed">
+                    ${responseText}
+                </div>
+            </div>
+        `;
+        historyBox.innerHTML += aiHtml;
+        historyBox.scrollTop = historyBox.scrollHeight;
+
+    }, 800); 
+};
+
+// --- THE LOCAL AI LOGIC ENGINE ---
+function calculateAiResponse(actionId, rawMessage) {
+    if (!filteredData || filteredData.length === 0) {
+        return "I cannot perform that calculation because there is no data currently loaded. Please adjust your dashboard filters.";
+    }
+
+    const costField = document.getElementById('config-opt-tech')?.checked ? 'Cost_Tech' : 'Cost';
+
+    // 1. GROSS MARGIN
+    if (actionId === 'q_margin' || rawMessage.toLowerCase().includes('margin')) {
+        let rev = 0, cogs = 0;
+        filteredData.forEach(r => {
+            const h1 = (r.Header1 || '').toLowerCase();
+            const cost = parseFloat(r[costField] || r.cost || 0);
+            if (h1.includes('headcount') || h1.includes('volume')) return;
+            if (h1.includes('revenue')) rev += Math.abs(cost);
+            else if (h1.includes('cost of goods') || h1.includes('cogs')) cogs += cost;
+        });
+        const margin = rev > 0 ? ((rev - cogs) / rev) * 100 : 0;
+        return `Based on your current filters, your overall Gross Margin is <strong class="text-blue-600 dark:text-blue-400 text-base">${margin.toFixed(1)}%</strong>. <br><br>This is derived from <strong>$${rev.toLocaleString(undefined, {maximumFractionDigits:0})}</strong> in Revenue against <strong>$${cogs.toLocaleString(undefined, {maximumFractionDigits:0})}</strong> in direct COGS.`;
+    }
+
+    // 2. HIGHEST COGS PROJECT
+    if (actionId === 'q_cogs') {
+        let projCogs = {};
+        filteredData.forEach(r => {
+            const h1 = (r.Header1 || '').toLowerCase();
+            const proj = r.Project || 'Uncategorized';
+            const cost = parseFloat(r[costField] || r.cost || 0);
+            if (!h1.includes('headcount') && !h1.includes('volume') && (h1.includes('cogs') || h1.includes('cost of goods'))) {
+                projCogs[proj] = (projCogs[proj] || 0) + cost;
+            }
+        });
+        const topProj = Object.keys(projCogs).reduce((a, b) => projCogs[a] > projCogs[b] ? a : b, '');
+        if (!topProj) return "I couldn't find any direct labor/COGS data in the current selection.";
+        return `The project driving the highest direct labor (COGS) is <strong class="text-rose-600 dark:text-rose-400">${topProj}</strong>, accumulating <strong>$${projCogs[topProj].toLocaleString(undefined, {maximumFractionDigits:0})}</strong> in costs.`;
+    }
+
+    // 3. NET LOSS PROJECTS
+    if (actionId === 'q_loss') {
+        let projPnl = {};
+        filteredData.forEach(r => {
+            const h1 = (r.Header1 || '').toLowerCase();
+            const h2 = (r.Header2 || '').toLowerCase();
+            const proj = r.Project || 'Uncategorized';
+            const cost = parseFloat(r[costField] || r.cost || 0);
+
+            if (h1.includes('headcount') || h1.includes('volume')) return;
+            if (!projPnl[proj]) projPnl[proj] = { rev: 0, cost: 0 };
+
+            if (h1.includes('revenue')) projPnl[proj].rev += Math.abs(cost);
+            else if (h1.includes('cogs') || h1.includes('cost of goods') || h2.includes('associated') || h1.includes('associated') || h1.includes('admin')) {
+                projPnl[proj].cost += cost;
+            }
+        });
+        
+        let losers = Object.keys(projPnl).filter(p => (projPnl[p].rev - projPnl[p].cost) < 0 && projPnl[p].cost > 0);
+        if (losers.length === 0) return "✅ <strong>Great news!</strong> No projects are currently operating at a net loss based on your active filters.";
+        return `⚠️ I found <strong>${losers.length}</strong> project(s) currently operating at a net loss:<br><br><span class="text-rose-600 dark:text-rose-400 font-bold">${losers.join(', ')}</span>`;
+    }
+
+    // 4. REV PER HEADCOUNT
+    if (actionId === 'q_revhc') {
+        let rev = 0, hc = 0;
+        let months = new Set();
+        filteredData.forEach(r => {
+            const h1 = (r.Header1 || '').toLowerCase();
+            const cost = parseFloat(r[costField] || r.cost || 0);
+            const d = r.Dated || r.dated;
+            if (d) months.add(d.substring(0, 7));
+
+            if (h1.includes('revenue')) rev += Math.abs(cost);
+            if (h1.includes('headcount')) hc += cost;
+        });
+        const avgHc = hc / (months.size || 1);
+        const revPerHc = avgHc > 0 ? rev / avgHc : 0;
+        return `Across the selected timeframe, you have generated <strong>$${rev.toLocaleString(undefined, {maximumFractionDigits:0})}</strong> in revenue supported by an average of <strong>${avgHc.toFixed(1)}</strong> headcount.<br><br>This equates to <strong class="text-emerald-600 dark:text-emerald-400 text-base">$${revPerHc.toLocaleString(undefined, {maximumFractionDigits:0})}</strong> in revenue per head.`;
+    }
+
+    // 5. HIGHEST OVERHEAD ENTITY
+    if (actionId === 'q_overhead') {
+        let entOpex = {};
+        filteredData.forEach(r => {
+            const h1 = (r.Header1 || '').toLowerCase();
+            const h2 = (r.Header2 || '').toLowerCase();
+            const ent = r.Entity || 'Uncategorized';
+            const cost = parseFloat(r[costField] || r.cost || 0);
+
+            if (!h1.includes('headcount') && !h1.includes('volume')) {
+                if (h2.includes('associated') || h1.includes('associated') || h1.includes('admin')) {
+                    entOpex[ent] = (entOpex[ent] || 0) + cost;
+                }
+            }
+        });
+        const topEnt = Object.keys(entOpex).reduce((a, b) => entOpex[a] > entOpex[b] ? a : b, '');
+        if (!topEnt) return "I couldn't find any associated overhead data in your current selection.";
+        return `The entity carrying the heaviest overhead/associated cost burden is <strong class="text-amber-600 dark:text-amber-400">${topEnt}</strong> at <strong>$${entOpex[topEnt].toLocaleString(undefined, {maximumFractionDigits:0})}</strong>.`;
+    }
+
+    // FALLBACK FOR TYPED MESSAGES
+    return "Since my cloud integration is offline, I am currently running strictly as a local analytical engine. Please click one of the predefined chips below so I can scan your dashboard data!";
+}

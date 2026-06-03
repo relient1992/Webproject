@@ -672,7 +672,14 @@ function renderViewPLDatasheet(costField) {
     headerHtml += `</tr>`;
     thead.innerHTML = headerHtml;
 
-    const sortedPaths = Object.keys(matrix).sort();
+    const sortedPaths = Object.keys(matrix).sort((a, b) => {
+        const aRev = a.toLowerCase().includes('revenue');
+        const bRev = b.toLowerCase().includes('revenue');
+        if (aRev && !bRev) return -1; // Move a up
+        if (!aRev && bRev) return 1;  // Move b up
+        return a.localeCompare(b);    // Standard alphabetical for everything else
+    });
+
     let bodyHtml = '';
 
     if (sortedPaths.length === 0) {
@@ -680,8 +687,8 @@ function renderViewPLDatasheet(costField) {
         return;
     }
 
-    // --- NEW: BUILD GROSS MARGIN PINNED ROW ---
-    let kpiRowHtml = `<tr class="bg-slate-800 text-white dark:bg-slate-950 border-b-4 border-slate-700">
+    // --- FEATURE 1: BUILD GROSS MARGIN PINNED ROW ---
+    let kpiRowHtml = `<tr class="bg-slate-800 text-white dark:bg-slate-950 border-b border-slate-700">
         <td class="py-3 pr-4 pl-4 font-black sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] truncate bg-slate-800 dark:bg-slate-950">
             🌟 OVERALL GROSS MARGIN %
         </td>`;
@@ -724,9 +731,52 @@ function renderViewPLDatasheet(costField) {
         kpiRowHtml += `<td class="py-3 px-4 text-center font-bold border-l border-slate-700 text-purple-300">${mA.toFixed(1)}%</td>`;
     }
     kpiRowHtml += `</tr>`;
+
+    // --- FEATURE 1: BUILD COST OF REVENUE (COR%) ROW ---
+    let corRowHtml = `<tr class="bg-slate-700/20 text-slate-600 dark:text-slate-300 dark:bg-slate-800/50 border-b-[3px] border-slate-300 dark:border-slate-700">
+        <td class="py-2.5 pr-4 pl-4 font-bold sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] truncate bg-slate-100 dark:bg-slate-900">
+            📊 COST OF REVENUE (COR) %
+        </td>`;
+
+    months.forEach(m => {
+        const r = kpiRev[m] || 0; const c = kpiCogs[m] || 0;
+        const cor = r > 0 ? (c / r) * 100 : 0;
+        corRowHtml += `<td class="py-2.5 px-4 text-center font-semibold">${cor.toFixed(1)}%</td>`;
+    });
+
+    let corTrendHtml = `<td class="py-2.5 px-4 text-center border-l border-slate-300 dark:border-slate-700 text-slate-400">-</td>`;
+    if (lastMonth && prevMonth) {
+        const rL = kpiRev[lastMonth] || 0; const cL = kpiCogs[lastMonth] || 0;
+        const rP = kpiRev[prevMonth] || 0; const cP = kpiCogs[prevMonth] || 0;
+        const corL = rL > 0 ? (cL / rL) * 100 : 0;
+        const corP = rP > 0 ? (cP / rP) * 100 : 0;
+        const corDelta = corL - corP;
+        if (corDelta !== 0) {
+            // REVERSE LOGIC: COR going down is GOOD (Green), going up is BAD (Red)
+            const colorClass = corDelta < 0 ? 'text-emerald-500' : 'text-rose-500';
+            const icon = corDelta > 0 ? '<i class="fas fa-arrow-up"></i>' : '<i class="fas fa-arrow-down"></i>';
+            corTrendHtml = `<td class="py-2.5 px-4 text-center font-extrabold border-l border-slate-300 dark:border-slate-700 ${colorClass}">${icon} ${Math.abs(corDelta).toFixed(1)}%</td>`;
+        }
+    }
+    corRowHtml += corTrendHtml;
+
+    const corTot = rTot > 0 ? (cTot / rTot) * 100 : 0;
+    corRowHtml += `<td class="py-2.5 px-4 text-center font-bold border-l border-slate-300 dark:border-slate-700">${corTot.toFixed(1)}%</td>`;
+
+    if (avg1Active) {
+        const rA = kpiRev['avg1'] || 0; const cA = kpiCogs['avg1'] || 0;
+        const corA = rA > 0 ? (cA / rA) * 100 : 0;
+        corRowHtml += `<td class="py-2.5 px-4 text-center font-bold border-l border-slate-300 dark:border-slate-700 text-blue-600 dark:text-blue-400">${corA.toFixed(1)}%</td>`;
+    }
+    if (avg2Active) {
+        const rA = kpiRev['avg2'] || 0; const cA = kpiCogs['avg2'] || 0;
+        const corA = rA > 0 ? (cA / rA) * 100 : 0;
+        corRowHtml += `<td class="py-2.5 px-4 text-center font-bold border-l border-slate-300 dark:border-slate-700 text-purple-600 dark:text-purple-400">${corA.toFixed(1)}%</td>`;
+    }
+    corRowHtml += `</tr>`;
     
-    // Inject KPI row first
-    bodyHtml += kpiRowHtml;
+    // Inject both KPI rows first
+    bodyHtml += kpiRowHtml + corRowHtml;
 
     sortedPaths.forEach(path => {
         const parts = path.split('|');
@@ -951,7 +1001,28 @@ function renderView2MoM(aggKey, costField) {
         `;
     }
 
-    results.sort((a, b) => a.id.localeCompare(b.id));
+    // --- FEATURE 2: FORCE REVENUE TO THE TOP ---
+    results.sort((a, b) => {
+        const partsA = a.id.split('|');
+        const partsB = b.id.split('|');
+        const minLength = Math.min(partsA.length, partsB.length);
+
+        for (let i = 0; i < minLength; i++) {
+            if (partsA[i] !== partsB[i]) {
+                const isRevA = partsA[i].toLowerCase().includes('revenue');
+                const isRevB = partsB[i].toLowerCase().includes('revenue');
+                
+                // If one is Revenue and the other isn't, Revenue wins
+                if (isRevA && !isRevB) return -1;
+                if (!isRevA && isRevB) return 1;
+                
+                // Otherwise, standard alphabetical sort
+                return partsA[i].localeCompare(partsB[i]);
+            }
+        }
+        // Ensures parents stay above their children
+        return partsA.length - partsB.length;
+    });
 
     // 4. Render Table
     tbody.innerHTML = '';
@@ -960,7 +1031,7 @@ function renderView2MoM(aggKey, costField) {
         return;
     }
 
-    // --- NEW: BUILD GROSS MARGIN PINNED ROW ---
+    // --- FEATURE 1: BUILD GROSS MARGIN PINNED ROW ---
     const marginBase = revBase > 0 ? ((revBase - cogsBase) / revBase) * 100 : 0;
     const marginComp = revComp > 0 ? ((revComp - cogsComp) / revComp) * 100 : 0;
     const marginDelta = marginComp - marginBase; 
@@ -982,7 +1053,7 @@ function renderView2MoM(aggKey, costField) {
     }
 
     const kpiMomRow = `
-        <tr class="bg-slate-800 text-white dark:bg-slate-950 border-b-4 border-slate-700">
+        <tr class="bg-slate-800 text-white dark:bg-slate-950 border-b border-slate-700">
             <td class="py-4 pr-4 pl-4 font-black sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] truncate bg-slate-800 dark:bg-slate-950">
                 🌟 OVERALL GROSS MARGIN %
             </td>
@@ -993,9 +1064,44 @@ function renderView2MoM(aggKey, costField) {
             <td class="p-3 text-center">${marginStatusHtml}</td>
         </tr>
     `;
+
+    // --- FEATURE 1: BUILD COST OF REVENUE (COR%) ROW ---
+    const corBase = revBase > 0 ? (cogsBase / revBase) * 100 : 0;
+    const corComp = revComp > 0 ? (cogsComp / revComp) * 100 : 0;
+    const corDelta = corComp - corBase; 
+
+    let corDeltaStr = '-';
+    let corStatusHtml = `<span class="text-slate-400">-</span>`;
+    let corTextClass = 'text-slate-600 dark:text-slate-400';
+
+    if (corDelta !== 0) {
+        const prefix = corDelta > 0 ? '+' : '';
+        corDeltaStr = prefix + corDelta.toFixed(1) + '%';
+        // REVERSE LOGIC: COR decrease is GOOD (Green)
+        if (corDelta < 0) { 
+            corTextClass = 'text-emerald-600 dark:text-emerald-400 font-bold';
+            corStatusHtml = `<span class="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded-lg text-[10px] font-extrabold flex items-center justify-center gap-1 w-fit mx-auto"><i class="fas fa-arrow-down"></i> DOWN</span>`;
+        } else { 
+            corTextClass = 'text-rose-600 dark:text-rose-400 font-bold';
+            corStatusHtml = `<span class="bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 px-2 py-1 rounded-lg text-[10px] font-extrabold flex items-center justify-center gap-1 w-fit mx-auto"><i class="fas fa-arrow-up"></i> UP</span>`;
+        }
+    }
+
+    const kpiCorRow = `
+        <tr class="bg-slate-700/20 text-slate-700 dark:text-slate-300 dark:bg-slate-800/50 border-b-[3px] border-slate-300 dark:border-slate-700">
+            <td class="py-3 pr-4 pl-4 font-bold sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] truncate bg-slate-100 dark:bg-slate-900">
+                📊 COST OF REVENUE (COR) %
+            </td>
+            <td class="p-3 text-right font-semibold">${corBase.toFixed(1)}%</td>
+            <td class="p-3 text-right font-semibold">${corComp.toFixed(1)}%</td>
+            <td class="p-3 text-right ${corTextClass}">${corDeltaStr}</td>
+            <td class="p-3 text-right text-slate-400">-</td>
+            <td class="p-3 text-center">${corStatusHtml}</td>
+        </tr>
+    `;
     
-    // Inject KPI row first
-    tbody.innerHTML += kpiMomRow;
+    // Inject KPI rows first
+    tbody.innerHTML += kpiMomRow + kpiCorRow;
 
     let topIncreaser = null;
     let topDecreaser = null;
@@ -2060,3 +2166,503 @@ function calculateAiResponse(actionId, rawMessage) {
     // FALLBACK FOR TYPED MESSAGES
     return "Since my cloud integration is offline, I am currently running strictly as a local analytical engine. Please click one of the predefined chips below so I can scan your dashboard data!";
 }
+
+window.openFullscreenTable = function(tableContainerId, titleText) {
+    let modal = document.getElementById('fs-modal-overlay');
+    if (!modal) {
+        const modalHtml = `
+            <div id="fs-modal-overlay" class="fixed inset-0 z-[600] hidden bg-slate-900/95 backdrop-blur-sm p-4 md:p-8 flex-col transition-opacity duration-300 opacity-0">
+                <div class="flex justify-between items-center mb-4 text-white">
+                    <h2 id="fs-modal-title" class="text-2xl font-black flex items-center gap-2">
+                        <span class="material-icons-sharp text-blue-500">fullscreen</span> 
+                        <span>Expanded View</span>
+                    </h2>
+                    <button onclick="closeFullscreenTable()" class="w-12 h-12 bg-slate-800 hover:bg-rose-500 rounded-full flex items-center justify-center transition-colors shadow-lg">
+                        <span class="material-icons-sharp">close</span>
+                    </button>
+                </div>
+                <div id="fs-modal-body" class="flex-1 bg-white dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-700 shadow-2xl relative flex flex-col">
+                    </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        modal = document.getElementById('fs-modal-overlay');
+    }
+
+    const targetDiv = document.getElementById(tableContainerId);
+    const modalBody = document.getElementById('fs-modal-body');
+    
+    window.fsOriginalParent = targetDiv.parentElement;
+    window.fsOriginalNode = targetDiv;
+    
+    document.querySelector('#fs-modal-title span:last-child').textContent = titleText;
+    
+    modalBody.appendChild(targetDiv);
+    targetDiv.classList.add('flex-1', 'rounded-2xl');
+    
+    // --- CRITICAL FIX: STRIP HARDCODED HEIGHT LIMITS FOR FULLSCREEN ---
+    targetDiv.style.maxHeight = 'none';
+    targetDiv.style.height = '100%';
+    
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    setTimeout(() => modal.classList.replace('opacity-0', 'opacity-100'), 10);
+};
+
+window.closeFullscreenTable = function() {
+    const modal = document.getElementById('fs-modal-overlay');
+    
+    if (window.fsOriginalParent && window.fsOriginalNode) {
+        window.fsOriginalNode.classList.remove('flex-1', 'rounded-2xl');
+        
+        // --- RESTORE ORIGINAL CSS HANDLING ---
+        window.fsOriginalNode.style.maxHeight = '';
+        window.fsOriginalNode.style.height = '';
+        
+        window.fsOriginalParent.appendChild(window.fsOriginalNode);
+    }
+    
+    modal.classList.replace('opacity-100', 'opacity-0');
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }, 300);
+};
+
+window.generateExecutivePPT = async function() {
+    if (!filteredData || filteredData.length === 0) return;
+
+    const btn = event.currentTarget;
+    btn.innerHTML = `<i class="fas fa-sync-alt animate-spin"></i> Generating...`;
+
+    // 1. Setup Data (Same logic as Briefing Modal)
+    const costField = document.getElementById('config-opt-tech')?.checked ? 'Cost_Tech' : 'Cost';
+    let globalRev = 0, globalCogs = 0, globalOpex = 0;
+    let buData = {};
+
+    filteredData.forEach(row => {
+        const cost = parseFloat(row[costField] || row.cost || 0);
+        const h1 = (row.Header1 || '').toLowerCase();
+        const h2 = (row.Header2 || '').toLowerCase();
+        const proj = row.Project || 'Uncategorized';
+        if (h1.includes('headcount') || h1.includes('volume')) return;
+        if (!buData[proj]) buData[proj] = { rev: 0, cogs: 0, opex: 0 };
+        if (h1.includes('revenue')) { globalRev += Math.abs(cost); buData[proj].rev += Math.abs(cost); } 
+        else if (h2.includes('associated') || h1.includes('associated') || h1.includes('admin')) { globalOpex += cost; buData[proj].opex += cost; } 
+        else if (h1.includes('cogs') || h1.includes('cost of goods')) { globalCogs += cost; buData[proj].cogs += cost; }
+    });
+
+    const globalGrossProfit = globalRev - globalCogs;
+    const globalOpProfit = globalRev - globalCogs - globalOpex;
+    const globalNetMargin = globalRev > 0 ? (globalOpProfit / globalRev) * 100 : 0;
+
+    // 2. Initialize PPTX
+    let pptx = new PptxGenJS();
+    pptx.layout = 'LAYOUT_16x9';
+    const theme = { bg: '0F172A', indigo: '4F46E5', green: '10B981', red: 'F43F5E', text: 'FFFFFF', gray: '94A3B8' };
+
+    // --- SLIDE 1: TITLE ---
+    let s1 = pptx.addSlide();
+    s1.background = { color: theme.bg };
+    s1.addText("EXECUTIVE PERFORMANCE BRIEFING", { x: 0.5, y: 2.2, w: 9, h: 1, fontSize: 44, color: theme.green, bold: true });
+    s1.addText(`Financial Cycle Review | Generated: ${new Date().toLocaleDateString()}`, { x: 0.5, y: 3.2, w: 9, h: 0.5, fontSize: 18, color: theme.text });
+
+    // --- SLIDE 2: PORTFOLIO NARRATIVE ---
+    let s2 = pptx.addSlide();
+    s2.background = { color: theme.bg };
+    s2.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: '100%', h: 1.5, fill: { color: theme.indigo } });
+    s2.addText("PORTFOLIO STRATEGIC VIEW", { x: 0.5, y: 0.4, w: 9, h: 0.7, fontSize: 28, color: theme.text, bold: true });
+    
+    const narrativeText = document.getElementById('brief-portfolio-summary').innerText;
+    s2.addText(narrativeText, { x: 0.5, y: 2.5, w: 9, h: 3, fontSize: 20, color: theme.text, lineSpacing: 28 });
+
+    // --- SLIDES 3+: BU CARDS ---
+    const topProjects = Object.keys(buData).sort((a, b) => buData[b].rev - buData[a].rev).slice(0, 5);
+    
+    // NEW: Smart PPT Formatter
+    const formatCurrency = (val) => {
+        const absVal = Math.abs(val);
+        if (absVal >= 1000000) return (val < 0 ? '-$' : '$') + (absVal / 1000000).toFixed(2) + 'M';
+        return (val < 0 ? '-$' : '$') + Math.round(absVal).toLocaleString();
+    };
+
+    topProjects.forEach(proj => {
+        const d = buData[proj];
+        const grossProfit = d.rev - d.cogs;
+        const opProfit = d.rev - d.cogs - d.opex;
+        const netMargin = d.rev > 0 ? (opProfit / d.rev) * 100 : 0;
+        const grossMargin = d.rev > 0 ? (grossProfit / d.rev) * 100 : 0;
+
+        let s = pptx.addSlide();
+        s.background = { color: theme.bg };
+        
+        // Status & Title
+        const isLoss = opProfit < 0;
+        const statusColor = isLoss ? theme.red : (grossMargin < 50 ? 'EAB308' : theme.green);
+        s.addShape(pptx.ShapeType.rect, { x: 0.5, y: 0.5, w: 0.1, h: 0.6, fill: { color: statusColor } });
+        s.addText(proj.toUpperCase(), { x: 0.7, y: 0.45, w: 6, h: 0.7, fontSize: 32, color: theme.text, bold: true });
+        s.addText(isLoss ? "AT RISK" : (grossMargin < 50 ? "WATCHLIST" : "ON TRACK"), { x: 7, y: 0.55, w: 2.5, h: 0.5, fontSize: 14, color: statusColor, bold: true, align: 'right' });
+
+        // Scorecard Boxes
+        const boxes = [
+            { label: "REVENUE", val: formatCurrency(d.rev), color: theme.text },
+            { label: "GROSS PROFIT", val: formatCurrency(grossProfit), color: theme.text },
+            { label: "NET MARGIN %", val: netMargin.toFixed(1) + "%", color: isLoss ? theme.red : theme.text },
+            { label: "DIRECT COGS", val: formatCurrency(d.cogs), color: theme.gray },
+            { label: "ASSOC. COST", val: formatCurrency(d.opex), color: 'EAB308' }
+        ];
+
+        boxes.forEach((box, idx) => {
+            const posX = 0.5 + (idx * 1.9);
+            s.addShape(pptx.ShapeType.rect, { x: posX, y: 1.5, w: 1.8, h: 1.2, fill: { color: '1E293B' } });
+            s.addText(box.label, { x: posX, y: 1.6, w: 1.8, h: 0.3, fontSize: 10, color: theme.gray, align: 'center', bold: true });
+            s.addText(box.val, { x: posX, y: 1.9, w: 1.8, h: 0.6, fontSize: 20, color: box.color, align: 'center', bold: true });
+        });
+
+        // Highlights & Risks
+        s.addText("EXECUTIVE INSIGHTS", { x: 0.5, y: 3.3, w: 9, h: 0.4, fontSize: 14, color: theme.green, bold: true });
+        
+        // We scrape the dynamic text generated in the modal for this specific project
+        const buCards = document.querySelectorAll('#brief-bu-container > div');
+        let projectCard = null;
+        buCards.forEach(c => { if(c.querySelector('h3').innerText.trim() === proj) projectCard = c; });
+
+        if (projectCard) {
+            // FIX: Safely target the <ul> elements directly to avoid Tailwind slash (/) selector errors
+            const uls = projectCard.querySelectorAll('ul');
+            let hText = "• No material highlights.";
+            let rText = "• No material risks detected.";
+
+            if (uls.length >= 2) {
+                // Grab all <li> elements, trim white space, and double-space them for readability
+                hText = Array.from(uls[0].querySelectorAll('li')).map(li => "• " + li.innerText.trim()).join("\n\n");
+                rText = Array.from(uls[1].querySelectorAll('li')).map(li => "• " + li.innerText.trim()).join("\n\n");
+            }
+
+            // Draw Dark Green Box & Text (Added valign: 'top' so text starts at the top)
+            s.addShape(pptx.ShapeType.rect, { x: 0.5, y: 3.8, w: 4.4, h: 2.8, fill: { color: '132626' } });
+            s.addText(hText, { x: 0.6, y: 3.9, w: 4.2, h: 2.6, fontSize: 11, color: theme.green, valign: 'top' });
+
+            // Draw Dark Red Box & Text (Added valign: 'top')
+            s.addShape(pptx.ShapeType.rect, { x: 5.1, y: 3.8, w: 4.4, h: 2.8, fill: { color: '2D1A1A' } });
+            s.addText(rText, { x: 5.2, y: 3.9, w: 4.2, h: 2.6, fontSize: 11, color: theme.red, valign: 'top' });
+        }
+    });
+
+    await pptx.writeFile({ fileName: `Executive_Briefing_Deck_${new Date().toISOString().split('T')[0]}.pptx` });
+    btn.innerHTML = `<i class="far fa-file-powerpoint"></i> PPT`;
+};
+
+window.exportBriefToPdf = function() {
+    const element = document.querySelector('#exec-brief-modal .bg-slate-50'); // Target modal content
+    const opt = {
+        margin:       10,
+        filename:     `Executive_Briefing_${new Date().toISOString().split('T')[0]}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#f8fafc' },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+    };
+
+    // Show loading state on button
+    const btn = event.currentTarget;
+    btn.innerHTML = '<i class="fas fa-sync-alt animate-spin"></i> Processing...';
+    
+    html2pdf().set(opt).from(element).save().then(() => {
+        btn.innerHTML = '<i class="far fa-file-pdf"></i> PDF';
+    });
+};
+
+window.openExecutiveBrief = function() {
+    if (!filteredData || filteredData.length === 0) {
+        alert("No data available to generate a briefing. Please adjust your filters.");
+        return;
+    }
+
+    // 1. Data Aggregation by Project (Acting as BUs)
+    const costField = document.getElementById('config-opt-tech')?.checked ? 'Cost_Tech' : 'Cost';
+    let globalRev = 0, globalCogs = 0, globalOpex = 0;
+    let buData = {};
+
+    filteredData.forEach(row => {
+        const cost = parseFloat(row[costField] || row.cost || 0);
+        const h1 = (row.Header1 || '').toLowerCase();
+        const h2 = (row.Header2 || '').toLowerCase();
+        const proj = row.Project || 'Uncategorized';
+
+        if (h1.includes('headcount') || h1.includes('volume') || h2.includes('headcount')) return;
+
+        if (!buData[proj]) buData[proj] = { rev: 0, cogs: 0, opex: 0 };
+
+        // 1st: Check for Revenue
+        if (h1.includes('revenue')) {
+            globalRev += Math.abs(cost);
+            buData[proj].rev += Math.abs(cost);
+        } 
+        // 2nd: Intercept Associated Costs FIRST so it separates from Direct COGS
+        else if (h2.includes('associated') || h1.includes('associated') || h1.includes('admin')) {
+            globalOpex += cost;
+            buData[proj].opex += cost;
+        } 
+        // 3rd: Whatever is left over in COGS is strictly Direct Labor / Direct Cost
+        else if (h1.includes('cogs') || h1.includes('cost of goods')) {
+            globalCogs += cost;
+            buData[proj].cogs += cost;
+        }
+    });
+
+    // 2. Build the Global Narrative
+    const globalGrossProfit = globalRev - globalCogs;
+    const globalOpProfit = globalRev - globalCogs - globalOpex;
+    const globalNetMargin = globalRev > 0 ? (globalOpProfit / globalRev) * 100 : 0;
+    
+    // NEW: Smart Currency Formatter
+    const formatCurrency = (val) => {
+        const absVal = Math.abs(val);
+        if (absVal >= 1000000) return (val < 0 ? '-$' : '$') + (absVal / 1000000).toFixed(2) + 'M';
+        return (val < 0 ? '-$' : '$') + Math.round(absVal).toLocaleString(); // Exact value if under 1M
+    };
+
+    // Build a cohesive FP&A story from top-line to bottom-line
+    let narrative = `The active portfolio is currently tracking at <strong class="text-white">${formatCurrency(globalRev)}</strong> in revenue, generating a Gross Profit of <strong class="text-white">${formatCurrency(globalGrossProfit)}</strong>. `;
+    
+    narrative += `After accounting for <strong>${formatCurrency(globalOpex)}</strong> in associated overhead, the fully loaded Net Margin sits at <strong class="text-white">${globalNetMargin.toFixed(1)}%</strong>. `;
+
+    if (globalNetMargin >= 15) {
+        narrative += `This reflects strong operational health and highly efficient cost utilization across the board.`;
+    } else if (globalOpProfit > 0) {
+        narrative += `While profitable, margin compression is a key focus area this period, requiring strict overhead governance moving into month-end close.`;
+    } else {
+        narrative += `The portfolio is currently operating at a net deficit, requiring immediate intervention on both direct labor efficiency and overhead reduction.`;
+    }
+
+    document.getElementById('brief-portfolio-summary').innerHTML = narrative;
+
+    // 3. Build the Individual BU Cards
+    const container = document.getElementById('brief-bu-container');
+    container.innerHTML = '';
+    
+    const topProjects = Object.keys(buData).sort((a, b) => buData[b].rev - buData[a].rev).slice(0, 5);
+    document.getElementById('brief-footer-count').textContent = `${topProjects.length} Top BUs Analyzed`;
+
+    topProjects.forEach(proj => {
+        const d = buData[proj];
+        
+        // --- PROPER FP&A MATH ---
+        const grossProfit = d.rev - d.cogs; 
+        const opProfit = d.rev - d.cogs - d.opex; 
+        
+        const grossMarginPct = d.rev > 0 ? (grossProfit / d.rev) * 100 : 0; 
+        const pMargin = d.rev > 0 ? (opProfit / d.rev) * 100 : 0; 
+        
+        let statusColor = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
+        let statusText = 'ON TRACK';
+        if (grossMarginPct < 50 && grossMarginPct > 0) { statusColor = 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'; statusText = 'WATCHLIST'; }
+        if (opProfit < 0) { statusColor = 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'; statusText = 'AT RISK'; }
+        
+        // Dynamic Highlights & Risks
+        const getVariation = (array, val) => {
+            const randomStr = array[Math.floor(Math.random() * array.length)];
+            return randomStr.replace('{VAL}', val);
+        };
+
+        const phrases = {
+            revGood: [
+                "Revenue generation is active, accumulating <strong>{VAL}</strong> for the filtered period.",
+                "Top-line performance is steady, delivering <strong>{VAL}</strong> in recognizable revenue.",
+                "The project successfully generated <strong>{VAL}</strong> in gross billings this cycle.",
+                "Healthy top-line activity recorded, bringing in <strong>{VAL}</strong> over the selected timeframe.",
+                "Revenue streams remain fully operational, contributing <strong>{VAL}</strong> to the portfolio.",
+                "Delivered a solid <strong>{VAL}</strong> in top-line revenue during this operating period.",
+                "Billing operations established a reliable baseline, capturing <strong>{VAL}</strong>.",
+                "The business unit realized <strong>{VAL}</strong> in total gross revenue inflows.",
+                "Top-line results remain highly stable, with <strong>{VAL}</strong> successfully billed.",
+                "Revenue capture remains effective, logging <strong>{VAL}</strong> in total volume.",
+                "Achieved <strong>{VAL}</strong> in recognized revenue, demonstrating consistent demand.",
+                "Project top-line sits at <strong>{VAL}</strong>, validating current operational scale.",
+                "Commercial activity successfully yielded <strong>{VAL}</strong> in gross revenue.",
+                "The unit successfully recognized and captured <strong>{VAL}</strong> in total revenue.",
+                "Sustained operational delivery generated <strong>{VAL}</strong> in top-line value."
+            ],
+            marginGood: [
+                "Fully loaded margin is highly accretive at <strong>{VAL}</strong>, indicating excellent total cost control.",
+                "Cost delivery is highly optimized, yielding a robust Gross Margin of <strong>{VAL}</strong>.",
+                "The project boasts a premier margin profile of <strong>{VAL}</strong>, reflecting tight governance.",
+                "Operational efficiency is driving an exceptional <strong>{VAL}</strong> gross margin.",
+                "Strong cost containment has secured a highly profitable <strong>{VAL}</strong> margin.",
+                "Delivering best-in-class profitability with fully loaded margins at <strong>{VAL}</strong>.",
+                "The unit's cost structure is lean, capturing an impressive <strong>{VAL}</strong> gross margin.",
+                "Excellent labor and overhead management is producing a <strong>{VAL}</strong> profit yield.",
+                "Profitability remains a core strength, tracking at a healthy <strong>{VAL}</strong> gross margin.",
+                "High-value delivery and strict cost discipline resulted in a <strong>{VAL}</strong> margin.",
+                "Margin performance is stellar at <strong>{VAL}</strong>, far exceeding baseline thresholds.",
+                "The operating model is highly efficient, converting revenue at a <strong>{VAL}</strong> margin.",
+                "Yielding a strong <strong>{VAL}</strong> gross margin due to optimized direct and indirect spend.",
+                "Cost ratios are highly favorable, culminating in a <strong>{VAL}</strong> bottom-line margin.",
+                "The project is highly lucrative, sustaining a fully loaded margin of <strong>{VAL}</strong>."
+            ],
+            profitGood: [
+                "Operating Profit remains positive, successfully covering all associated overhead burdens.",
+                "The unit is fully self-sustaining, generating positive net operating income.",
+                "Bottom-line profitability is secure, easily absorbing all allocated indirect costs.",
+                "Operating income is solidly in the black, indicating a healthy financial footprint.",
+                "The project generated positive net earnings after all cost layers were applied.",
+                "Successfully protecting the bottom line, with operating profit remaining positive.",
+                "Overhead burdens are fully neutralized by healthy operational gross profits.",
+                "The business unit is operating profitably, adding net value to the overall portfolio.",
+                "Revenue yield comfortably eclipses total expenditures, ensuring positive net profit.",
+                "The project maintains a profitable run-rate despite fully loaded cost allocations.",
+                "Demonstrated strong fiscal health by clearing all direct and indirect cost hurdles.",
+                "Bottom-line results are resilient, maintaining profitability after overhead absorption.",
+                "Operating profit cleared the breakeven threshold, confirming financial viability.",
+                "The unit delivered a positive net return, absorbing corporate/admin costs effortlessly.",
+                "Final operating profit remains constructive, safeguarding bottom-line stability."
+            ],
+            opexBad: [
+                "Associated overhead (<strong>{VAL}</strong>) is consuming a significant portion of revenue. Institute strict cost governance.",
+                "Indirect costs are running high at <strong>{VAL}</strong>. Immediate review of administrative spend is recommended.",
+                "Overhead burdens are dragging profitability, accumulating to <strong>{VAL}</strong>. Consider lean optimization.",
+                "The project is carrying <strong>{VAL}</strong> in associated costs, indicating potential operational bloat.",
+                "Non-direct spend is disproportionately high (<strong>{VAL}</strong>). Tighter governance on overhead is required.",
+                "Associated expenditures reached <strong>{VAL}</strong>, presenting a material risk to bottom-line yield.",
+                "Overhead ratios are elevated. Review the <strong>{VAL}</strong> in indirect costs for consolidation opportunities.",
+                "Operating expenses are diluting returns, with <strong>{VAL}</strong> spent on associated overhead.",
+                "The <strong>{VAL}</strong> administrative burden is heavy relative to the project's top-line scale.",
+                "Indirect cost leakage is a primary concern, with associated spend hitting <strong>{VAL}</strong>.",
+                "Overhead absorption is straining the P&L, accumulating <strong>{VAL}</strong> in indirect expenses.",
+                "Tame the <strong>{VAL}</strong> overhead spend to protect the unit's fully-loaded profitability.",
+                "Structural overhead costs (<strong>{VAL}</strong>) are eroding margins and require immediate rationalization.",
+                "Too much revenue is being diverted to the <strong>{VAL}</strong> associated cost layer.",
+                "Limit discretionary and administrative spend; current overhead sits at a concerning <strong>{VAL}</strong>."
+            ],
+            marginBad: [
+                "Fully loaded costs are suppressing operating margins (<strong>{VAL}</strong>). Consider wage inflation offsets or pricing negotiations.",
+                "Margins are notably compressed at <strong>{VAL}</strong>. A strategic review of delivery efficiency is advised.",
+                "The <strong>{VAL}</strong> gross margin leaves little room for error. Focus on improving direct labor utilization.",
+                "Profitability is thin (<strong>{VAL}</strong>). Investigate opportunities to negotiate better vendor or labor rates.",
+                "Operating at a vulnerable <strong>{VAL}</strong> margin. Revenue growth must outpace cost escalation moving forward.",
+                "Margin yield is dangerously tight at <strong>{VAL}</strong>. Scope creep or labor inefficiencies may be occurring.",
+                "The project is barely breaking even with a <strong>{VAL}</strong> margin. Immediate pricing or cost actions are needed.",
+                "A narrow <strong>{VAL}</strong> margin indicates that the cost of delivery is misaligned with current billing rates.",
+                "Profit margins have shrunk to <strong>{VAL}</strong>. Operational leadership must focus on cost containment.",
+                "The <strong>{VAL}</strong> gross margin highlights a need to restructure resource allocation to improve profitability.",
+                "Financial buffer is limited due to a <strong>{VAL}</strong> operating margin. Target process automation to reduce COGS.",
+                "Experiencing margin degradation, currently sitting at <strong>{VAL}</strong>. Prioritize high-margin activities.",
+                "The <strong>{VAL}</strong> bottom-line return is suboptimal. Challenge current staffing and indirect cost models.",
+                "Thin operating margins (<strong>{VAL}</strong>) suggest the project is highly sensitive to any future cost shocks.",
+                "Yield is currently constrained at <strong>{VAL}</strong>. Commercial teams should explore rate card adjustments."
+            ],
+            profitBad: [
+                "Project is operating at a net loss. Gross profit is insufficient to cover the combined direct and indirect cost footprint.",
+                "The unit is currently underwater, generating negative operating profit for the selected period.",
+                "Experiencing a severe profitability deficit. Expenditures are materially outpacing revenue generation.",
+                "The project is bleeding cash. Immediate executive intervention is required to right-size the cost structure.",
+                "Operating in the red. The current revenue model fails to support the fully loaded operational footprint.",
+                "This BU is a loss leader this cycle. Total combined COGS and overhead have eclipsed top-line billings.",
+                "Financials indicate a net deficit. A comprehensive turnaround plan is needed to address the operating loss.",
+                "The bottom line is negative. Direct costs and administrative burdens have completely eroded profitability.",
+                "Unprofitable operating period. The unit failed to break even after associated costs were applied.",
+                "The project is currently destructive to portfolio EBITDA, registering a clear operating loss.",
+                "Cost overruns have pushed the unit into a net loss position. Halt non-essential spend immediately.",
+                "Revenue is actively failing to cover the fixed and variable cost base, resulting in a bottom-line deficit.",
+                "Operating margins have inverted. The project is consuming more capital than it is generating.",
+                "Severe margin failure. The combination of high delivery costs and overhead has triggered an operating loss.",
+                "The unit requires urgent restructuring; current run-rates are producing unsustainable operating losses."
+            ]
+        };
+
+        // Initialize Highlights & Risks
+        let highlights = '';
+        let risks = '';
+
+        const revStr = formatCurrency(d.rev);
+        const opexStr = formatCurrency(d.opex);
+        const netMarginStr = pMargin.toFixed(1) + '%';
+        const grossMarginStr = grossMarginPct.toFixed(1) + '%';
+
+        // Apply logic with random variation selection
+        if (d.rev > 0) {
+            highlights += `<li class="flex items-start gap-2"><i class="fas fa-caret-up text-emerald-500 mt-1"></i><span>${getVariation(phrases.revGood, revStr)}</span></li>`;
+        }
+        if (pMargin >= 20) {
+            highlights += `<li class="flex items-start gap-2"><i class="fas fa-caret-up text-emerald-500 mt-1"></i><span>${getVariation(phrases.marginGood, netMarginStr)}</span></li>`;
+        }
+        if (opProfit > 0) {
+            highlights += `<li class="flex items-start gap-2"><i class="fas fa-caret-up text-emerald-500 mt-1"></i><span>${getVariation(phrases.profitGood, "")}</span></li>`;
+        }
+
+        if (d.opex > (d.rev * 0.15)) {
+            risks += `<li class="flex items-start gap-2"><i class="fas fa-caret-down text-rose-500 mt-1"></i><span>${getVariation(phrases.opexBad, opexStr)}</span></li>`;
+        }
+        
+        // NEW RULE: Trigger if Gross Margin % is less than 50%
+        if (grossMarginPct < 50 && grossMarginPct > 0) {
+            risks += `<li class="flex items-start gap-2"><i class="fas fa-caret-down text-rose-500 mt-1"></i><span>${getVariation(phrases.marginBad, grossMarginStr)}</span></li>`;
+        }
+        
+        if (opProfit < 0) {
+            risks += `<li class="flex items-start gap-2"><i class="fas fa-caret-down text-rose-500 mt-1"></i><span>${getVariation(phrases.profitBad, "")}</span></li>`;
+        }
+
+        // Fallbacks
+        if (!highlights) highlights = `<li class="text-slate-400 italic text-sm">No positive material drivers identified in this period.</li>`;
+        if (!risks) risks = `<li class="text-slate-400 italic text-sm">No significant operational risks detected.</li>`;
+
+        const cardHtml = `
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6 relative">
+                
+                <div class="flex items-center gap-3 mb-4">
+                    <h3 class="text-xl font-black text-slate-800 dark:text-white">${proj}</h3>
+                    <span class="px-2 py-1 rounded-md text-[10px] font-bold tracking-widest ${statusColor}">${statusText}</span>
+                </div>
+
+                <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+                    <div class="bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-xl p-4">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Revenue</span>
+                        <span class="text-xl font-black text-slate-800 dark:text-white">${formatCurrency(d.rev)}</span>
+                    </div>
+                    <div class="bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-xl p-4">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Gross Profit</span>
+                        <span class="text-xl font-black ${grossProfit < 0 ? 'text-rose-500' : 'text-slate-800 dark:text-white'}">${formatCurrency(grossProfit)}</span>
+                    </div>
+                    <div class="bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-xl p-4">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Net Margin %</span>
+                        <span class="text-xl font-black ${pMargin < 15 ? 'text-rose-500' : 'text-slate-800 dark:text-white'}">${pMargin.toFixed(1)}%</span>
+                    </div>
+                    <div class="bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-xl p-4">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Direct COGS</span>
+                        <span class="text-xl font-black text-slate-600 dark:text-slate-300">${formatCurrency(d.cogs)}</span>
+                    </div>
+                    <div class="bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-xl p-4">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Assoc. Cost</span>
+                        <span class="text-xl font-black text-amber-600 dark:text-amber-500">${formatCurrency(d.opex)}</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-800/50 rounded-xl p-5">
+                        <h4 class="text-xs font-bold text-emerald-800 dark:text-emerald-400 uppercase tracking-widest mb-3">Highlights</h4>
+                        <ul class="text-sm text-emerald-900 dark:text-emerald-300 space-y-3 font-medium">
+                            ${highlights}
+                        </ul>
+                    </div>
+                    <div class="bg-rose-50/50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-800/50 rounded-xl p-5">
+                        <h4 class="text-xs font-bold text-rose-800 dark:text-rose-400 uppercase tracking-widest mb-3">Key Improvement Points</h4>
+                        <ul class="text-sm text-rose-900 dark:text-rose-300 space-y-3 font-medium">
+                            ${risks}
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+        `;
+        container.innerHTML += cardHtml;
+    });
+
+    // 4. Show the Modal
+    const modal = document.getElementById('exec-brief-modal');
+    modal.classList.remove('hidden');
+};
+
+window.closeExecutiveBrief = function() {
+    document.getElementById('exec-brief-modal').classList.add('hidden');
+};

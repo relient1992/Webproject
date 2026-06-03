@@ -198,6 +198,7 @@ const rolePages = {
         "database_update.php",
         "financial_dashboard.html",
         "lhi_employee_info.html",
+        "ra_da_kra.html",
         "hr_dashboard.php"
     ]   
 

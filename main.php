@@ -32,6 +32,9 @@ if (!isset($_SESSION['employee_id'])) {
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/gitbrent/pptxgenjs@3.12.0/libs/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/gitbrent/pptxgenjs@3.12.0/dist/pptxgen.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -116,7 +119,7 @@ if (!isset($_SESSION['employee_id'])) {
                 <h3 class="flex-1">Active & Attrition</h3>
             </a>
 
-            <a href="https://script.google.com/a/macros/xbpasia.com/s/AKfycbx_lLC4gyXs7DPSM6df3VtSLM4CHms_q4vadqv6Mj5zBaaEPSGDQLzeXsiMXhB-Xiaq/exec" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation(); window.open(this.href, '_blank'); return false;" class="flex items-center gap-4 px-6 py-3.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">
+            <a href="https://script.google.com/a/macros/xbpasia.com/s/AKfycbx_lLC4gyXs7DPSM6df3VtSLM4CHms_q4vadqv6Mj5zBaaEPSGDQLzeXsiMXhB-Xiaq/exec" data-view="ra_da_kra" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation(); window.open(this.href, '_blank'); return false;" class="flex items-center gap-4 px-6 py-3.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">
                 <span class="material-icons-sharp text-[1.2rem]">info</span>
                 <h3 class="flex-1">RA/DA KRA</h3>
             </a>
@@ -141,7 +144,7 @@ if (!isset($_SESSION['employee_id'])) {
                 <h3 class="flex-1">ESS</h3>
             </a>
 
-            <a href="https://script.google.com/a/macros/xbpasia.com/s/AKfycbzP4XbpFsVbE0owYtiGkMxw6Yhwt_uubcibDhbttGyux_I2fhlrCmy9ji0qx3fB7Ncmbw/exec" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation(); window.open(this.href, '_blank'); return false;" class="flex items-center gap-4 px-6 py-3.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">
+            <a href="https://script.google.com/a/macros/xbpasia.com/s/AKfycbzP4XbpFsVbE0owYtiGkMxw6Yhwt_uubcibDhbttGyux_I2fhlrCmy9ji0qx3fB7Ncmbw/exec" data-view="lhi_employee_info" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation(); window.open(this.href, '_blank'); return false;" class="flex items-center gap-4 px-6 py-3.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-primary transition-colors dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white">
                 <span class="material-icons-sharp text-[1.2rem]">info</span>
                 <h3 class="flex-1">LHI Employee Viewer</h3>
             </a>

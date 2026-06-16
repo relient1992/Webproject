@@ -328,90 +328,340 @@
         </div>
     </div>
 
-    <div id="view-sim" class="view-section hidden animate-fade-in">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            <div class="bg-slate-900 dark:bg-slate-950 p-6 rounded-3xl border border-slate-800 shadow-xl flex flex-col gap-6 text-white">
-                <div>
-                    <h3 class="text-lg font-bold flex items-center gap-2 mb-1"><span class="material-icons-sharp text-blue-400">tune</span> Scenario Parameters</h3>
-                    <p class="text-xs text-slate-400">Sliders apply to currently filtered project actuals.</p>
-                </div>
-                
-                <div class="space-y-6">
-                    <div>
-                        <div class="flex justify-between text-sm font-bold mb-1">
-                            <label class="text-slate-300">1. Pricing / Revenue Yield</label>
-                            <span id="sim-rev-val" class="text-emerald-400">0%</span>
-                        </div>
-                        <input type="range" id="sim-rev" min="-50" max="50" value="0" class="w-full accent-emerald-500 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer" oninput="runSimulation()">
-                        <p class="text-[11px] text-slate-500 mt-1 leading-tight"><strong class="text-slate-400">Basis:</strong> Base Rev × (1 + Pricing %) × (1 + HC Vol %). <br/><em>Simulates rate hikes or billing efficiency.</em></p>
-                    </div>
-                    <div>
-                        <div class="flex justify-between text-sm font-bold mb-1">
-                            <label class="text-slate-300">2. Direct Labor (Pure COGS)</label>
-                            <span id="sim-cogs-val" class="text-rose-400">0%</span>
-                        </div>
-                        <input type="range" id="sim-cogs" min="-50" max="50" value="0" class="w-full accent-rose-500 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer" oninput="runSimulation()">
-                        <p class="text-[11px] text-slate-500 mt-1 leading-tight"><strong class="text-slate-400">Basis:</strong> Base Direct COGS × (1 + COGS %) × (1 + HC Vol %). <br/><em>Isolates direct labor. Excludes Associated/Admin costs.</em></p>
-                    </div>
-                    <div>
-                        <div class="flex justify-between text-sm font-bold mb-1">
-                            <label class="text-slate-300">3. Headcount Volume (FTEs)</label>
-                            <span id="sim-hc-val" class="text-blue-400">0%</span>
-                        </div>
-                        <input type="range" id="sim-hc" min="-50" max="50" value="0" class="w-full accent-blue-500 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer" oninput="runSimulation()">
-                        <p class="text-[11px] text-slate-500 mt-1 leading-tight"><strong class="text-slate-400">Basis:</strong> Scales BOTH Revenue and Direct COGS simultaneously. <br/><em>Simulates adding/removing billable agents.</em></p>
-                    </div>
-                    <div>
-                        <div class="flex justify-between text-sm font-bold mb-1">
-                            <label class="text-slate-300">4. Overhead (Associated Cost)</label>
-                            <span id="sim-opex-val" class="text-purple-400">0%</span>
-                        </div>
-                        <input type="range" id="sim-opex" min="-50" max="50" value="0" class="w-full accent-purple-500 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer" oninput="runSimulation()">
-                        <p class="text-[11px] text-slate-500 mt-1 leading-tight"><strong class="text-slate-400">Basis:</strong> Base Associated Cost × (1 + Overhead %). <br/><em>Independent of Headcount volume slider.</em></p>
-                    </div>
-                </div>
-                
-                <button onclick="resetSimulation()" class="mt-auto py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-bold transition-colors border border-slate-700">Reset Scenario</button>
+    <div id="view-sim" class="view-section hidden animate-fade-in space-y-6">
+        
+        <div class="mb-4">
+            <h3 class="text-xs font-bold text-emerald-500 uppercase tracking-widest border-l-2 border-emerald-500 pl-2 mb-1">Budget 2026 / Forward Outlook</h3>
+            <h2 class="text-3xl font-black text-slate-800 dark:text-white">Cost Optimization Modeler</h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-slate-50 dark:bg-slate-800/80 rounded-2xl p-5 border-t-4 border-slate-400 shadow-lg flex flex-col justify-center">
+                <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Monthly Baseline</span>
+                <span id="model-base-total" class="text-3xl font-black text-slate-800 dark:text-white">$0</span>
+                <span class="text-xs text-slate-500 mt-1 font-medium">Total targeted baseline costs</span>
             </div>
-
-            <div class="lg:col-span-2 flex flex-col gap-6">
-                
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="p-5 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
-                        <div class="absolute top-0 left-0 w-1.5 h-full bg-emerald-500"></div>
-                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block pl-2">Projected Profit Margin</span>
-                        <div class="mt-2 pl-2 flex items-baseline gap-3">
-                            <span id="sim-res-margin" class="text-4xl font-black text-slate-800 dark:text-white">0.0%</span>
-                            <span id="sim-res-margin-diff" class="text-sm font-bold">0.0%</span>
-                        </div>
-                    </div>
-                    <div class="p-5 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
-                        <div class="absolute top-0 left-0 w-1.5 h-full bg-blue-500"></div>
-                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block pl-2">Projected Net Profit ($)</span>
-                        <div class="mt-2 pl-2 flex items-baseline gap-3">
-                            <span id="sim-res-profit" class="text-4xl font-black text-slate-800 dark:text-white">$0</span>
-                            <span id="sim-res-profit-diff" class="text-sm font-bold">$0</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-900/50 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                    <h3 class="text-xs font-bold text-slate-800 dark:text-white flex items-center gap-2 mb-2 uppercase tracking-widest">
-                        <span class="material-icons-sharp text-sm text-amber-500">lightbulb</span>Scenario Assessment
-                    </h3>
-                    <div id="sim-insights" class="text-sm text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
-                        Adjust sliders to generate scenario analysis.
-                    </div>
-                </div>
-
-                <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex-1 flex flex-col relative min-h-[350px]">
-                    <h4 class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase absolute top-5 left-5 z-10">Profit Impact Bridge (Waterfall)</h4>
-                    <div id="sim-waterfall-chart" class="w-full h-full mt-6"></div>
-                </div>
-
+            <div class="bg-slate-50 dark:bg-slate-800/80 rounded-2xl p-5 border-t-4 border-cyan-500 shadow-lg flex flex-col justify-center">
+                <span id="model-save-label" class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Monthly Variance</span>
+                <span id="model-save-monthly" class="text-3xl font-black text-cyan-500">$0</span>
+                <span id="model-save-pct" class="text-xs text-slate-500 mt-1 font-medium">0.0% variance</span>
+            </div>
+            <div class="bg-slate-50 dark:bg-slate-800/80 rounded-2xl p-5 border-t-4 border-emerald-500 shadow-lg flex flex-col justify-center">
+                <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Annual Variance Impact</span>
+                <span id="model-save-annual" class="text-3xl font-black text-emerald-500">$0</span>
+                <span class="text-xs text-slate-500 mt-1 font-medium">12-month projection</span>
             </div>
         </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-slate-50 dark:bg-slate-800/80 rounded-2xl p-5 border-t-4 border-blue-500 shadow-lg flex flex-col justify-center">
+                <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Monthly Revenue</span>
+                <span id="model-revenue" class="text-3xl font-black text-slate-800 dark:text-white">$0</span>
+                <span class="text-xs text-slate-500 mt-1 font-medium">Avg. monthly revenue (current filters)</span>
+            </div>
+            <div class="bg-slate-50 dark:bg-slate-800/80 rounded-2xl p-5 border-t-4 border-violet-500 shadow-lg flex flex-col justify-center">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Cost of Revenue (COR%)</span>
+                    <span id="model-cor-delta" class="text-xs font-bold text-slate-400">0.0 pts</span>
+                </div>
+                <span id="model-cor" class="text-3xl font-black text-violet-500">0.0%</span>
+                <span id="model-cor-sub" class="text-xs text-slate-500 mt-1 font-medium">Baseline 0.0% &rarr; Projected 0.0%</span>
+            </div>
+        </div>
+
+        <div class="bg-slate-50 dark:bg-slate-800/80 rounded-2xl p-5 shadow-lg">
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Baseline Alteration Progress</span>
+                <span id="model-progress-text" class="text-xs font-bold text-emerald-500">0.0% of baseline</span>
+            </div>
+            <div class="w-full bg-slate-200 dark:bg-slate-900 rounded-full h-3 overflow-hidden relative">
+                <div class="absolute left-1/2 top-0 bottom-0 w-0.5 bg-slate-400 z-10"></div>
+                <div id="model-progress-bar" class="bg-emerald-500 h-3 rounded-full transition-all duration-500 absolute left-1/2" style="width: 0%"></div>
+            </div>
+            <div class="flex justify-between text-[10px] text-slate-500 mt-2 font-bold">
+                <span>-50% Savings</span>
+                <span class="text-center">Baseline</span>
+                <span>+50% Added Cost</span>
+            </div>
+        </div>
+
+        <div>
+            <h3 class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3">Preset Scenarios</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <button onclick="applyModelerPreset(-5)" class="text-left p-4 rounded-xl border-2 border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors">
+                    <div class="font-bold text-emerald-600 dark:text-emerald-500">Conservative Savings</div>
+                    <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">Low-risk cost reduction (-5%)</div>
+                </button>
+                <button onclick="applyModelerPreset(-15)" class="text-left p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 hover:border-blue-500 transition-colors">
+                    <div class="font-bold text-slate-700 dark:text-slate-300">Aggressive Savings</div>
+                    <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">Max optimization (-15%)</div>
+                </button>
+                <button onclick="applyModelerPreset(10)" class="text-left p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 hover:border-rose-500 transition-colors">
+                    <div class="font-bold text-slate-700 dark:text-slate-300">Expansion Model</div>
+                    <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">Simulate volume scaling (+10%)</div>
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+            
+            <div class="space-y-6">
+                <div class="space-y-4">
+                    <h3 class="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2 mb-4">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Variable Cost (Processor)
+                    </h3>
+                    
+                    <div class="bg-white dark:bg-slate-800/50 border-l-4 border-emerald-500 rounded-xl p-5 shadow-md flex flex-col gap-3">
+                        <div class="flex justify-between items-start">
+                            <div class="flex items-center gap-2">
+                                <h4 class="text-slate-800 dark:text-white font-bold text-sm">Processor Wages</h4>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">Variable</span>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-slate-500 dark:text-slate-400 font-medium text-xs" id="base-proc-wages">$0/mo</div>
+                                <div class="font-bold text-sm" id="save-proc-wages">-$0/mo</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <input type="range" id="slider-proc-wages" min="-50" max="50" value="0" class="flex-1 accent-emerald-500 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer" oninput="calculateSavingsModeler()">
+                            <span class="font-bold text-sm w-12 text-right" id="pct-proc-wages">0%</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-slate-800/50 border-l-4 border-emerald-500 rounded-xl p-5 shadow-md flex flex-col gap-3">
+                        <div class="flex justify-between items-start">
+                            <div class="flex items-center gap-2">
+                                <h4 class="text-slate-800 dark:text-white font-bold text-sm">Overtime (OT)</h4>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">Variable</span>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-slate-500 dark:text-slate-400 font-medium text-xs" id="base-ot">$0/mo</div>
+                                <div class="font-bold text-sm" id="save-ot">-$0/mo</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <input type="range" id="slider-ot" min="-50" max="50" value="0" class="flex-1 accent-emerald-500 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer" oninput="calculateSavingsModeler()">
+                            <span class="font-bold text-sm w-12 text-right" id="pct-ot">0%</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-slate-800/50 border-l-4 border-emerald-500 rounded-xl p-5 shadow-md flex flex-col gap-3">
+                        <div class="flex justify-between items-start">
+                            <div class="flex items-center gap-2">
+                                <h4 class="text-slate-800 dark:text-white font-bold text-sm">Holiday / HA</h4>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">Variable</span>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-slate-500 dark:text-slate-400 font-medium text-xs" id="base-holiday">$0/mo</div>
+                                <div class="font-bold text-sm" id="save-holiday">-$0/mo</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <input type="range" id="slider-holiday" min="-50" max="50" value="0" class="flex-1 accent-emerald-500 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer" oninput="calculateSavingsModeler()">
+                            <span class="font-bold text-sm w-12 text-right" id="pct-holiday">0%</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-slate-800/50 border-l-4 border-emerald-500 rounded-xl p-5 shadow-md flex flex-col gap-3">
+                        <div class="flex justify-between items-start">
+                            <div class="flex items-center gap-2">
+                                <h4 class="text-slate-800 dark:text-white font-bold text-sm">Processor BFP</h4>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">Variable</span>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-slate-500 dark:text-slate-400 font-medium text-xs" id="base-bfp">$0/mo</div>
+                                <div class="font-bold text-sm" id="save-bfp">-$0/mo</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <input type="range" id="slider-bfp" min="-50" max="50" value="0" class="flex-1 accent-emerald-500 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer" oninput="calculateSavingsModeler()">
+                            <span class="font-bold text-sm w-12 text-right" id="pct-bfp">0%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <h3 class="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2 mb-4 mt-8">
+                        <span class="w-2 h-2 rounded-full bg-blue-500"></span> Service Facilities Costs
+                    </h3>
+
+                    <div class="bg-white dark:bg-slate-800/50 border-l-4 border-blue-500 rounded-xl p-5 shadow-md flex flex-col gap-3">
+                        <div class="flex justify-between items-start">
+                            <div class="flex items-center gap-2">
+                                <h4 class="text-slate-800 dark:text-white font-bold text-sm">Building Rent</h4>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400">Facility</span>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-slate-500 dark:text-slate-400 font-medium text-xs" id="base-rent">$0/mo</div>
+                                <div class="font-bold text-sm" id="save-rent">-$0/mo</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <input type="range" id="slider-rent" min="-50" max="50" value="0" class="flex-1 accent-blue-500 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer" oninput="calculateSavingsModeler()">
+                            <span class="font-bold text-sm w-12 text-right" id="pct-rent">0%</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-slate-800/50 border-l-4 border-blue-500 rounded-xl p-5 shadow-md flex flex-col gap-3">
+                        <div class="flex justify-between items-start">
+                            <div class="flex items-center gap-2">
+                                <h4 class="text-slate-800 dark:text-white font-bold text-sm">Repair & Maint (R&M)</h4>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400">Facility</span>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-slate-500 dark:text-slate-400 font-medium text-xs" id="base-rm">$0/mo</div>
+                                <div class="font-bold text-sm" id="save-rm">-$0/mo</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <input type="range" id="slider-rm" min="-50" max="50" value="0" class="flex-1 accent-blue-500 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer" oninput="calculateSavingsModeler()">
+                            <span class="font-bold text-sm w-12 text-right" id="pct-rm">0%</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-slate-800/50 border-l-4 border-blue-500 rounded-xl p-5 shadow-md flex flex-col gap-3">
+                        <div class="flex justify-between items-start">
+                            <div class="flex items-center gap-2">
+                                <h4 class="text-slate-800 dark:text-white font-bold text-sm">Power & Data Comm</h4>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400">Facility</span>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-slate-500 dark:text-slate-400 font-medium text-xs" id="base-power">$0/mo</div>
+                                <div class="font-bold text-sm" id="save-power">-$0/mo</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <input type="range" id="slider-power" min="-50" max="50" value="0" class="flex-1 accent-blue-500 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer" oninput="calculateSavingsModeler()">
+                            <span class="font-bold text-sm w-12 text-right" id="pct-power">0%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div class="space-y-4">
+                    <h3 class="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2 mb-4">
+                        <span class="w-2 h-2 rounded-full bg-indigo-500"></span> Personnel Cost (IDL)
+                    </h3>
+
+                    <div class="bg-white dark:bg-slate-800/50 border-l-4 border-indigo-500 rounded-xl p-5 shadow-md flex flex-col gap-3">
+                        <div class="flex justify-between items-start">
+                            <div class="flex items-center gap-2">
+                                <h4 class="text-slate-800 dark:text-white font-bold text-sm">Indirect Labor (Wages & HA)</h4>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400">Core</span>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-slate-500 dark:text-slate-400 font-medium text-xs" id="base-idl">$0/mo</div>
+                                <div class="font-bold text-sm" id="save-idl">-$0/mo</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <input type="range" id="slider-idl" min="-50" max="50" value="0" class="flex-1 accent-indigo-500 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer" oninput="calculateSavingsModeler()">
+                            <span class="font-bold text-sm w-12 text-right" id="pct-idl">0%</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-slate-800/50 border-l-4 border-indigo-500 rounded-xl p-5 shadow-md flex flex-col gap-3">
+                        <div class="flex justify-between items-start">
+                            <div class="flex items-center gap-2">
+                                <h4 class="text-slate-800 dark:text-white font-bold text-sm">IDL BFP</h4>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400">Core</span>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-slate-500 dark:text-slate-400 font-medium text-xs" id="base-idlbfp">$0/mo</div>
+                                <div class="font-bold text-sm" id="save-idlbfp">-$0/mo</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <input type="range" id="slider-idlbfp" min="-50" max="50" value="0" class="flex-1 accent-indigo-500 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer" oninput="calculateSavingsModeler()">
+                            <span class="font-bold text-sm w-12 text-right" id="pct-idlbfp">0%</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-slate-800/50 border-l-4 border-indigo-500 rounded-xl p-5 shadow-md flex flex-col gap-3">
+                        <div class="flex justify-between items-start">
+                            <div class="flex items-center gap-2">
+                                <h4 class="text-slate-800 dark:text-white font-bold text-sm">Staff Welfare & Benefits</h4>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400">Core</span>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-slate-500 dark:text-slate-400 font-medium text-xs" id="base-benefits">$0/mo</div>
+                                <div class="font-bold text-sm" id="save-benefits">-$0/mo</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <input type="range" id="slider-benefits" min="-50" max="50" value="0" class="flex-1 accent-indigo-500 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer" oninput="calculateSavingsModeler()">
+                            <span class="font-bold text-sm w-12 text-right" id="pct-benefits">0%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <h3 class="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2 mb-4 mt-8">
+                        <span class="w-2 h-2 rounded-full bg-amber-500"></span> Services, T&E, Depreciation
+                    </h3>
+
+                    <div class="bg-white dark:bg-slate-800/50 border-l-4 border-amber-500 rounded-xl p-5 shadow-md flex flex-col gap-3">
+                        <div class="flex justify-between items-start">
+                            <div class="flex items-center gap-2">
+                                <h4 class="text-slate-800 dark:text-white font-bold text-sm">Travel & Entertainment</h4>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400">Services</span>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-slate-500 dark:text-slate-400 font-medium text-xs" id="base-tne">$0/mo</div>
+                                <div class="font-bold text-sm" id="save-tne">-$0/mo</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <input type="range" id="slider-tne" min="-50" max="50" value="0" class="flex-1 accent-amber-500 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer" oninput="calculateSavingsModeler()">
+                            <span class="font-bold text-sm w-12 text-right" id="pct-tne">0%</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-slate-800/50 border-l-4 border-amber-500 rounded-xl p-5 shadow-md flex flex-col gap-3">
+                        <div class="flex justify-between items-start">
+                            <div class="flex items-center gap-2">
+                                <h4 class="text-slate-800 dark:text-white font-bold text-sm">S&R, Comm & Consumables</h4>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400">Services</span>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-slate-500 dark:text-slate-400 font-medium text-xs" id="base-snr">$0/mo</div>
+                                <div class="font-bold text-sm" id="save-snr">-$0/mo</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <input type="range" id="slider-snr" min="-50" max="50" value="0" class="flex-1 accent-amber-500 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer" oninput="calculateSavingsModeler()">
+                            <span class="font-bold text-sm w-12 text-right" id="pct-snr">0%</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-slate-800/50 border-l-4 border-amber-500 rounded-xl p-5 shadow-md flex flex-col gap-3">
+                        <div class="flex justify-between items-start">
+                            <div class="flex items-center gap-2">
+                                <h4 class="text-slate-800 dark:text-white font-bold text-sm">Depreciation</h4>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300">Fixed</span>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-slate-500 dark:text-slate-400 font-medium text-xs" id="base-depreciation">$0/mo</div>
+                                <div class="font-bold text-sm" id="save-depreciation">-$0/mo</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <input type="range" id="slider-depreciation" min="-50" max="50" value="0" class="flex-1 accent-amber-500 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer" oninput="calculateSavingsModeler()">
+                            <span class="font-bold text-sm w-12 text-right" id="pct-depreciation">0%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+        
+        <div class="mt-6 flex justify-end">
+            <button onclick="refreshSavingsModeler()" class="px-4 py-2 bg-slate-800 text-white rounded-lg text-xs font-bold shadow hover:bg-slate-700 transition-colors flex items-center gap-2">
+                <i class="fas fa-sync-alt"></i> Load Active Dashboard Data
+            </button>
+        </div>
+
     </div>
 
     <div id="secure-import-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm transition-opacity">

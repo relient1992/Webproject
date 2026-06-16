@@ -401,7 +401,7 @@ window.applyGlobalFilters = function(isInitialLoad = false) {
             renderViewPLDatasheet(costFieldToUse); 
             renderView2MoM(activeHeaderKey, costFieldToUse);
             renderView3Visuals();
-            resetSimulation();
+            refreshSavingsModeler();
 
         } catch (error) {
             console.error("Error applying filters:", error);
@@ -434,7 +434,7 @@ window.switchMainTab = function(tabId) {
     }
 
     if(tabId === 'visuals') renderView3Visuals();
-    if(tabId === 'sim') runSimulation();
+    if(tabId === 'sim') refreshSavingsModeler();
 };
 
 // ----------------------------------------------------
@@ -2307,7 +2307,7 @@ window.generateExecutivePPT = async function() {
         const boxes = [
             { label: "REVENUE", val: formatCurrency(d.rev), color: theme.text },
             { label: "GROSS PROFIT", val: formatCurrency(grossProfit), color: theme.text },
-            { label: "NET MARGIN %", val: netMargin.toFixed(1) + "%", color: isLoss ? theme.red : theme.text },
+            { label: "GROSS MARGIN %", val: netMargin.toFixed(1) + "%", color: isLoss ? theme.red : theme.text },
             { label: "DIRECT COGS", val: formatCurrency(d.cogs), color: theme.gray },
             { label: "ASSOC. COST", val: formatCurrency(d.opex), color: 'EAB308' }
         ];
@@ -2425,7 +2425,7 @@ window.openExecutiveBrief = function() {
     // Build a cohesive FP&A story from top-line to bottom-line
     let narrative = `The active portfolio is currently tracking at <strong class="text-white">${formatCurrency(globalRev)}</strong> in revenue, generating a Gross Profit of <strong class="text-white">${formatCurrency(globalGrossProfit)}</strong>. `;
     
-    narrative += `After accounting for <strong>${formatCurrency(globalOpex)}</strong> in associated overhead, the fully loaded Net Margin sits at <strong class="text-white">${globalNetMargin.toFixed(1)}%</strong>. `;
+    narrative += `After accounting for <strong>${formatCurrency(globalOpex)}</strong> in associated overhead, the fully loaded Gross Margin sits at <strong class="text-white">${globalNetMargin.toFixed(1)}%</strong>. `;
 
     if (globalNetMargin >= 15) {
         narrative += `This reflects strong operational health and highly efficient cost utilization across the board.`;
@@ -2535,21 +2535,21 @@ window.openExecutiveBrief = function() {
                 "Limit discretionary and administrative spend; current overhead sits at a concerning <strong>{VAL}</strong>."
             ],
             marginBad: [
-                "Fully loaded costs are suppressing operating margins (<strong>{VAL}</strong>). Consider wage inflation offsets or pricing negotiations.",
-                "Margins are notably compressed at <strong>{VAL}</strong>. A strategic review of delivery efficiency is advised.",
-                "The <strong>{VAL}</strong> gross margin leaves little room for error. Focus on improving direct labor utilization.",
-                "Profitability is thin (<strong>{VAL}</strong>). Investigate opportunities to negotiate better vendor or labor rates.",
-                "Operating at a vulnerable <strong>{VAL}</strong> margin. Revenue growth must outpace cost escalation moving forward.",
-                "Margin yield is dangerously tight at <strong>{VAL}</strong>. Scope creep or labor inefficiencies may be occurring.",
-                "The project is barely breaking even with a <strong>{VAL}</strong> margin. Immediate pricing or cost actions are needed.",
-                "A narrow <strong>{VAL}</strong> margin indicates that the cost of delivery is misaligned with current billing rates.",
-                "Profit margins have shrunk to <strong>{VAL}</strong>. Operational leadership must focus on cost containment.",
-                "The <strong>{VAL}</strong> gross margin highlights a need to restructure resource allocation to improve profitability.",
-                "Financial buffer is limited due to a <strong>{VAL}</strong> operating margin. Target process automation to reduce COGS.",
-                "Experiencing margin degradation, currently sitting at <strong>{VAL}</strong>. Prioritize high-margin activities.",
-                "The <strong>{VAL}</strong> bottom-line return is suboptimal. Challenge current staffing and indirect cost models.",
-                "Thin operating margins (<strong>{VAL}</strong>) suggest the project is highly sensitive to any future cost shocks.",
-                "Yield is currently constrained at <strong>{VAL}</strong>. Commercial teams should explore rate card adjustments."
+                "Direct delivery costs are suppressing gross margins (<strong>{VAL}</strong>). Consider wage inflation offsets or pricing negotiations.",
+                "Gross margins are currently compressed at <strong>{VAL}</strong>. A strategic review of delivery efficiency is advised.",
+                "The <strong>{VAL}</strong> gross margin leaves little room for indirect overhead. Focus on improving direct labor utilization.",
+                "Top-line profitability is thin (<strong>{VAL}</strong>). Investigate opportunities to negotiate better direct vendor or labor rates.",
+                "Operating at a vulnerable <strong>{VAL}</strong> gross margin. Revenue growth must outpace direct cost escalation moving forward.",
+                "Gross margin yield is tracking below target at <strong>{VAL}</strong>. Scope creep or labor inefficiencies may be occurring.",
+                "The project is generating a suboptimal <strong>{VAL}</strong> gross margin. Immediate pricing or direct cost actions are needed.",
+                "A <strong>{VAL}</strong> gross margin indicates that the direct cost of delivery is misaligned with current billing rates.",
+                "Gross profit margins sit at <strong>{VAL}</strong>. Operational leadership must focus on direct cost containment.",
+                "The <strong>{VAL}</strong> gross margin highlights a need to restructure resource allocation before overhead is even applied.",
+                "Financial buffer is limited due to a <strong>{VAL}</strong> gross margin. Target process automation to reduce direct COGS.",
+                "Experiencing gross margin degradation, currently sitting at <strong>{VAL}</strong>. Prioritize high-margin activities.",
+                "The <strong>{VAL}</strong> initial margin return is suboptimal. Challenge current direct staffing models.",
+                "Thin gross margins (<strong>{VAL}</strong>) suggest the project is highly sensitive to any future direct cost shocks.",
+                "Direct profit yield is currently constrained at <strong>{VAL}</strong>. Commercial teams should explore rate card adjustments."
             ],
             profitBad: [
                 "Project is operating at a net loss. Gross profit is insufficient to cover the combined direct and indirect cost footprint.",
@@ -2625,8 +2625,8 @@ window.openExecutiveBrief = function() {
                         <span class="text-xl font-black ${grossProfit < 0 ? 'text-rose-500' : 'text-slate-800 dark:text-white'}">${formatCurrency(grossProfit)}</span>
                     </div>
                     <div class="bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-xl p-4">
-                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Net Margin %</span>
-                        <span class="text-xl font-black ${pMargin < 15 ? 'text-rose-500' : 'text-slate-800 dark:text-white'}">${pMargin.toFixed(1)}%</span>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Gross Margin %</span>
+                        <span class="text-xl font-black ${grossMarginPct < 50 ? 'text-amber-500' : 'text-slate-800 dark:text-white'}">${grossMarginPct.toFixed(1)}%</span>
                     </div>
                     <div class="bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-xl p-4">
                         <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Direct COGS</span>
@@ -2665,4 +2665,294 @@ window.openExecutiveBrief = function() {
 
 window.closeExecutiveBrief = function() {
     document.getElementById('exec-brief-modal').classList.add('hidden');
+};
+
+// ====================================================
+// COST OPTIMIZATION MODELER ENGINE
+// ====================================================
+
+// Stores the base monthly values dynamically pulled from the dataset
+window.modelerBase = {
+    procWages: 0, ot: 0, holiday: 0, bfp: 0,        // Variable
+    idl: 0, idlbfp: 0, benefits: 0,                 // IDL & Benefits
+    rent: 0, rm: 0, power: 0,                       // Facilities
+    tne: 0, snr: 0, depreciation: 0                 // Services & Other
+};
+
+// Monthly-average Revenue and Cost of Revenue (COGS) for COR% calculation
+window.modelerRev = 0;
+window.modelerCogs = 0;
+
+const formatModCur = (val) => {
+    const isNeg = val < 0;
+    return (isNeg ? '-$' : '$') + Math.round(Math.abs(val)).toLocaleString();
+};
+
+window.refreshSavingsModeler = function() {
+    if (!filteredData || filteredData.length === 0) return;
+
+    const costField = document.getElementById('config-opt-tech')?.checked ? 'Cost_Tech' : 'Cost';
+    
+    let totals = { 
+        procWages: 0, ot: 0, holiday: 0, bfp: 0,
+        idl: 0, idlbfp: 0, benefits: 0,
+        rent: 0, rm: 0, power: 0,
+        tne: 0, snr: 0, depreciation: 0
+    };
+    
+    let uniqueMonths = new Set();
+    let revTotal = 0, cogsTotal = 0;
+
+    filteredData.forEach(row => {
+        const cost = parseFloat(row[costField] || row.cost || 0);
+        if (cost === 0) return;
+
+        if (row.Dated || row.dated) uniqueMonths.add((row.Dated || row.dated).substring(0, 7));
+
+        // FIX: Combine ALL possible headers into one continuous string to ensure deep nesting is caught
+        const h1 = row.Header1 || row.header1 || '';
+        const h2 = row.Header2 || row.header2 || '';
+        const h3 = row.Header3 || row.header3 || '';
+        const h4 = row.Header4 || row.header4 || '';
+        const h5 = row.Header5 || row.header5 || '';
+        const pathStr = `${h1} | ${h2} | ${h3} | ${h4} | ${h5}`.toLowerCase();
+
+        // Revenue & Cost of Revenue (COGS) — same definition as the P&L datasheet
+        const h1l = String(h1).toLowerCase();
+        const h2l = String(h2).toLowerCase();
+        const isCount = h1l.includes('headcount') || h1l.includes('volume') || h2l.includes('headcount');
+        if (!isCount) {
+            if (h1l.includes('revenue')) revTotal += Math.abs(cost);
+            else if (h1l.includes('cost of goods') || h1l.includes('cogs')) cogsTotal += cost;
+        }
+
+        // 1. Variable Costs (Processor)
+        if (pathStr.includes('variable cost') || pathStr.includes('processor')) {
+            if (pathStr.includes('wages')) totals.procWages += cost;
+            else if (pathStr.includes('ot') || pathStr.includes('overtime')) totals.ot += cost;
+            else if (pathStr.includes('ha') || pathStr.includes('holiday')) totals.holiday += cost;
+            else if (pathStr.includes('bfp')) totals.bfp += cost;
+        }
+        
+        // 2. Personnel / Fixed (IDL & Benefits)
+        else if (pathStr.includes('indirect labour') || pathStr.includes('indirect labor')) {
+            if (pathStr.includes('bfp')) totals.idlbfp += cost;
+            else if (pathStr.includes('wages') || pathStr.includes('ha')) totals.idl += cost;
+        }
+        else if (pathStr.includes('employee benefits') || pathStr.includes('staff welfare')) {
+            totals.benefits += cost;
+        }
+        
+        // 3. Facilities
+        else if (pathStr.includes('building rent')) totals.rent += cost;
+        else if (pathStr.includes('r & m') || pathStr.includes('repair')) totals.rm += cost;
+        else if (pathStr.includes('power & fuel') || pathStr.includes('data comm') || pathStr.includes('communication')) {
+            totals.power += cost;
+        }
+        
+        // 4. Services & Depreciation
+        else if (pathStr.includes('travel') || pathStr.includes('travelling')) totals.tne += cost;
+        else if (pathStr.includes('s & r') || pathStr.includes('service supplies') || pathStr.includes('consumables')) {
+            totals.snr += cost;
+        }
+        else if (pathStr.includes('depreciation')) totals.depreciation += cost;
+    });
+
+    const monthCount = uniqueMonths.size || 1;
+
+    // Store monthly-average Revenue and Cost of Revenue
+    window.modelerRev = Math.abs(revTotal) / monthCount;
+    window.modelerCogs = Math.abs(cogsTotal) / monthCount;
+
+    // Set Averages
+    for (let key in totals) {
+        window.modelerBase[key] = Math.abs(totals[key] / monthCount);
+    }
+
+    // Update Baseline UI
+    const fields = ['proc-wages', 'ot', 'holiday', 'bfp', 'idl', 'idlbfp', 'benefits', 'rent', 'rm', 'power', 'tne', 'snr', 'depreciation'];
+    const keys = ['procWages', 'ot', 'holiday', 'bfp', 'idl', 'idlbfp', 'benefits', 'rent', 'rm', 'power', 'tne', 'snr', 'depreciation'];
+    
+    fields.forEach((id, idx) => {
+        const el = document.getElementById(`base-${id}`);
+        if(el) el.textContent = formatModCur(window.modelerBase[keys[idx]]) + '/mo';
+        
+        // Reset slider to 0
+        const sliderEl = document.getElementById(`slider-${id}`);
+        if(sliderEl) sliderEl.value = 0;
+    });
+
+    // Reset preset buttons styling
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.className = "preset-btn text-left p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 hover:border-emerald-500 transition-colors";
+        const title = btn.querySelector('.font-bold');
+        if(title) {
+            title.classList.remove('text-emerald-600', 'dark:text-emerald-500');
+            title.classList.add('text-slate-700', 'dark:text-slate-300');
+        }
+    });
+
+    calculateSavingsModeler();
+};
+
+window.calculateSavingsModeler = function() {
+    const fields = [
+        { id: 'proc-wages', key: 'procWages' }, { id: 'ot', key: 'ot' },
+        { id: 'holiday', key: 'holiday' }, { id: 'bfp', key: 'bfp' },
+        { id: 'idl', key: 'idl' }, { id: 'idlbfp', key: 'idlbfp' }, { id: 'benefits', key: 'benefits' },
+        { id: 'rent', key: 'rent' }, { id: 'rm', key: 'rm' }, { id: 'power', key: 'power' },
+        { id: 'tne', key: 'tne' }, { id: 'snr', key: 'snr' }, { id: 'depreciation', key: 'depreciation' }
+    ];
+
+    let totalMonthlyVariance = 0; // Negative = Savings, Positive = Added Cost
+
+    fields.forEach(item => {
+        const pct = parseInt(document.getElementById(`slider-${item.id}`).value || 0);
+        
+        // UI updates for individual sliders
+        const pctLabel = pct > 0 ? `+${pct}%` : `${pct}%`;
+        const pctEl = document.getElementById(`pct-${item.id}`);
+        pctEl.textContent = pctLabel;
+        pctEl.className = pct > 0 ? "font-bold text-sm w-12 text-right text-rose-500" : (pct < 0 ? "font-bold text-sm w-12 text-right text-emerald-500" : "font-bold text-sm w-12 text-right text-slate-500");
+
+        const variance = window.modelerBase[item.key] * (pct / 100);
+        const saveEl = document.getElementById(`save-${item.id}`);
+        saveEl.textContent = (variance > 0 ? '+' : '') + formatModCur(variance) + '/mo';
+        saveEl.className = variance > 0 ? "font-bold text-sm text-rose-500" : (variance < 0 ? "font-bold text-sm text-emerald-500" : "font-bold text-sm text-slate-400");
+        
+        totalMonthlyVariance += variance;
+    });
+
+    // Global Totals
+    const totalBase = Object.values(window.modelerBase).reduce((a, b) => a + b, 0);
+    const totalAnnualVariance = totalMonthlyVariance * 12;
+    const variancePct = totalBase > 0 ? (totalMonthlyVariance / totalBase) * 100 : 0;
+
+    // --- Revenue & Cost of Revenue (COR%) ---
+    // Baseline COR% uses the P&L "Cost of Goods" bucket when available; otherwise
+    // it falls back to the modeled cost base so the metric still works.
+    const rev = window.modelerRev || 0;
+    const corBaseCost = (window.modelerCogs && window.modelerCogs > 0) ? window.modelerCogs : totalBase;
+    const baselineCor = rev > 0 ? (corBaseCost / rev) * 100 : 0;
+    const projectedCor = rev > 0 ? ((corBaseCost + totalMonthlyVariance) / rev) * 100 : 0;
+    const corDelta = projectedCor - baselineCor;
+
+    const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+    const setHtml = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+
+    setText('model-revenue', rev > 0 ? formatModCur(rev) : '$0');
+
+    if (rev > 0) {
+        setText('model-cor', projectedCor.toFixed(1) + '%');
+        setHtml('model-cor-sub', `Baseline <strong>${baselineCor.toFixed(1)}%</strong> &rarr; Projected <strong>${projectedCor.toFixed(1)}%</strong>`);
+        const corDeltaEl = document.getElementById('model-cor-delta');
+        if (corDeltaEl) {
+            // Reverse logic: COR going DOWN is good (green), UP is bad (red)
+            const sign = corDelta > 0 ? '+' : '';
+            corDeltaEl.textContent = `${sign}${corDelta.toFixed(1)} pts`;
+            corDeltaEl.className = `text-xs font-bold ${corDelta < -0.0001 ? 'text-emerald-500' : (corDelta > 0.0001 ? 'text-rose-500' : 'text-slate-400')}`;
+        }
+    } else {
+        setText('model-cor', 'N/A');
+        setText('model-cor-sub', 'No revenue in current filters');
+        const corDeltaEl = document.getElementById('model-cor-delta');
+        if (corDeltaEl) { corDeltaEl.textContent = '—'; corDeltaEl.className = 'text-xs font-bold text-slate-400'; }
+    }
+
+    // Update Top Cards
+    document.getElementById('model-base-total').textContent = formatModCur(totalBase);
+    
+    const isSavings = totalMonthlyVariance < 0;
+    const colorClass = isSavings ? 'text-emerald-500' : (totalMonthlyVariance > 0 ? 'text-rose-500' : 'text-slate-500');
+    
+    document.getElementById('model-save-label').textContent = isSavings ? "Monthly Savings" : "Monthly Added Cost";
+    document.getElementById('model-save-monthly').textContent = (totalMonthlyVariance > 0 ? '+' : '') + formatModCur(Math.abs(totalMonthlyVariance));
+    document.getElementById('model-save-monthly').className = `text-3xl font-black ${colorClass}`;
+    
+    document.getElementById('model-save-annual').textContent = (totalAnnualVariance > 0 ? '+' : '') + formatModCur(Math.abs(totalAnnualVariance));
+    document.getElementById('model-save-annual').className = `text-3xl font-black ${colorClass}`;
+    
+    document.getElementById('model-save-pct').textContent = `${Math.abs(variancePct).toFixed(1)}% ${isSavings ? 'reduction' : 'increase'}`;
+    
+    // Center-Origin Progress Bar (-50 to +50)
+    // -50% maps to 0% width/position, 0% maps to 50% position, +50% maps to 100% position
+    const bar = document.getElementById('model-progress-bar');
+    const displayPct = Math.max(-50, Math.min(50, variancePct)); 
+    
+    if (displayPct < 0) {
+        bar.style.left = `${50 + displayPct}%`;
+        bar.style.width = `${Math.abs(displayPct)}%`;
+        bar.className = "bg-emerald-500 h-3 rounded-full transition-all duration-500 absolute";
+    } else {
+        bar.style.left = `50%`;
+        bar.style.width = `${displayPct}%`;
+        bar.className = "bg-rose-500 h-3 rounded-full transition-all duration-500 absolute";
+    }
+    
+    document.getElementById('model-progress-text').textContent = (displayPct > 0 ? '+' : '') + displayPct.toFixed(1) + '% variance';
+    document.getElementById('model-progress-text').className = `text-xs font-bold ${colorClass}`;
+
+    // Keep the preset buttons in sync with the actual slider state
+    highlightModelerPreset(detectActivePreset());
+};
+
+// Computes the slider values a given preset would produce (mirrors applyModelerPreset)
+function modelerPresetValues(val) {
+    const vals = {};
+    document.querySelectorAll('#view-sim input[type="range"]').forEach(slider => {
+        let mult = 1;
+        if (slider.id.includes('rent') || slider.id.includes('depreciation')) mult = 0;
+        if (slider.id.includes('ot') || slider.id.includes('tne')) mult = 2;
+        vals[slider.id] = Math.max(-50, Math.min(50, val * mult));
+    });
+    return vals;
+}
+
+// Returns the preset value (-5, -15, 10) matching the current sliders, or null
+function detectActivePreset() {
+    const candidates = [-5, -15, 10];
+    for (const c of candidates) {
+        const expected = modelerPresetValues(c);
+        let allMatch = true;
+        for (const id in expected) {
+            const el = document.getElementById(id);
+            if (!el || parseInt(el.value) !== expected[id]) { allMatch = false; break; }
+        }
+        if (allMatch) return c;
+    }
+    return null;
+}
+
+// Applies/clears the active styling on the three preset buttons
+function highlightModelerPreset(activeVal) {
+    const INACTIVE = "text-left p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 hover:border-emerald-500 transition-colors";
+    const ACTIVE = "text-left p-4 rounded-xl border-2 border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 transition-colors";
+
+    document.querySelectorAll('[onclick^="applyModelerPreset"]').forEach(btn => {
+        const m = (btn.getAttribute('onclick') || '').match(/-?\d+(\.\d+)?/);
+        const btnVal = m ? parseFloat(m[0]) : null;
+        const isActive = activeVal !== null && btnVal === activeVal;
+
+        btn.className = isActive ? ACTIVE : INACTIVE;
+        const title = btn.querySelector('.font-bold');
+        if (title) {
+            title.classList.toggle('text-emerald-600', isActive);
+            title.classList.toggle('dark:text-emerald-500', isActive);
+            title.classList.toggle('text-slate-700', !isActive);
+            title.classList.toggle('dark:text-slate-300', !isActive);
+        }
+    });
+}
+
+window.applyModelerPreset = function(val) {
+    // If val is negative (Savings), if val is positive (Expansion)
+    document.querySelectorAll('input[type="range"]').forEach(slider => {
+        // Apply varying degrees of change depending on the category to make it realistic
+        let mult = 1;
+        if(slider.id.includes('rent') || slider.id.includes('depreciation')) mult = 0; // Can't easily change fixed costs
+        if(slider.id.includes('ot') || slider.id.includes('tne')) mult = 2; // Easier to cut/expand OT and Travel
+        
+        slider.value = Math.max(-50, Math.min(50, val * mult));
+    });
+    calculateSavingsModeler();
 };
